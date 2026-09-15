@@ -1,0 +1,452 @@
+/* ОБЩЕЕ ДЛЯ ДВУХ СБОРЩИКОВ: /pak/ и /fixclo/.
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Тот же приём, что у `vhod/vhod.css`: разъехавшиеся палитры на соседних
+   страницах одного пути читаются как разные площадки. Файл один — правка
+   приходит сразу в оба сборщика.
+
+   ── ДВЕ ТЕМЫ, И СВЕТЛАЯ ЗДЕСЬ НЕ НОВШЕСТВО ─────────────────────────────────
+
+   Первая редакция этого файла была ночной без светлой темы, и объясняла это
+   так: «ночные акценты на светлой бумаге не проходят даже 3:1, значит светлая
+   тема — вторая правда о цвете». Числа верны (#22CFEE на #F4F6F8 даёт 1.73),
+   но доказывают они не то, что утверждалось: что палитру нельзя ПЕРЕВЕРНУТЬ
+   механически. Довод симметричен и потому пуст — дневной #0E5E5A на ночном
+   #101A22 даёт 2.14, из чего «не бывает ночной темы» не следует.
+
+   А главное — второй набор акцентов на сайте УЖЕ ЕСТЬ, замерен и выложен:
+   `/svod/`, `/podbor/` и `/spravka/` светлые по умолчанию. Значения ниже взяты
+   у них, а не придуманы. Сборщик не заводит вторую правду о цвете; он
+   перестаёт быть единственным местом, которое её не знает.
+
+   ── РЕШЕНИЕ ВЛАДЕЛЬЦА ОТ 04.09 ЭТИМ НЕ ЗАДЕТО ──────────────────────────────
+
+   Оно про ПОЛЕ: на светлой земле верхняя грань песочного материала даёт к ней
+   1.18–1.35 и структурно невидима, при 12.3 на тёмной. Замер подлинный
+   (пересчитан 07.09.2026, сходится до второго знака). Но он меряет ровно одну
+   величину — контраст грани объёмного материала к грунту. На сборщиках нет ни
+   земли, ни граней, ни света, ни тени: здесь форма, предпросмотр файла и
+   таблица. Величины нет — переносить нечего.
+
+   ── ГРАНИЦА ОРГАНА УПРАВЛЕНИЯ — ОТДЕЛЬНЫЙ ТОКЕН ────────────────────────────
+
+   `--hair` это волосяная линия между панелями: украшение, порог к ней не
+   применяется. Границе поля ввода, кнопки и вкладки применяется — 3:1 по
+   WCAG 2.2 SC 1.4.11. Первая редакция красила `--hair` и то и другое, и рамки
+   давали 1.47:1, вдвое ниже порога, на двух страницах, которые кроме формы
+   ничего не содержат.
+
+   Это не открытие: `/svod/` наступил на то же и завёл `--card-edge` («замер
+   06.09.2026: --hair давала 1.33:1 при норме 3.0»). Здесь тот же токен под
+   тем же именем — чтобы следующий, кто их сравнит, увидел одно решение, а не
+   два похожих.
+
+   ── ЗАМЕРЫ ─────────────────────────────────────────────────────────────────
+
+   Их не надо держать в голове и незачем повторять в комментарии: они считаются
+   из этого файла проверкой `tests/test_sborka_contrast.py`. Комментарий с
+   числами устаревает молча, проверка — падает. */
+
+:root{
+  /* ДЕНЬ. Значения /svod/, /podbor/, /spravka/ — те же, что уже выложены. */
+  --ground:#EDEFEE;  --surface:#F8F9F8;  --sunk:#E3E7E5;
+  --ink:#131A19;     --ink-2:#4C5A57;
+  /* --ink-3 ОТЛИЧАЕТСЯ от /svod/ (#77837F), и вот почему. Там им крашены
+     подписи-украшения; здесь — подсказка под КАЖДЫМ шагом формы, то есть
+     текст, который что-то сообщает. #77837F даёт 3.73 на surface и 3.15 на
+     sunk при пороге 4.5 для текста. #5A6663 даёт 5.66 / 5.17 / 4.79. */
+  --ink-3:#5A6663;
+  --hair:#CBD2D0;    --hair-2:#DCE1DF;
+  --edge:#77837F;    /* граница органа управления: 3.73 на surface */
+  --accent:#0E5E5A;  --on-accent:#FFFFFF;   /* белый на заливке: 7.59 */
+  --caution:#8A5A12; --refusal:#7A2E2E;
+  /* Полутона под акцент и отказ. Ночной циан на бумаге читался бы чужим
+     цветом, поэтому это токен, а не зашитая rgba у каждого правила. */
+  --wash-accent:rgba(14,94,90,.09);
+  --wash-refusal:rgba(122,46,46,.08);
+  --wash-caution:rgba(138,90,18,.10);
+  --window-shadow:0 18px 48px rgba(0,0,0,.22);
+  --glow:transparent;    /* днём свечения нет: бумага не светится */
+  --body-bg:var(--ground);
+  color-scheme:light;
+}
+
+@media (prefers-color-scheme: dark){
+  /* Ночь. Значения общей палитры бумаги из `index.html`.
+     `:root:not([data-theme="light"])` — чтобы явно выбранный светлый режим
+     побеждал тёмную систему, а не наоборот. */
+  :root:not([data-theme="light"]){
+    --ground:#0A141B;  --surface:#101A22;  --sunk:#0B1319;
+    --ink:#E8EDF7;     --ink-2:#B9C0BD;    --ink-3:#8A918E;
+    --hair:rgba(232,237,247,.14);
+    --hair-2:rgba(232,237,247,.10);
+    /* Сплошной, а не rgba: сплав .14 давал 1.47 при пороге 3. */
+    --edge:#666E77;
+    --accent:#22CFEE;  --on-accent:#06232B;   /* тёмный на циане: 8.75 */
+    --caution:#CFA043; --refusal:#D08A80;
+    --wash-accent:rgba(34,207,238,.12);
+    --wash-refusal:rgba(208,138,128,.10);
+    --wash-caution:rgba(207,160,67,.10);
+    --glow:radial-gradient(900px 520px at 50% 0%, #0E2833 0%, transparent 60%);
+    --body-bg:linear-gradient(160deg,#062028 0%,#0B1218 58%,#0A0F14 100%);
+    color-scheme:dark;
+  }
+}
+
+*{box-sizing:border-box}
+html{background:var(--ground)}
+body{
+  margin:0;
+  /* Тот же свет, что у двери: человек приходит оттуда. Ночью это зарево,
+     днём — ровный лист: бумага не светится, и подделывать это нечем. */
+  background:var(--glow), var(--body-bg);
+  background-color:var(--ground);
+  color:var(--ink);
+  font:400 16px/1.6 'Golos Text', system-ui, sans-serif;
+}
+.mono{font-family:'IBM Plex Mono', ui-monospace, Menlo, monospace}
+
+/* ── шапка и каркас ─────────────────────────────────────────────────────── */
+.top{display:flex;align-items:center;justify-content:space-between;
+     padding:22px 30px;border-bottom:1px solid var(--hair-2)}
+.brand{font-weight:700;letter-spacing:.14em;font-size:13px}
+.brand b{color:var(--accent)}
+.back{color:var(--ink-3);font-size:13px;text-decoration:none}
+.back:hover{color:var(--ink-2)}
+.wrap{max-width:1120px;margin:0 auto;padding:30px 22px 80px}
+h1{margin:0 0 8px;font:600 clamp(26px,4.4vw,38px)/1.1 'Golos Text',sans-serif;
+   letter-spacing:-.02em;text-wrap:balance}
+.lead{margin:0;color:var(--ink-2);font-size:16.5px;max-width:56ch}
+.cols{display:grid;gap:20px;grid-template-columns:1fr;margin-top:26px}
+@media (min-width:940px){.cols{grid-template-columns:1fr 1fr;align-items:start}}
+
+/* ── шаг формы ──────────────────────────────────────────────────────────── */
+.step{background:var(--surface);border:1px solid var(--hair);border-radius:14px;
+      padding:18px 20px;margin-bottom:14px}
+.step h2{display:flex;align-items:center;margin:0 0 4px;
+         font:600 16px/1.3 'Golos Text',sans-serif}
+.advanced-settings{margin:0 0 14px;border:1px solid var(--hair);border-radius:14px;
+  background:var(--surface);padding:0 14px}
+.advanced-settings>summary{cursor:pointer;padding:15px 4px;font-weight:700;
+  color:var(--ink-2)}
+.advanced-settings[open]>summary{border-bottom:1px solid var(--hair)}
+.advanced-settings .step{margin:12px 0}
+.num{display:inline-grid;place-items:center;width:26px;height:26px;flex:none;
+     border-radius:50%;margin-right:10px;
+     background:var(--wash-accent);color:var(--accent);
+     font:600 12px 'IBM Plex Mono',monospace}
+.hint{margin:0 0 12px;color:var(--ink-3);font-size:14px}
+
+input,textarea{width:100%;font:inherit;color:var(--ink);
+  background:var(--sunk);border:1px solid var(--edge);border-radius:9px;
+  padding:11px 13px}
+textarea{min-height:94px;resize:vertical;line-height:1.55}
+input::placeholder,textarea::placeholder{color:var(--ink-3)}
+input:focus-visible,textarea:focus-visible,
+button:focus-visible,a:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px}
+
+/* ── таблетки выбора ────────────────────────────────────────────────────── */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:14px;padding:8px 13px;border-radius:999px;
+      cursor:pointer;color:var(--ink-2);
+      background:transparent;border:1px solid var(--edge)}
+.chip:hover{border-color:var(--ink-3)}
+.chip[aria-pressed="true"]{background:var(--wash-accent);
+      border-color:var(--accent);color:var(--accent);font-weight:600}
+.module-note{margin-top:12px;padding:11px 13px;border-radius:9px;
+      background:var(--wash-caution);border:1px solid var(--caution);
+      color:var(--ink-2);font-size:13.5px}
+
+/* Пилот Домашкина — настоящий последовательный мастер. Исходный конструктор
+   остаётся тем же для обычного ФиксАРика; только typed pilot-route переносит
+   существующие блоки в эти семь ступеней. */
+.pilot-staircase{display:grid;grid-template-columns:minmax(190px,240px) minmax(0,1fr);
+      gap:18px;margin-top:22px;align-items:start}
+.pilot-staircase[hidden]{display:none}
+.pilot-ladder{position:sticky;top:18px;padding:16px;border-radius:14px;
+      background:var(--surface);border:1px solid var(--hair)}
+.pilot-ladder-kicker{margin:0 0 11px;color:var(--ink-3);
+      font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.12em;
+      text-transform:uppercase}
+.pilot-ladder ol{list-style:none;margin:0;padding:0}
+.pilot-ladder li{position:relative;margin:0;padding:0 0 9px}
+.pilot-ladder li:not(:last-child)::after{content:"";position:absolute;left:16px;
+      top:35px;bottom:-1px;width:1px;background:var(--edge)}
+.pilot-ladder button{display:grid;grid-template-columns:34px 1fr;gap:9px;width:100%;
+      padding:7px 5px;text-align:left;color:var(--ink-3);background:transparent;
+      border:0;border-radius:9px;cursor:pointer;font:inherit}
+.pilot-ladder button:disabled{cursor:not-allowed;opacity:.48}
+.pilot-ladder button[aria-current="step"]{color:var(--ink);background:var(--wash-accent)}
+.pilot-ladder button[data-complete="true"]{color:var(--ink-2)}
+.pilot-ladder button[data-complete="true"] .pilot-step-mark{
+      color:var(--on-accent);background:var(--accent);border-color:var(--accent)}
+.pilot-ladder button[data-skipped="true"]{color:var(--caution)}
+.pilot-ladder button[data-skipped="true"] .pilot-step-mark{
+      color:var(--caution);background:var(--wash-caution);border-color:var(--caution)}
+.pilot-step-mark{position:relative;z-index:1;display:grid;place-items:center;width:28px;
+      height:28px;border-radius:50%;background:var(--surface);border:1px solid var(--edge);
+      font:600 11px 'IBM Plex Mono',monospace}
+.pilot-ladder b,.pilot-ladder small{display:block}
+.pilot-ladder b{font-size:13.5px;line-height:1.3}
+.pilot-ladder small{margin-top:2px;font-size:11.5px;line-height:1.3;color:var(--ink-3)}
+.pilot-stage-shell{min-width:0;padding:20px 22px;border-radius:14px;
+      background:var(--surface);border:1px solid var(--hair)}
+.pilot-stage-head{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--hair-2)}
+.pilot-stage-head h2{margin:2px 0 5px;font:600 22px/1.25 'Golos Text',sans-serif}
+.pilot-stage-head>p{margin:0;color:var(--ink-3);font-size:14px}
+.pilot-stage-counter{font:500 11px 'IBM Plex Mono',monospace!important;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--accent)!important}
+.pilot-stage-state{margin-top:9px!important;padding:9px 11px;border-radius:8px;
+      background:var(--sunk);color:var(--ink-2)!important}
+.pilot-stage-panel[hidden]{display:none}
+.pilot-stage-panel>.step{margin-bottom:12px}
+.pilot-stage-panel>.module-note:first-child{margin-top:0}
+.pilot-stage-panel .learning-grid{grid-template-columns:1.3fr .9fr .45fr}
+.pilot-stage-panel #agentSummary{position:static;display:flex;flex-direction:column}
+.pilot-stage-panel #agentSummary>.bar{order:0;margin:2px 0 0}
+.pilot-stage-panel #agentSummary>#verdict{order:1}
+.pilot-stage-panel #identityGate{margin-top:0}
+.pilot-stage-panel #pilotIdentityChoices{margin-top:14px;padding-top:14px;
+      border-top:1px solid var(--hair-2)}
+.pilot-stage-panel #pilotIdentityButtons{display:grid;grid-template-columns:1fr;gap:9px}
+.pilot-stage-panel #pilotIdentityButtons .btn{width:100%}
+.pilot-stage-actions{display:flex;justify-content:space-between;gap:10px;
+      margin-top:18px;padding-top:16px;border-top:1px solid var(--hair-2)}
+.pilot-stage-actions .btn{min-width:112px}
+.pilot-done .module-note{padding:18px;background:var(--wash-accent);
+      border-color:var(--accent)}
+.pilot-done h3{margin:0 0 7px;font-size:18px}
+.pilot-done p{margin:7px 0}
+.pilot-onboarding>.top+.wrap>.cols,
+.pilot-onboarding #learningSetup{display:none}
+/* У ДОМАШКИНА ПРЯЧЕТСЯ ТО, ЧТО РОДИТЕЛЮ НЕ НУЖНО, — просьба владельца 13.09.2026
+   убрать «непонятные объяснения про ходы и расчёт стоимости».
+
+   Прячется, а не удаляется: всё это ОБЩЕЕ с обычным конструктором ФиксАРика,
+   а `посчитать()` и `поля()` читают поля калькулятора и числа ходов при
+   каждой загрузке — удалённый узел уронил бы скрипт в обоих режимах.
+
+   Цена родителю не пропадает — одна строка стоит на шаге включения.
+   Нумерация «1, 2, 3» у полей тоже прячется: у мастера своя, «Шаг N из 7»,
+   и две нумерации на одном экране читались как разные списки. */
+.pilot-onboarding #agentSummary>.card,
+.pilot-onboarding #agentSummary>.money,
+.pilot-onboarding .pilot-stage-panel .num{display:none}
+/* «ХОДОВ НА ПОРУЧЕНИЕ» НЕ ВИДНО НИКОМУ — с 14.09.2026 и в обычном конструкторе.
+   Поле ничего не ограничивает: `max_calls` доходит до AgentSpec, но ни один
+   исполнитель его не читает. Узел не удалён — `поля()` отправляет значение, и
+   у сохранённого помощника оно не должно сбрасываться. */
+#callsStep{display:none}
+
+/* Второй, защищённый этап настройки Домашкина. Он намеренно не входит в
+   payload PersonalAgent: сведения о ребёнке уходят только в Homework/Vault,
+   где дверь требует подтверждённый вход уровня 2. */
+.learning{margin-top:22px;padding:20px 22px;border-radius:14px;
+      background:var(--surface);border:1px solid var(--hair)}
+.learning[hidden]{display:none}
+.learning h2{margin:0 0 5px;font:600 19px/1.3 'Golos Text',sans-serif}
+.learning-grid{display:grid;grid-template-columns:1.3fr .9fr .45fr;gap:11px;
+      margin-top:14px}
+.learning label{display:block;color:var(--ink-3);font-size:13px}
+.learning label input{margin-top:5px}
+.learning-gate{margin:12px 0;padding:12px 14px;border-radius:9px;
+      border:1px solid var(--caution);background:var(--wash-caution);
+      color:var(--ink-2);font-size:13.5px}
+.learning-gate a{color:var(--accent);font-weight:600}
+.catalog-panel,.private-fallback{margin-top:16px;padding-top:16px;
+      border-top:1px solid var(--hair-2)}
+.catalog-panel[hidden],.private-fallback[hidden]{display:none}
+.catalog-heading{display:flex;align-items:flex-start;justify-content:space-between;
+      gap:14px}
+.catalog-heading h3,.private-fallback h3{margin:0 0 4px;font-size:16px}
+.catalog-heading p,.private-fallback p{margin:0;color:var(--ink-3);font-size:13px}
+.catalog-count{flex:none;padding:5px 8px;border-radius:999px;background:var(--wash-accent);
+      color:var(--accent);font:500 11px 'IBM Plex Mono',monospace}
+.catalog-search{display:grid;grid-template-columns:1fr auto;align-items:end;gap:10px;
+      margin-top:13px}
+.catalog-search .btn{white-space:nowrap;padding:10px 15px}
+.catalog-status{min-height:20px;margin:9px 0;color:var(--ink-3);font-size:13px}
+.catalog-results{display:grid;gap:8px;max-height:430px;overflow:auto}
+.catalog-card{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+      padding:11px 12px;border:1px solid var(--hair);border-radius:10px;background:var(--sunk)}
+.catalog-card h4{margin:0;font-size:14px;line-height:1.35}
+.catalog-card p{margin:4px 0;color:var(--ink-3);font-size:12px}
+.catalog-badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px}
+.catalog-badge.ready{background:var(--wash-accent);color:var(--accent)}
+.catalog-badge.metadata{background:var(--wash-caution);color:var(--ink-2)}
+.catalog-pick{padding:8px 11px;white-space:nowrap}
+.catalog-selected{margin-top:13px;padding:11px 12px;border-radius:9px;
+      background:var(--wash-accent)}
+.catalog-selected h4{margin:0 0 5px;font-size:13px}
+.catalog-selected p,.catalog-selected ul{margin:0;font-size:12.5px}
+.catalog-selected ul{padding-left:18px}
+.catalog-selected li{margin:6px 0}
+.catalog-source-search{display:block;width:max-content;max-width:100%;margin-top:4px;
+      color:var(--accent);font-weight:600}
+.pilot-pedu-note ol{margin:10px 0 14px;padding-left:21px}
+.pilot-pedu-note li{margin:6px 0}
+.pilot-pedu-note .btn{display:inline-flex;margin-top:2px}
+.pilot-pedu-note .hint{margin-top:10px}
+.catalog-empty{margin:0;padding:12px;color:var(--ink-3);font-size:13px}
+.book-form{display:grid;grid-template-columns:.7fr 1.3fr auto;gap:10px;
+      align-items:end;margin-top:12px}
+.book-form .btn{white-space:nowrap;padding:10px 15px}
+.upload-log{margin-top:12px;display:grid;gap:7px}
+.upload-row{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;
+      border-radius:8px;background:var(--sunk);font-size:13px;color:var(--ink-2)}
+.upload-row.bad{border:1px solid var(--refusal)}
+.subject-groups{display:grid;gap:10px;margin-top:14px}
+.subject-group{padding:12px 14px;border-radius:10px;border:1px solid var(--hair)}
+.subject-group h3{margin:0 0 5px;font-size:15px}
+.subject-group ul{margin:0}
+
+@media (max-width:720px){
+  .learning-grid,.book-form,.catalog-search,.catalog-card{grid-template-columns:1fr}
+  .catalog-heading{display:block}
+  .catalog-count{display:inline-block;margin-top:8px}
+  .catalog-pick{justify-self:start}
+  .pilot-staircase{grid-template-columns:1fr;gap:12px;margin-top:16px}
+  .pilot-ladder{position:static;padding:12px 14px}
+  .pilot-ladder ol{display:grid;grid-template-columns:1fr 1fr;gap:3px 9px}
+  .pilot-ladder li{padding:0}
+  .pilot-ladder li::after{display:none}
+  .pilot-ladder button{grid-template-columns:28px 1fr;padding:6px 4px}
+  .pilot-step-mark{width:24px;height:24px}
+  .pilot-ladder small{display:none}
+  .pilot-stage-shell{padding:17px 15px}
+  .pilot-stage-panel .learning-grid{grid-template-columns:1fr}
+  .pilot-stage-actions{position:sticky;z-index:8;bottom:0;margin:18px -15px -17px;
+        padding:12px 15px;background:var(--surface);box-shadow:0 -8px 18px var(--ground)}
+  .pilot-stage-actions .btn{min-width:0;flex:1;padding:11px 10px}
+}
+
+/* ── строки-списки (границы помощника, «чего он не должен») ─────────────── */
+.rows{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px}
+.row input{flex:1}
+.row button{flex:none;width:44px;border-radius:9px;cursor:pointer;
+      background:var(--sunk);border:1px solid var(--edge);
+      color:var(--ink-3);font-size:18px;line-height:1}
+.row button:hover{color:var(--refusal);border-color:var(--refusal)}
+.add{margin-top:10px;font:inherit;font-size:14px;padding:8px 13px;
+     border-radius:9px;cursor:pointer;background:transparent;
+     border:1px dashed var(--edge);color:var(--accent)}
+.add:hover{border-color:var(--accent)}
+
+/* ── правая колонка ─────────────────────────────────────────────────────── */
+.out{position:sticky;top:20px}
+.tabs{display:flex;gap:6px}
+.tab{font:inherit;font-size:13px;padding:8px 14px;cursor:pointer;
+     border-radius:10px 10px 0 0;color:var(--ink-3);
+     background:transparent;border:1px solid var(--edge);border-bottom:none}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);
+     font-weight:600}
+pre{margin:0;padding:16px 18px;overflow:auto;max-height:56vh;
+    background:var(--surface);border:1px solid var(--hair);
+    border-radius:0 12px 12px 12px;color:var(--ink-2);
+    font:400 12.5px/1.65 'IBM Plex Mono', ui-monospace, monospace}
+
+.card{background:var(--surface);border:1px solid var(--hair);
+      border-radius:14px;padding:20px 22px}
+.card h3{margin:0 0 4px;font:600 18px/1.25 'Golos Text',sans-serif}
+.who{margin:0 0 14px;color:var(--ink-3);font-size:14px}
+.say{margin-bottom:14px;padding:11px 14px;border-radius:0 9px 9px 0;
+     border-left:3px solid var(--accent);background:var(--wash-accent);
+     font-size:15px}
+.lab{margin:16px 0 7px;font:500 11px 'IBM Plex Mono',monospace;
+     letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+ul{margin:0;padding-left:20px}
+li{margin:5px 0;font-size:14.5px;color:var(--ink-2)}
+
+/* ── несниммаемое: то, чего помощник не сможет никогда ──────────────────── */
+.locked{margin-top:16px;padding:14px 16px;border-radius:11px;
+        background:var(--wash-refusal);
+        border:1px solid var(--refusal)}
+.locked .lab{margin-top:0;color:var(--refusal)}
+.locked li{color:var(--ink-2)}
+
+/* ── кнопки ─────────────────────────────────────────────────────────────── */
+.bar{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+.btn{font:inherit;font-weight:600;padding:12px 20px;border-radius:11px;
+     cursor:pointer;background:var(--accent);color:var(--on-accent);
+     border:1px solid var(--accent)}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--accent);
+           border-color:var(--accent)}
+.btn.ghost:hover{background:var(--wash-accent);filter:none}
+.btn:disabled{opacity:.5;cursor:default;filter:none}
+
+/* ── вердикт проверки ───────────────────────────────────────────────────── */
+.verdict{display:none;margin-top:13px;padding:14px 16px;border-radius:11px;
+         font-size:15px}
+.verdict.ok{display:block;background:var(--wash-accent);
+            border:1px solid var(--accent)}
+.verdict.no{display:block;background:var(--wash-refusal);
+            border:1px solid var(--refusal)}
+.verdict h4{margin:0 0 7px;font-size:15.5px}
+.verdict.no h4{color:var(--refusal)}
+.verdict ul{margin:7px 0 0}
+.verdict code{font-family:'IBM Plex Mono',monospace;font-size:.9em;
+              color:var(--accent)}
+
+/* ── деньги: потолок против наблюдения ──────────────────────────────────── */
+.money{margin-top:14px;padding:18px 20px;background:var(--surface);
+       border:1px solid var(--hair);border-radius:14px}
+.money input{max-width:150px}
+.calc{margin-top:12px;font-size:14.5px}
+.calc table{width:100%;border-collapse:collapse;margin-top:8px}
+.calc td{padding:9px 0;border-bottom:1px solid var(--hair-2);
+         vertical-align:top;color:var(--ink-2)}
+.calc td:not(:first-child){text-align:right;white-space:nowrap;
+         font-variant-numeric:tabular-nums}
+.calc tr:last-child td{border-bottom:0}
+.calc .miss{margin-top:12px;color:var(--ink-3);font-size:13.5px}
+.calc .miss li{font-size:13.5px;color:var(--ink-3)}
+
+/* ЦВЕТ НЕ ЕДИНСТВЕННЫЙ ЗНАК. У метки есть и слово, и рамка: цветовая
+   слепота и режим высокой контрастности не должны стирать смысл. */
+.flag{font:500 11.5px 'IBM Plex Mono',monospace;padding:2px 8px;
+      border-radius:999px;margin-left:7px;white-space:nowrap;
+      border:1px solid var(--edge);color:var(--ink-2)}
+.flag.yes{border-color:var(--accent);color:var(--accent);
+          background:var(--wash-accent)}
+.flag.no{border-color:var(--caution);color:var(--caution);
+         background:var(--wash-caution)}
+
+footer{margin-top:30px;color:var(--ink-3);font-size:13.5px;max-width:64ch}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;
+    transition-duration:.01ms !important}
+}
+
+/* ── БУМАГА НАСТОЯЩАЯ ───────────────────────────────────────────────────────
+
+   Обе страницы ДЕЛАЮТ ФАЙЛ, и его уносят: pack.yaml копируют, таблицу цен
+   показывают тому, кто платит. Браузер фоны не печатает — без этого блока на
+   лист ложились бы ночные чернила по белому: --ink дал бы 1.17.
+
+   Заливки вердикта на печати пропадают вместе с фоном, поэтому смысл там
+   несут слово и рамка, а не цвет. Это то же правило, что и на экране. */
+@media print{
+  :root{
+    --ground:#FFFFFF; --surface:#FFFFFF; --sunk:#FFFFFF;
+    --ink:#000000; --ink-2:#333333; --ink-3:#4A4A4A;
+    --hair:#BBBBBB; --hair-2:#DDDDDD; --edge:#666666;
+    --accent:#0A4A47; --on-accent:#FFFFFF;
+    --caution:#6A4408; --refusal:#5E2323;
+    --glow:none; --body-bg:#FFFFFF;
+    --window-shadow:none;
+    /* На листе фонов нет вовсе, поэтому смысл несут слово и рамка. */
+    --wash-accent:transparent; --wash-refusal:transparent;
+    --wash-caution:transparent;
+  }
+  body{background:var(--ground)}
+  .top,.bar,.add,.row button{display:none}   /* на листе нажимать нечего */
+  .out{position:static}
+  pre{max-height:none;overflow:visible;white-space:pre-wrap;
+      border:1px solid var(--edge)}
+  .cols{grid-template-columns:1fr}
+  .step,.card,.money{break-inside:avoid}
+}

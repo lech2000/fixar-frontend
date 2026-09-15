@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title data-en="Klavdiy — a warm conversation about what is happening in the family">Клавдий — тёплый разговор о том, что происходит в семье</title>
+<!-- Значок вкладки. SVG — основной: он один переключает тон вместе с системой.
+     PNG рядом для тех, кто SVG в значке не умеет; apple-touch — для домашнего
+     экрана, там углы скругляет сама iOS, поэтому картинка квадратная.
+     Пути от корня: вложенные страницы иначе искали бы значок у себя. -->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/icon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="Клавдий — ИИ-собеседник для вашей семьи в Telegram. У каждого свой приватный разговор; общая картина — только у супервизора, который координирует его работу.">
+<style>
+  /* Шрифты системные намеренно: внешние подключать некуда и незачем — CSP
+     этого CDN режет сторонние домены молча, а системная гарнитура всегда на месте. */
+  :root {
+    --ground:#1B1815; --panel:#242019; --panel-2:#2B2620; --hair:#3A332A;
+    --hair-soft:#312B23; --ink:#F0E9E0; --ink-2:#B0A398; --ink-3:#7A6F63;
+    --accent:#D98E4A; --accent-ink:#2B1B0C; --accent-soft:rgba(217,142,74,.14);
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground:#FBF7F1; --panel:#FFFFFF; --panel-2:#F5EEE3; --hair:#E4D9C8;
+      --hair-soft:#EDE4D6; --ink:#2B2620; --ink-2:#6B5F52; --ink-3:#9C8F80;
+      --accent:#B5691E; --accent-ink:#FFF8EF; --accent-soft:rgba(181,105,30,.10);
+    }
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans);
+    font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .rise { animation: rise .5s ease-out both; }
+    .rise.d1 { animation-delay:.06s; } .rise.d2 { animation-delay:.12s; }
+    .rise.d3 { animation-delay:.18s; } .rise.d4 { animation-delay:.24s; }
+    @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  }
+
+  .wrap { max-width:640px; margin:0 auto; padding:15vh 22px 10vh; }
+  @media (max-width:520px) { .wrap { padding:14vh 18px 8vh; } }
+
+  .mark { width:46px; height:46px; border-radius:50%; border:1.5px solid var(--accent);
+          display:grid; place-items:center; color:var(--accent); font-family:var(--serif);
+          font-size:20px; margin-bottom:26px; }
+
+  h1 { font-family:var(--serif); font-weight:400; font-size:clamp(1.7rem, 4.4vw, 2.35rem);
+       line-height:1.28; letter-spacing:-.01em; margin:0 0 18px; color:var(--ink);
+       text-wrap:balance; }
+  h1 em { font-style:normal; color:var(--accent); }
+
+  p { margin:0 0 15px; color:var(--ink-2); font-size:1.02rem; max-width:52ch; }
+  p.lead { color:var(--ink); font-size:1.1rem; }
+
+  .cta { margin:30px 0 8px; }
+  .btn { display:inline-flex; align-items:center; gap:10px; background:var(--accent);
+         color:var(--accent-ink); text-decoration:none; font-family:var(--sans);
+         font-weight:600; font-size:1.02rem; padding:13px 24px; border-radius:11px;
+         transition:transform .15s ease, box-shadow .15s ease; box-shadow:0 1px 0 rgba(0,0,0,.08); }
+  .btn:hover { transform:translateY(-1px); box-shadow:0 6px 18px var(--accent-soft); }
+  .btn svg { width:18px; height:18px; flex:none; }
+  .btn-note { margin-top:10px; font-size:.86rem; color:var(--ink-3); }
+
+  .points { margin:56px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:0; }
+  .points li { display:flex; gap:16px; padding:18px 0; border-top:1px solid var(--hair); }
+  .points li:last-child { border-bottom:1px solid var(--hair); }
+  .points .n { font-family:var(--serif); color:var(--accent); font-size:1.05rem; flex:0 0 1.6em; }
+  .points .t { padding-top:1px; }
+  .points b { display:block; color:var(--ink); font-weight:600; margin-bottom:3px; font-size:.98rem; }
+  .points span { color:var(--ink-2); font-size:.94rem; }
+
+  footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--hair-soft);
+           color:var(--ink-3); font-size:.82rem; }
+  footer a { color:var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mark rise" aria-hidden="true" data-en="K">К</div>
+  <!-- Кнопку ставит lang.js: страница объявляет только место. -->
+  <span id="langmount"></span>
+
+  <h1 class="rise d1"><span data-en="Klavdiy —">Клавдий —</span> <em data-en="a warm conversation">тёплый разговор</em> <span data-en="about what is happening in your family">о том, что происходит в вашей семье</span></h1>
+
+  <p class="lead rise d2" data-en="You write to him on Telegram the way you would to a friend who knows how to listen and understands relationships. He keeps in mind what matters to you and comes back to it gently — on his own, without being reminded.">Пишете ему в Telegram, как другу, который умеет слушать и разбирается в отношениях. Он держит в голове, что важно именно вам, и мягко возвращается к этому — сам, без напоминаний.</p>
+  <p class="rise d2" data-en="Everyone talks to him separately and privately. Klavdiy shares nobody's secrets or worries — not with other family members, not in shared summaries.">Каждый разговаривает с ним отдельно и приватно. Своими секретами и переживаниями Клавдий ни с кем не делится — ни с другими членами семьи, ни в общих сводках.</p>
+
+  <div class="cta rise d3">
+    <a class="btn" href="https://t.me/StaminaLisBot?start=web">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21.5 4.5 2.7 11.9c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14.1c.3-1.2-.4-1.7-1.3-1.4Z" fill="currentColor"/></svg>
+      <span data-en="Message Klavdiy on Telegram">Написать Клавдию в Telegram</span>
+    </a>
+    <div class="btn-note" data-en="A chat with the bot will open — he sends the first message himself.">Откроется чат с ботом — первое сообщение отправит он сам.</div>
+  </div>
+
+  <ul class="points rise d4">
+    <li>
+      <span class="n">01</span>
+      <span class="t"><b data-en="Write whenever it suits you">Пишете, когда удобно</b><span data-en="No appointments, no session schedule — you simply pick up a conversation started whenever.">Без записи и расписания сессий — просто продолжаете разговор, начатый когда угодно.</span></span>
+    </li>
+    <li>
+      <span class="n">02</span>
+      <span class="t"><b data-en="Exercises and grounding in method">Задания и опора на технику</b><span data-en="Klavdiy can suggest one small concrete step and return to it next time — kindly, without pressure.">Клавдий может предложить конкретный маленький шаг и вернуться к нему в следующий раз — по-доброму, без давления.</span></span>
+    </li>
+    <li>
+      <span class="n">03</span>
+      <span class="t"><b data-en="A supervisor sees the family as a whole">Супервизор видит семью целиком</b><span data-en="Klavdiy speaks with each person separately, but a supervisor watches the family's overall dynamic — coordinating his work with everyone without disclosing anything personal.">Клавдий говорит с каждым по отдельности, но за общей динамикой в семье следит супервизор — он координирует его работу со всеми, не раскрывая личного.</span></span>
+    </li>
+  </ul>
+
+  <footer data-en="Your companion here is a supporting AI tool, not a replacement for in-person therapy. In a crisis Klavdiy will tell you where to turn for help.">
+    Ваш собеседник — вспомогательный ИИ-инструмент, не замена очной терапии. При кризисной ситуации Клавдий сам подскажет, куда обратиться за помощью.
+  </footer>
+
+</div>
+<!-- Язык оболочки. Пути от корня: страница лежит глубже, и
+     относительный путь искал бы словарь рядом с ней. -->
+<script src="/lang-en.js"></script>
+<script src="/lang.js"></script>
+</body>
+</html>

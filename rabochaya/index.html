@@ -1,0 +1,2637 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Домен новый и сервис не запущен: до открытия индексация не нужна. -->
+<meta name="robots" content="noindex">
+<title data-en="FixAR — a case, not a thread">ФиксАР — дело, а не переписка</title>
+<!-- Значок вкладки. SVG — основной: он один переключает тон вместе с системой.
+     PNG рядом для тех, кто SVG в значке не умеет; apple-touch — для домашнего
+     экрана, там углы скругляет сама iOS, поэтому картинка квадратная.
+     Пути от корня: вложенные страницы иначе искали бы значок у себя. -->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/icon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+  /* Шрифты системные намеренно: CSP зоны — default-src 'self', внешние
+     семейства браузер вырежет молча, и страница поедет подстановкой. */
+  :root {
+    --ground:#0C0F16; --panel:#121722; --panel-2:#161C29; --hair:#232C3C;
+    /* Боковая поверхность ЛЕЖИТ НИЖЕ фона страницы, а не выше него.
+       Пока бока были светлее середины, взгляд садился на края: две
+       колонки справочников перетягивали внимание с того единственного,
+       ради чего экран открыт, — с разговора. Ступенька вниз стоит
+       ровно одна: сделаешь глубже — колонка станет дырой. */
+    --panel-side:#090D14;
+    /* Волосок и приглушённый текст НА боковой поверхности заданы отдельно.
+       Опустив бок ниже фона, я не тронул то, что на нём лежит: --hair-soft
+       давал по линии 1.05:1 на светлой теме — линии просто не было видно,
+       а на снимках её роль исполняли старые рамки карточек, которые
+       пережили переделку (см. ниже). На тёмной ink-3 от затемнения даже
+       выиграл — 3.94:1 против 3.66:1, — поэтому здесь значение прежнее. */
+    --hair-side:#2A3345; --ink-3-side:#63708A;
+    /* --line режет СТРОКИ внутри раздела, --hair-side режет сами разделы,
+       и первое обязано быть тише второго — иначе строки спорят с
+       границами разделов. Выходит 1.31:1 на боковой поверхности против
+       1.54:1 у раздела.
+
+       Обе переменные ниже ДОЛГО НЕ СУЩЕСТВОВАЛИ, и это не давало ошибки:
+       `var(--нет-такой)` без запасного значения гасит ВСЁ свойство
+       целиком. У шести правил (.thr, .feed1, .doc1, .prow, .crow, .erow)
+       border-top молча становился none — переписка, лента, документы,
+       участники, клиенты и выгрузка шли сплошным полотном без единой
+       линии. У .cvbody и #phonechan так же пропадал фон. Проверено
+       замером: borderTopStyle отдавал 'none / 0px'.
+
+       --bg — утопленная поверхность для того, во что ПИШУТ: холст в
+       правке и поля входа. Берём фон страницы: поле, утопленное
+       относительно своей карточки, читается полем без лишних приёмов.
+       Ссылкой, а не копией значения, — светлая тема переопределяет
+       --ground у того же :root, и --bg едет за ним сам. */
+    --line:#1F2736; --bg:var(--ground);
+    --calip-fill:.10;
+    --hair-soft:#1B2231; --ink:#E6EAF2; --ink-2:#96A2B8; --ink-3:#63708A;
+    /* СВОИ ТОКЕНЫ У ПИЛЮЛИ, а не общий --hair. Замер 05.09.2026: рамка на
+       общем --hair давала 1.21:1 при норме WCAG 3:1 для не-текста (SC 1.4.11),
+       но --hair держит все волосяные линии оболочки, и поднимать его значило
+       бы перекрасить весь экран ради пилюль. Роль отдельная — токен отдельный.
+       --pill-count поднят с --ink-3 (3.42:1) до нормы 4.5:1 для текста. */
+    --pill-edge:#5F6878; --pill-count:#77849E;
+    --pill-on-bg:#23312A; --pill-on-edge:#7FB597;
+    --brass:#D9A441; --brass-dim:#8C6C2E; --brass-glow:rgba(217,164,65,.14);
+    --ok:#5FBF7F; --you:#1D2536;
+    /* Цвет ссылки отдельным токеном, а не общим --brass. У латуни своя
+       работа — кнопки, рамки, ударения, — и там довольно контраста 3:1. У
+       ссылки внутри пузыря это обычный текст, порог 4.5:1. На тёмном латунь
+       его берёт с запасом (7.6), на светлом не берёт (4.1) — отсюда разные
+       значения по темам, а не одно на обе. */
+    --link:#D9A441;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+    /* ── Псевдонимы: имена, которыми красили, ни разу их не объявив ──────
+       04.09.2026 владелец написал «совсем прозрачный фон — многого не
+       видно». Список кредитов красился в `var(--paper)`, а такого токена НЕ
+       БЫЛО — и `background` гасился целиком: `var(--нет-такой)` БЕЗ
+       ЗАПАСНОГО ЗНАЧЕНИЯ гасит свойство целиком (правило стоит и ниже в этом
+       файле).
+
+       ЗДЕСЬ ТОЛЬКО ТЕ, У КОГО ЗАПАСНОГО ЗНАЧЕНИЯ НЕТ. Первая редакция
+       объявила ДВЕНАДЦАТЬ имён — по списку «использовано, но не объявлено»,
+       снятому с живой страницы. Список не различал `var(--x)` и
+       `var(--x, запасное)`, и семь из двенадцати оказались вовсе не
+       сломаны: у них стояли ОСОЗНАННЫЕ запасные значения — бирюза `#0E5E5A`
+       и зелёный `#7fb597` у `--accent`, `transparent` у `--bg-2`,
+       `var(--brass-dim)` у `--sxcolor`. Объявив их, я перекрыла авторский
+       выбор в десяти местах разом и свела разные цвета к одному.
+
+       Правило отсюда: объявлять имя, у которого есть запасное значение, —
+       значит менять вид, а не чинить его. Запасное значение и ЕСТЬ
+       объявление, только местное.
+
+       Объявлены ПСЕВДОНИМАМИ палитры, а не своими цветами: второй набор
+       значений разошёлся бы с первым при первой же правке темы. */
+    --paper: var(--panel);        /* приподнятая поверхность: меню, поле */
+    --bg2: var(--panel-2);        /* подложка поля ввода */
+    --fg: var(--ink);
+    /* Приглушённая подпись поля — но ЧИТАЕМАЯ. Не `--ink-3`: замер соседней
+       сессии дал ему 3.08 на светлой теме и 2.72 на земле, то есть ниже
+       порога 4.5 для текста. «Приглушённый» не значит «почти не виден». */
+    --dim: var(--ink-2);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground:#EFEBE3; --panel:#FBF9F5; --panel-2:#F5F1E9; --hair:#D8D0C1;
+      --panel-side:#E7E2D8;
+      /* На светлой теме приглушённый текст держал 3.08:1 на панели и упал
+         бы до 2.51:1 на опущенном боку. Возвращаем ровно прежнюю величину
+         (3.10:1), а не «как надо»: порог 4.5 приглушённый текст этой темы
+         не берёт НИГДЕ, и это отдельный разговор про палитру, а не про
+         боковые зоны. Здесь важно не ухудшить. */
+      --hair-side:#C4BBA8; --ink-3-side:#7A7F8C;
+      /* 1.22:1 на боковой поверхности против 1.48:1 у раздела —
+         та же ступень тише, что и на тёмной. --bg переопределять не
+         надо: он ссылается на --ground, а тот здесь уже свой. */
+      --line:#D6CDBB;
+      /* На светлом та же доля латуни читается легче, чем на тёмном, где
+         она сгущается в бурое пятно. */
+      --calip-fill:.17;
+      --hair-soft:#E4DDD0; --ink:#23262C; --ink-2:#5C6270; --ink-3:#8A8F9C;
+      /* САМОЕ ХУДШЕЕ БЫЛО ЗДЕСЬ. `--accent-soft` не был объявлен НИГДЕ — ни в
+         одной теме, — и правило `.pill.on` всегда падало на зашитый тёмный
+         `#23312A`. В светлой теме поверх него шёл `--ink` = почти чёрный:
+         замерено 1.11:1 при норме 4.5. То есть выбранная пилюля была
+         нечитаема, и в записях этого не было: корпус знал только про рамку. */
+      --pill-edge:#928A7B; --pill-count:#696E7B;
+      --pill-on-bg:#DCEBE1; --pill-on-edge:#3E6B52;
+      --brass:#9A6D14; --brass-dim:#C9A55E; --brass-glow:rgba(154,109,20,.10);
+      --you:#E7E1D4;
+      /* Темнее латуни на два шага: проверено на всех трёх фонах, где ссылка
+         может оказаться, — панель (6.1), панель-2 (5.7), свой пузырь (5.0). */
+      --link:#7E570F;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink);
+         font-family:var(--sans); font-size:15px; line-height:1.55;
+         -webkit-font-smoothing:antialiased; }
+  .app { max-width:1180px; margin:0 auto; padding:18px 18px 28px; }
+
+  header { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+           padding-bottom:14px; border-bottom:1px solid var(--hair); }
+  header b { font-size:18px; letter-spacing:-.01em; }
+  /* Лок-ап 1b. Кегль прежний: знак меняет облик угла, а не рост шапки.
+     Крест выровнен по базовой линии букв и чуть опущен — как в макете,
+     иначе он висит над строкой отдельной картинкой. */
+  header b.mark { display:inline-flex; align-items:baseline; font-size:23px;
+                  letter-spacing:-.02em; }
+  header b.mark svg { width:.72em; height:.72em; flex:none; margin:0 .03em -.04em;
+                      fill:currentColor; }
+  /* Вторая балка латунью — тот самый «инверсия с акцентом» из макета. Латунь
+     в шапке уже была (её носила печать), так что цветовой вес угла не сместился. */
+  header b.mark svg .accent { fill:var(--brass); }
+  /* Подпись знака — как в макете: моноширинная, разряженная, приглушённая.
+     Латунь с неё снята намеренно: теперь её носит акцентная балка креста, и
+     два латунных пятна в одном углу тянули бы взгляд каждое на себя.
+     Разрядка добавляет пустоту ПОСЛЕ последней буквы — она съедается
+     отрицательным полем, иначе подпись стоит не там, где кажется. */
+  header .tag { font-family:var(--mono); font-size:12px; font-weight:500;
+                letter-spacing:.26em; margin-right:-.26em; color:var(--ink-2); }
+  header .sp { flex:1 1 auto; }
+
+  .state { font-family:var(--mono); font-size:11px; letter-spacing:.05em;
+           border:1px solid var(--hair); border-radius:999px; padding:4px 11px;
+           color:var(--ink-3); }
+  .state.demo { color:var(--brass); border-color:var(--brass-dim); }
+  .state.live { color:var(--ok); border-color:var(--ok); }
+
+  .notice { margin:14px 0 0; padding:11px 14px; border-radius:10px;
+            background:var(--panel); border:1px solid var(--hair);
+            color:var(--ink-2); font-size:13.5px; }
+  .notice b { color:var(--ink); }
+
+  /* Три зоны: слева «что у меня есть», в центре разговор, справа
+     инструменты вокруг дела. Ширины боковых заданы в rem, а центр берёт
+     остаток: складывая панель, человек отдаёт её место разговору, а не
+     растягивает пустоту. */
+  .panes { display:grid; grid-template-columns:19rem minmax(0,1fr) 23rem; gap:16px;
+           align-items:start; margin-top:16px; }
+  .panes.nl { grid-template-columns:0 minmax(0,1fr) 23rem; }
+  .panes.nr { grid-template-columns:19rem minmax(0,1fr) 0; }
+  .panes.nl.nr { grid-template-columns:0 minmax(0,1fr) 0; }
+  .side { display:flex; flex-direction:column; gap:0; min-width:0;
+          background:var(--panel-side); border-radius:12px; overflow:hidden;
+          /* Переопределение переменной, а не два десятка правок по местам:
+             ink-3 встречается в зоне двадцать с лишним раз — от счётчиков
+             до галочки складывания, — и перечислять их значило бы забыть
+             половину и не заметить следующую. */
+          --ink-3:var(--ink-3-side); }
+  /* Разделу нужна поверхность — иначе он текст на пустом месте, — но своя
+     поверхность каждому НЕ нужна. Прежде каждый был отдельной карточкой с
+     рамкой; на открытом деле их набиралось до десятка, и экран распадался
+     на дюжину прямоугольников, между которыми глазу не за что зацепиться.
+     Теперь поверхность одна на зону, а разделы режет волосок. Рамок на
+     экране становится две вместо шестнадцати. */
+  /* aside.side, а не .side: сброс весит (0,1,1) и не проигрывает правилам
+     разделов — .cases, .files, .pending, .crew, .where, .scopes весят
+     (0,1,0) и объявлены НИЖЕ. Пока вес был равным, они выигрывали по
+     порядку, сохраняли свои рамки, и на восьми стыках рисовалось по 2px
+     в двух разных тонах вместо одного волоска. */
+  aside.side > * { background:transparent; border:0; border-radius:0;
+                   overflow:hidden; }
+  /* Волосок сверху У КАЖДОГО, включая первый, — намеренно. Разделы то
+     появляются, то прячутся атрибутом hidden, и :first-child здесь врёт:
+     он указывает на спрятанный узел, а линия достаётся следующему за ним.
+     Верхняя линия колонки читается её краем и не зависит от того, какой
+     раздел сегодня первый. */
+  aside.side > * { border-top:1px solid var(--hair-side); }
+  /* Заголовок раздела на затемнённой поверхности берёт ink-2, а не ink-3:
+     на светлой теме бок опустился на ступеньку, и ink-3 давал 2.5:1 —
+     ниже порога. С ink-2 выходит 4.7:1 на светлой и 7.6:1 на тёмной. */
+  .side > h2, .side .caseshead, .side > * > h3 { color:var(--ink-2); }
+  .side > h2 { margin:0; padding:11px 15px; font-family:var(--mono);
+               font-size:10.5px; letter-spacing:.11em; text-transform:uppercase;
+               display:flex; align-items:center; gap:8px; }
+  /* Пустое состояние в боковой панели занимает место и ничего не сообщает:
+     разделы и так появляются вместе с содержимым. */
+  .side .empty { padding:12px 15px; }
+  /* Колонка каждой зоны названа явно. Без этого display:none у сложенной
+     панели выбрасывает её из потока сетки, и ОСТАЛЬНЫЕ съезжают влево:
+     разговор попадал в нулевую колонку и исчезал с экрана целиком.
+     Поймано живой проверкой в браузере — в коде это не видно. */
+  .side.left { grid-column:1; }
+  .pane.center { grid-column:2; }
+  .side.right { grid-column:3; }
+  /* Сложенная панель убирается целиком, а не прячется прозрачностью:
+     иначе её содержимое остаётся в порядке обхода с клавиатуры, и
+     человек, идущий табом, попадает в невидимое. */
+  .panes.nl .side.left, .panes.nr .side.right { display:none; }
+  .fold { background:var(--panel-2); border:1px solid var(--hair); color:var(--ink-2);
+          border-radius:8px; width:30px; height:28px; cursor:pointer; font-size:14px;
+          line-height:1; }
+  .fold:hover { color:var(--ink); border-color:var(--hair-strong,var(--hair)); }
+  .fold[aria-pressed="true"] { color:var(--ink-3); background:transparent; }
+  .fold:focus-visible { outline:2px solid var(--accent,#7fb597); outline-offset:2px; }
+
+  /* ── Поле ландшафта ────────────────────────────────────────────────
+     Изометрия СЧИТАЕТСЯ, А НЕ ПОВОРАЧИВАЕТСЯ css-трансформой всей плоскости.
+     Повёрнутая плоскость поворачивает и подписи: имя объекта уезжает под 45°
+     и перестаёт читаться, а вернуть его обратно значит крутить каждую
+     подпись назад — и они начнут дрожать при масштабировании. Здесь
+     положение считается формулой, а подписи стоят ПРЯМО. */
+  #landfield { position:fixed; inset:0; z-index:60; background:var(--panel);
+               display:flex; flex-direction:column; }
+  #landfieldbar { display:flex; align-items:center; gap:12px; padding:10px 16px;
+                  border-bottom:1px solid var(--hair); flex:none; }
+  #landfieldtitle { font-weight:600; }
+  #landfieldnote { color:var(--ink-3); font-size:13px; flex:1; }
+  #landfieldclose { background:transparent; border:1px solid var(--hair);
+                    color:var(--ink-2); border-radius:8px; width:30px; height:28px;
+                    cursor:pointer; font-size:16px; line-height:1; }
+  #landfieldclose:hover { color:var(--ink); }
+  #landfieldplane { flex:1; position:relative; overflow:auto; }
+
+  /* Фигурка — кнопка, а не div: её берут с клавиатуры, и Tab обязан по ним
+     ходить. Ландшафт, доступный только мышью, закрыт для части людей. */
+  .lfig { position:absolute; background:transparent; border:0; padding:0;
+          cursor:pointer; transform:translate(-50%,-100%); }
+  .lfig:focus-visible { outline:2px solid var(--accent,#7fb597); outline-offset:3px;
+                        border-radius:6px; }
+  .lfig svg { display:block; overflow:visible; }
+  .lfig .lname { display:block; margin-top:2px; font-size:11.5px; line-height:1.25;
+                 color:var(--ink-2); white-space:nowrap; text-align:center;
+                 max-width:150px; overflow:hidden; text-overflow:ellipsis; }
+  .lfig:hover .lname, .lfig[aria-expanded="true"] .lname { color:var(--ink); }
+  /* Кольцо срока под фигуркой — из варианта «Карта дел». Показывается ТОЛЬКО
+     когда срок есть: пустое кольцо у всех превратило бы признак в украшение. */
+  .lfig .lring { display:block; margin:0 auto; font-size:10.5px; padding:1px 6px;
+                 border-radius:9px; border:1px solid var(--hair); color:var(--ink-3);
+                 white-space:nowrap; }
+  .lfig .lring.hot { border-color:var(--caution,#8A5A12); color:var(--caution,#8A5A12); }
+
+  /* Подпись области поверх плоскости: где чья половина поля. */
+  .lscope { position:absolute; transform:translate(-50%,-50%);
+            font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+            color:var(--ink-3); pointer-events:none; }
+
+  #landfieldcard { position:absolute; z-index:2; min-width:230px; max-width:300px;
+                   background:var(--panel-2); border:1px solid var(--hair);
+                   border-radius:12px; padding:12px 14px;
+                   box-shadow:0 8px 28px rgba(0,0,0,.16); }
+  #landfieldcard .lct { font-weight:600; margin-bottom:2px; }
+  #landfieldcard .lcs { color:var(--ink-3); font-size:12.5px; margin-bottom:10px; }
+  #landfieldcard button { display:block; width:100%; text-align:left;
+                          background:transparent; border:0; padding:7px 0;
+                          color:var(--ink); cursor:pointer; font-size:13.5px;
+                          border-top:1px solid var(--hair-2,var(--hair)); }
+  #landfieldcard button:first-of-type { border-top:0; }
+  #landfieldcard button:hover { color:var(--accent,#0E5E5A); }
+  #landfieldcard button.warn { color:var(--refusal,#7A2E2E); }
+  #landfieldcard .lcn { color:var(--ink-3); font-size:12px; float:right; }
+  /* Схема дела. Пульс — точка, бьющаяся ТОЛЬКО когда ход за человеком:
+     «дело живо» и «без вас стоит» — разные вещи, бьётся второе. */
+  .sxpulse { display:flex; align-items:center; gap:9px; padding:9px 15px 4px;
+             font-size:13.5px; font-weight:600; }
+  .sxdot { width:12px; height:12px; border-radius:50%; flex:none;
+           background:var(--ink-3); position:relative; }
+  .sxdot.beat::after { content:""; position:absolute; inset:-5px; border-radius:50%;
+    border:2px solid var(--sxcolor,var(--brass-dim)); animation:sxbeat 1.6s ease-out infinite; }
+  @keyframes sxbeat { 0%{transform:scale(.55);opacity:.9} 70%{transform:scale(1.25);opacity:0} 100%{opacity:0} }
+  @media (prefers-reduced-motion: reduce){
+    .sxdot.beat::after { animation:none; transform:scale(1.1); opacity:.6; }
+    #sxg .sxhalo { animation:none; opacity:.5; }
+  }
+  .sxpills { display:flex; gap:7px; padding:4px 15px 2px; }
+  #sxg { display:block; width:100%; height:auto; padding:2px 4px 6px; }
+  #sxg text { font-family:inherit; }
+  #sxg .sxnode { cursor:pointer; }
+  #sxg .sxhalo { opacity:0; transform-origin:center; transform-box:fill-box; }
+  #sxg .sxnode.current .sxhalo { opacity:1; animation:sxhalo 1.6s ease-out infinite; }
+  @keyframes sxhalo { 0%{transform:scale(.82);opacity:.85} 100%{transform:scale(1.45);opacity:0} }
+  .sxdesc { border-top:1px solid var(--hair-side,var(--hair)); }
+  /* Выбор языка. Той же породы, что створки: та же высота, та же рамка, тот
+     же радиус — это переключатель состояния оболочки, а не действие над
+     разговором, и место ему в одном ряду с ними.
+     Шире створок ровно на две буквы: «RU»/«EN» — текст, а не значок, и
+     сжимать его до 30px значило бы обрезать. Начертание табличное, чтобы
+     кнопка не дёргалась при смене языка. */
+  .lang { background:var(--panel-2); border:1px solid var(--hair); color:var(--ink-2);
+          border-radius:8px; min-width:38px; height:28px; padding:0 6px;
+          cursor:pointer; font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+          letter-spacing:.04em; font-variant-numeric:tabular-nums; }
+  .lang:hover { color:var(--ink); border-color:var(--hair-strong,var(--hair)); }
+  .lang:focus-visible { outline:2px solid var(--accent,#7fb597); outline-offset:2px; }
+  /* СТРЕЛКА У КРАЯ ЭКРАНА — единственное, что на телефоне ВИДНО про боковые
+     зоны. Створки ◧ ◨ живут во втором ряду шапки, весят 30×28 и ничего не
+     обещают глазу: человек читал их как значки, а не как «здесь есть ещё».
+     Стрелка стоит там, куда тянутся, — у самого края, — и показывает
+     направление: выехать оттуда. Открытый ящик увозит её на свой край, и
+     та же стрелка, развернувшись, задвигает его обратно. */
+  .edge { display:none; position:fixed; top:50%; margin-top:-34px; z-index:46;
+          width:26px; height:68px; padding:0; cursor:pointer;
+          background:var(--panel-2); border:1px solid var(--hair);
+          color:var(--ink-2); font-size:15px; line-height:1;
+          place-items:center; -webkit-tap-highlight-color:transparent;
+          transition:transform .22s ease; }
+  .edge.l { left:0;  border-left:0;  border-radius:0 10px 10px 0; }
+  .edge.r { right:0; border-right:0; border-radius:10px 0 0 10px; }
+  .edge.l[aria-expanded="true"] { transform:translateX(min(86vw,22rem)); }
+  .edge.r[aria-expanded="true"] { transform:translateX(calc(-1 * min(86vw,22rem))); }
+  .edge:focus-visible { outline:2px solid var(--accent,#7fb597); outline-offset:2px; }
+  /* Затемнение под ящиком: оно и говорит, что разговор никуда не делся, и
+     закрывает ящик касанием мимо — на телефоне это первое, что пробуют. */
+  .scrim { position:fixed; inset:0; z-index:44; background:rgba(0,0,0,.44);
+           opacity:0; transition:opacity .22s ease; }
+  .scrim[hidden] { display:none; }
+  .scrim.on { opacity:1; }
+  /* Пока ящик открыт, страница под ним не едет: иначе палец, промахнувшись
+     мимо ящика, прокручивает разговор, которого не видно. */
+  body.drawer { overflow:hidden; }
+  /* Складывание отдельного раздела внутри панели: разделов много, и человеку
+     нужен не только выбор «панель целиком», но и «этот раздел мне сейчас не
+     нужен». Заголовок работает кнопкой. */
+  .sect > .caseshead, .sect > h3 { cursor:pointer; user-select:none; }
+  .sect > .caseshead::before, .sect > h3::before {
+      content:"▾"; display:inline-block; width:12px; color:var(--ink-3);
+      font-size:10px; transition:transform .12s; }
+  .sect.shut > .caseshead::before, .sect.shut > h3::before { transform:rotate(-90deg); }
+  .sect.shut > *:not(.caseshead):not(h3) { display:none; }
+  /* Пилюли фильтра дел. Считанное число рядом с каждой: пилюля без числа
+     заставляет нажать, чтобы узнать, есть ли там что-нибудь. */
+  .pills { display:flex; flex-wrap:wrap; gap:6px; padding:8px 12px 10px; }
+  .pill { background:var(--panel-2); border:1px solid var(--pill-edge); color:var(--ink-2);
+          border-radius:99px; padding:3px 10px; font-size:12px; cursor:pointer; }
+  .pill.on { background:var(--pill-on-bg); color:var(--ink);
+             border-color:var(--pill-on-edge); }
+  .pill .n { color:var(--pill-count); font-family:var(--mono); margin-left:5px; font-size:11px; }
+  /* ОБВОДКА ФОКУСА — ТОТ ЖЕ РОД БЕДЫ, что и фон выбранной пилюли: `--accent`
+     не объявлен НИ В ОДНОЙ теме, и правило всегда падало на зашитый #7fb597.
+     В светлой теме это давало 2.08:1 при норме 3:1 — то есть человек, идущий
+     по странице с клавиатуры, плохо видел, где он находится. Берём тот же
+     токен, что и рамка выбранной: у него роль ровно эта. */
+  .pill:focus-visible { outline:2px solid var(--pill-on-edge); outline-offset:1px; }
+  /* ПИЛЮЛЯ-ДЕЙСТВИЕ. Соседние пилюли сужают список, эта делает: заводит дело
+     или ведёт к его удалению. В одном ряду с отбором действие отличается
+     только видом — значит вид обязан отличаться заметно, иначе «Архив» и
+     «Завести новое» нажимаются одинаково вслепую.
+     Красноватый взят тот же, что у danger-кнопок: одно значение — один цвет
+     на всю оболочку. */
+  .pill.act { border-color:#7a3b32; color:#d98b7f; background:transparent; }
+  .pill.act:hover { border-color:#b4544a; color:#f0a99c; }
+  .pill.act:focus-visible { outline:2px solid #b4544a; outline-offset:1px; }
+  /* В шапке дела пилюля стоит рядом с отметкой состояния, а не липнет к ней:
+     «идёт» и «Удалить» — разные вещи, и читаться должны раздельно. */
+  h2 > .pill.act { margin-left:10px; vertical-align:middle; }
+  /* Переписка и лента */
+  .thr { display:flex; align-items:baseline; gap:8px; padding:6px 12px;
+         border-top:1px solid var(--line); cursor:pointer; }
+  .thr:hover { background:var(--panel-2); }
+  .thr .tt { flex:1; color:var(--ink); font-size:13px; }
+  .thr .un { background:var(--accent,#7fb597); color:#0d1210; border-radius:99px;
+             padding:0 6px; font-size:11px; font-family:var(--mono); }
+  .feed1 { padding:6px 12px; border-top:1px solid var(--line); font-size:12px; }
+  .feed1 .fw { color:var(--ink); }
+  .feed1 .fc { color:var(--ink-3); }
+  .feed1 .fa { color:var(--accent,#7fb597); font-size:11px; margin-left:4px; }
+  @media (max-width:1180px){ .panes{ grid-template-columns:17rem minmax(0,1fr) 20rem; } }
+  /* На узком экране боковые панели складываются сами: три колонки в 900px
+     превращаются в три полосы по 300px, где не читается ни одна. */
+  @media (max-width:900px){
+    /* Все четыре сочетания перечислены поимённо, включая .nl.nr: у него
+       ТРИ класса, и без упоминания здесь он перебивает это правило по весу
+       селектора — медиазапрос веса не добавляет. На телефоне обе панели
+       сложены по умолчанию, то есть это как раз обычное состояние, и
+       разговор уезжал в нулевую колонку. Поймано живой проверкой. */
+    .panes, .panes.nl, .panes.nr, .panes.nl.nr { grid-template-columns:1fr; }
+    /* Одна колонка — закрепление за номерами больше не нужно и мешает:
+       зоны идут друг за другом сверху вниз. */
+    .side.left, .pane.center, .side.right { grid-column:auto; }
+
+    /* НА ТЕЛЕФОНЕ БОКОВЫЕ ЗОНЫ — ЯЩИКИ, А НЕ ПОЛОСЫ В ПОТОКЕ.
+       Прежде они просто вставали сверху: створка работала, но раскрытая
+       левая зона отодвигала разговор на 632px вниз — на экране 812px это
+       значит, что человек, нажав створку, терял из виду ровно то, ради
+       чего пришёл. Отсюда и жалоба «в бока не дотянуться»: дотянуться
+       было можно, только цена — уехавший разговор.
+       Ящик выезжает ПОВЕРХ и ничего не двигает: закрыл — и ты там же,
+       где был, на той же строке разговора. */
+    .side { position:fixed; top:0; bottom:0; z-index:45;
+            width:min(86vw,22rem); overflow-y:auto; border-radius:0;
+            box-shadow:0 18px 48px rgba(0,0,0,.42);
+            /* Закрытый ящик убирает из обхода табом visibility, а не
+               display: с display:none перехода нет вовсе — браузер не
+               анимирует появление коробки. Задержка на visibility держит
+               ящик видимым, пока он уезжает, и гасит ровно в конце. */
+            visibility:hidden;
+            transition:transform .22s ease, visibility 0s linear .22s; }
+    .side.left  { left:0;  transform:translateX(-100%); }
+    .side.right { right:0; transform:translateX(100%); }
+    /* Перебивает общее `.panes.nl .side.left { display:none }`. Вес равный
+       (0,3,0), и решает порядок объявления — это правило ниже. Без него
+       сложенная зона остаётся display:none и никуда не выезжает. */
+    .panes.nl .side.left, .panes.nr .side.right { display:flex; }
+    .panes.showl .side.left, .panes.showr .side.right {
+      visibility:visible; transform:none; transition-delay:0s; }
+
+    /* Створки в шапке остаются рабочими, но пальцем в 30×28 не попасть —
+       это вдвое меньше 44px, ниже которых промахивается любой большой
+       палец. На широком экране их ведёт указатель, и там размер прежний. */
+    .fold { width:44px; height:40px; font-size:17px; }
+    /* Выбор языка растёт вместе со створками: он стоит с ними в одном
+       ряду, и кнопка на дюйм ниже соседних читается как чужая. Плюс
+       28px — мелкая цель для пальца; 40 попадает без прицеливания. */
+    .lang { height:40px; min-width:48px; font-size:12px; }
+    .edge { display:grid; }
+    /* Пока один ящик открыт, язычок второго убирается. Открытый уезжает на
+       край ящика и встаёт вплотную к чужому — два одинаковых язычка по
+       26px рядом, и палец, метящий «задвинуть», открывает соседний.
+       Проверено живьём на 375px: между ними не оставалось ничего. */
+    .panes.showl ~ .edge.r, .panes.showr ~ .edge.l { display:none; }
+  }
+  .pane { background:var(--panel); border:1px solid var(--hair);
+          border-radius:10px; overflow:hidden; }
+  .pane > h2 { margin:0; padding:11px 15px; border-bottom:1px solid var(--hair-soft);
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    display:flex; align-items:center; gap:8px; }
+
+  .log { padding:15px; display:flex; flex-direction:column; gap:13px;
+         min-height:300px; max-height:460px; overflow-y:auto; }
+
+  /* ХОЛСТ. Стоит НАД разговором, в той же колонке, и это не украшение:
+     человек правит документ и тут же читает, что о правке сказал агент.
+     Разнеси их по разным местам — придётся выбирать, куда смотреть. */
+  .canvas { border-bottom:1px solid var(--hair-soft); display:flex;
+            flex-direction:column; background:var(--panel); }
+  .cvhead { display:flex; align-items:baseline; gap:8px; padding:10px 15px 6px; }
+  .cvtitle { font-weight:600; font-size:14px; }
+  .cvfrom { font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+            letter-spacing:.06em; }
+  .cvx { margin-left:auto; background:none; border:none; cursor:pointer;
+         font-size:19px; line-height:1; color:var(--ink-3); padding:0 3px; }
+  .cvbody { margin:0 15px; padding:11px 12px; min-height:190px; max-height:340px;
+            resize:vertical; border:1px solid var(--hair); border-radius:8px;
+            font-family:var(--mono); font-size:12.5px; line-height:1.62;
+            background:var(--bg); color:var(--ink); overflow-y:auto; }
+  .cvbody[readonly] { background:var(--panel); color:var(--ink-2); }
+  .cvnote { padding:7px 15px 0; font-size:12px; color:var(--ink-3); }
+  .cvbtns { display:flex; gap:8px; padding:9px 15px 12px; align-items:center; }
+  .cvbtns .addone { margin-top:0; }
+  .msg { display:flex; gap:10px; max-width:88%; }
+  .msg.you { align-self:flex-end; flex-direction:row-reverse; }
+  .who { flex:0 0 26px; height:26px; border-radius:50%; display:grid;
+         place-items:center; font-family:var(--mono); font-size:10px;
+         border:1px solid var(--hair); color:var(--ink-3); margin-top:2px; }
+  .msg.bot .who { border-color:var(--brass-dim); color:var(--brass); }
+  .bubble { padding:9px 13px; border-radius:12px; border:1px solid var(--hair-soft);
+            background:var(--panel-2); font-size:14.5px; }
+  .msg.you .bubble { background:var(--you); border-color:transparent; }
+  /* Реплика ДРУГОГО УЧАСТНИКА — не своя и не агентская.
+     Три состояния, а не два, потому что участников в деле больше двух:
+     слева, как агент, но без латуни — латунь принадлежит помощнику, и
+     красить ею человека значит выдавать его за систему.
+     Подпись именем НАД пузырём, а не в кружке: в круг 26px имя не влезает
+     физически, и попытка втиснуть его туда даёт две первые буквы, по которым
+     Пётр не отличается от Полины. */
+  .msg.mate .who { border-color:var(--hair); color:var(--ink-2); }
+  .msg.mate .bubble { background:var(--panel-2); }
+  .mname { display:block; font-size:10px; font-family:var(--mono);
+           color:var(--ink-3); margin:0 0 3px; letter-spacing:.04em; }
+  /* Кто сказал — не записано. Пунктир вместо сплошной рамки: это не другой
+     человек, это отсутствие сведений, и выглядеть одинаково они не должны. */
+  .msg.mate.unknown .who { border-style:dashed; }
+  .bubble p { margin:0 0 7px; } .bubble p:last-child { margin-bottom:0; }
+
+  /* ИНДИКАТОР РАБОТЫ. Раньше на его месте стоял пузырь с многоточием — знак,
+     неотличимый от замершего. Ответ здесь идёт от восьми секунд и дольше
+     (мера снята с боевой связки), и всё это время человек не знал, думают
+     над его вопросом или всё оборвалось. Штангенциркуль обмеряет тело,
+     тело меняет форму, циркуль перемеряет заново: движение видно даже
+     краем глаза, и оно говорит ровно то, что происходит.
+
+     Штрихи заданы в пикселях экрана, а не в единицах чертежа: рисунок
+     ужат с 1920 до семидесяти, и обычная линия толщиной 2.6 превратилась
+     бы в четверть пикселя, то есть в ничто. */
+  /* У ожидания нет оформления пузыря: подложка, рамка и отступы вокруг
+     одного рисунка дают пустую коробку в половину колонки. Остаётся
+     кружок собеседника и работающий механизм — этого хватает, чтобы
+     понять, чей это ход. */
+  .bubble.think { background:none; border-color:transparent; padding:1px 0 0; }
+  .calip { display:block; width:82px; height:82px; }
+
+  /* ЗАСТАВКА ПУСКА. Кроет экран целиком: пуск — это единственный миг, когда
+     под ней ничего работающего нет, и полупрозрачная плёнка поверх
+     недособранной оболочки показывала бы её же наполовину построенной.
+     Появляется только если пуск затянулся дольше полусекунды. */
+  .boot { position:fixed; inset:0; z-index:60; background:var(--ground);
+          display:grid; place-items:center; opacity:0; transition:opacity .3s; }
+  .boot.on { opacity:1; }
+  .bootin { display:flex; flex-direction:column; align-items:center; gap:18px;
+            padding:24px; max-width:min(92vw, 460px); }
+  .fixan { display:block; width:100%; height:auto; }
+  .bootsay { font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+             text-transform:uppercase; color:var(--ink-3); }
+  /* Те же пиксельные штрихи, что у циркуля, и по той же причине: чертёж в
+     1210 единиц показан на четырёхстах. */
+  .fixan .fpart, .fixan .fbar, .fixan .fslide, .fixan .ftick, .fixan .fguide {
+    vector-effect:non-scaling-stroke; }
+  .fixan .fbar  { color:var(--ink); stroke:var(--ink); stroke-width:1.2;
+                  stroke-linejoin:miter; }
+  .fixan .fpart { fill:var(--ink); stroke:var(--ink); stroke-width:1.2; }
+  .fixan .fslide{ fill:var(--panel); stroke:var(--ink); stroke-width:1.2; }
+  .fixan .ftick { stroke:var(--ink-3); stroke-width:1; }
+  .fixan .fguide{ stroke:var(--hair); stroke-width:1; stroke-dasharray:3 9; }
+  .fixan .fdot  { fill:var(--brass); }
+  /* Толщина линии — В ПИКСЕЛЯХ ЭКРАНА. Чертёж шириной 620 единиц показан на
+     восьмидесяти четырёх, то есть ужат в семь раз; без этого правила линия
+     в 1.3 превращается в 0.18 пикселя, и рисунок распадается на пунктир.
+     Селектор именно по классам: [stroke] требует АТРИБУТА, а обводка здесь
+     задана стилем — правило не совпадало ни с одним узлом и молча ничего не
+     делало. Поймано на тёмной теме, где у тела пропал контур. */
+  .calip .cbody, .calip .cbeam, .calip .cjaw, .calip .cslide, .calip .ctick {
+    vector-effect:non-scaling-stroke; }
+  .calip .cbody { fill:var(--brass); fill-opacity:var(--calip-fill); stroke:var(--ink);
+                  stroke-width:1.2; stroke-linejoin:round; }
+  /* Заливка чернилами появляется только на выдержке, и её плотностью
+     правит код. ЗДЕСЬ ЕЁ ЗАДАВАТЬ НЕЛЬЗЯ: правило из таблицы стилей
+     сильнее презентационного атрибута, и fill-opacity из кода молча
+     не применялся бы — буква оставалась бы контуром. Начальный ноль
+     ставится атрибутом при постройке. */
+  /* Буква наливается ЛАТУНЬЮ, а не чернилами. Латунь — цвет печати в
+     шапке, то есть та же марка; чернила на тёмной теме давали белое
+     пятно ярче всего на экране, и повторялось бы оно каждые пятнадцать
+     секунд. */
+  .calip .cbeam, .calip .cjaw { fill:var(--brass);
+                                stroke:var(--ink-3); stroke-width:1;
+                                stroke-linejoin:round; }
+  .calip .cjaw  { stroke:var(--ink-2); }
+  .calip .cslide { fill:var(--panel-2); stroke:var(--ink-3); stroke-width:1; }
+  .calip .ctick { stroke:var(--ink-3); stroke-width:1; }
+  .calip .cdot  { fill:var(--brass); }
+  /* Уважение к отказу от движения — не мелочь для того, что крутится без
+     конца: у части людей это вызывает тошноту. Кадр рисуется один, в
+     положении обмера, и цикл не запускается вовсе. */
+  @media (prefers-reduced-motion: reduce) { .calip { }}
+  .mdh { font-weight:650; margin:10px 0 4px; font-size:14.5px; }
+  .bubble > .mdh:first-child { margin-top:0; }
+  ul.md { margin:4px 0 8px; padding-left:20px; }
+  ul.md li { margin:2px 0; }
+  /* Ссылка обязана выглядеть ссылкой. Подчёркивание, а не только цвет:
+     цветом одним отличие не читается ни в дальтонизме, ни на солнце, ни в
+     распечатке. Обрыв по любому месту — адреса в ответе бывают длиннее
+     пузыря, и без этого они распирают колонку вбок. */
+  /* Переключатель кабинета. Строка целиком — кнопка: выбирают здесь ровно
+     одно, и отдельная кнопка «выбрать» рядом с названием заняла бы место,
+     ничего не добавив. Активный отмечен не только цветом — рамкой и жирным:
+     цветом одним отличие не читается ни в дальтонизме, ни на солнце. */
+  .prow > button.pname { font: inherit; text-align:left; color:var(--ink);
+                         background:none; border:1px solid transparent;
+                         border-radius:6px; padding:2px 6px; cursor:pointer; }
+  .prow > button.pname:hover { border-color:var(--hair); }
+  .prow > button.pname:focus-visible { outline:2px solid var(--brass);
+                                       outline-offset:1px; }
+  .prow.on > button.pname { font-weight:650; border-color:var(--brass); }
+  .prow .pdom { color:var(--ink-3); font-weight:400; }
+
+  /* Выбор клиента в панели дела. Системный вид намеренно: список короткий,
+     а своя отрисовка списка означала бы свою же клавиатурную навигацию. */
+  select.clientsel { font: inherit; color:var(--ink); background:var(--panel-2);
+                     border:1px solid var(--hair); border-radius:6px;
+                     padding:3px 6px; max-width:100%; }
+  select.clientsel:focus-visible { outline:2px solid var(--brass); outline-offset:1px; }
+
+  .bubble a.mdlink { color:var(--link); text-decoration:underline;
+                     text-underline-offset:2px; overflow-wrap:anywhere; }
+  .bubble a.mdlink:hover { text-decoration-thickness:2px; }
+  .bubble a.mdlink:focus-visible { outline:2px solid var(--link);
+                                   outline-offset:2px; border-radius:2px; }
+  /* Таблица прокручивается внутри себя: у сметы бывает пять столбцов, и
+     страница не должна ездить вбок из-за неё. */
+  .tablewrap { overflow-x:auto; margin:6px 0 8px; }
+  table.md { border-collapse:collapse; font-size:13px; min-width:100%; }
+  table.md th, table.md td { border:1px solid var(--hair); padding:5px 9px;
+                             text-align:left; vertical-align:top; }
+  table.md th { font-family:var(--mono); font-size:10.5px; letter-spacing:.06em;
+                text-transform:uppercase; color:var(--ink-3); font-weight:500; }
+  table.md td { font-variant-numeric:tabular-nums; }
+
+  /* Общие таблицы дела — сетка правится по ячейке, и правящаяся ячейка
+     обязана выглядеть иначе, чем просто прочитанная: иначе Enter/Tab уводят
+     фокус незаметно, и человек допишет не туда. Спор — тревожным контуром,
+     тем же цветом, что и прочие отказы панелей (`.bad` ниже). */
+  .sheets td[contenteditable="true"] { cursor:text; }
+  .sheets td[contenteditable="true"]:focus { outline:2px solid var(--brass);
+    outline-offset:-2px; background:var(--brass-glow); }
+  .sheets td.tdconflict { outline:2px solid #b4544a; outline-offset:-2px; }
+  .sheets tfoot td { font-weight:600; border-top:2px solid var(--hair); }
+  .sheets .bad { color:#b4544a; font-weight:600; }
+  .sheets .stcolrow { display:flex; gap:6px; align-items:center; margin:4px 0; }
+  .sheets .stcolrow input[type="text"] { flex:1; min-width:0; }
+  .sheets .stcolrow select { flex:0 0 auto; }
+  .sheets .stcolrm { font-size:11px; padding:2px 8px; flex:0 0 auto; }
+  .sheets .rowrm { font-size:11px; padding:2px 8px; }
+  .sheets .stconflict1 { display:flex; flex-wrap:wrap; align-items:baseline;
+    gap:8px; padding:5px 0; border-top:1px solid var(--line); }
+  .sheets .stconflict1:first-child { border-top:0; }
+  .sheets .stconflict1 button { font-size:11px; padding:2px 8px; }
+
+  .card { margin-top:9px; border:1px solid var(--hair); border-radius:8px;
+          background:var(--panel); overflow:hidden; }
+  .card .top { padding:9px 12px 7px; display:flex; justify-content:space-between; gap:10px; }
+  .card .name { font-weight:600; font-size:14px; }
+  .card .price { font-family:var(--mono); font-size:13px; color:var(--brass); white-space:nowrap; }
+  /* gap не срабатывает между инлайновыми детьми при переносе строки — задаём
+     отступ явно, иначе «комиссии нет» слипается со следующим полем. */
+  .disclose { padding:6px 12px; border-top:1px dashed var(--hair);
+              font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+              display:flex; gap:7px; flex-wrap:wrap; align-items:center;
+              line-height:1.7; }
+  .disclose > span + span { margin-left:2px; }
+  .dot { width:5px; height:5px; border-radius:50%; background:var(--ok); flex:none; }
+
+  .ways { margin:2px 0 4px; display:grid; gap:8px; }
+  .wayshead { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em;
+              text-transform:uppercase; color:var(--ink-3); }
+  .way { text-align:left; background:var(--panel-2); border:1px solid var(--hair);
+         border-radius:10px; padding:0; cursor:pointer; font-family:var(--sans);
+         color:var(--ink); overflow:hidden; }
+  .way:hover { border-color:var(--brass-dim); }
+  .waytop { display:flex; justify-content:space-between; align-items:baseline;
+            gap:10px; padding:10px 12px 4px; }
+  .wayname { font-weight:600; font-size:14px; }
+  .waygo { color:var(--brass); }
+  .waysum { padding:0 12px 8px; color:var(--ink-2); font-size:13px; }
+  /* Оплаченное место отличается цветом точки: раскрытие должно быть заметно
+     без чтения. */
+  .dot.paid { background:var(--brass); }
+  .waynote { font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+             padding:0 2px 4px; }
+  .way:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  .chips { display:flex; gap:7px; padding:0 13px 12px; flex-wrap:wrap; }
+  .chip { background:none; border:1px dashed var(--hair); color:var(--ink-2);
+          border-radius:999px; padding:5px 12px; font-size:12.5px; cursor:pointer;
+          font-family:var(--sans); }
+  .chip:hover { border-color:var(--brass-dim); color:var(--ink); }
+  /* Свёрнутые примеры. Переключатель выглядит спокойнее самих примеров:
+     он не предложение, а дверца к ним. */
+  .chip-more { border-style:solid; opacity:.75; }
+  .chip-more:hover { opacity:1; }
+  .chipbox { display:flex; gap:7px; flex-wrap:wrap; width:100%; margin-top:7px; }
+
+  /* ── Команды со знака «/» ────────────────────────────────────────────
+     Подсказка стоит НАД полем ввода в обычном потоке, а не всплывающим
+     слоем. Всплывающий пришлось бы позиционировать относительно композера,
+     а он на узком экране переносится по строкам — список уезжал бы мимо.
+     В потоке он просто отодвигает ленту, как это делают «Примеры».
+
+     Свой короб, а не .chips: класс chips переиспользуется прямо в ленте
+     (перечень разделов), и общие правила разъехались бы. */
+  /* Предел высоты — в ДИНАМИЧЕСКОЙ высоте экрана, и это про телефон.
+     `vh` считается от ПОЛНОГО экрана и клавиатуры не замечает: на 812-точечном
+     телефоне это 357 px списка при ~420 px, оставшихся над клавиатурой, — то
+     есть список накрыл бы всё, что не накрыла она. `dvh` следует за видимой
+     частью. Строка с `vh` оставлена НИЖЕ по каскаду не будет: старые браузеры
+     не знают `dvh` и возьмут первую, новые — вторую. */
+  .cmdhint { display:flex; flex-direction:column; gap:2px;
+             padding:0 13px 8px; overflow-y:auto;
+             max-height:44vh; max-height:44dvh; }
+  .cmdrow { display:flex; gap:8px; align-items:baseline; cursor:pointer;
+            padding:5px 8px; border-radius:7px; border:1px solid transparent; }
+  .cmdrow:hover, .cmdrow.on { background:var(--panel-2); border-color:var(--hair); }
+  .cmdname { font-family:var(--mono); font-size:12.5px; color:var(--ink);
+             flex:none; }
+  /* Довод берётся в угловые скобки разметкой, а не строкой: иначе имя
+     довода перестало бы совпадать с ключом словаря и потеряло перевод. */
+  .cmdarg { font-family:var(--mono); font-size:11.5px; color:var(--brass-dim);
+            flex:none; }
+  .cmdarg::before { content:"\2039"; }
+  .cmdarg::after  { content:"\203a"; }
+  .cmdwhat { font-size:12.5px; color:var(--ink-2); }
+  /* На узком экране длинная подпись уходит на свою строку — но ТОЛЬКО она.
+
+     Замер на 375×812: в одну строку с именем подписи достаётся сотня
+     пикселей из трёхсот, и «сообщить о поломке — попадёт в список разбора»
+     разваливается на три обрывка — строка 70 px вместо 32.
+
+     ЗДЕСЬ РАЗРЕШЁН ПЕРЕНОС, А НЕ НАВЯЗАН, и разница вышла дорогой. Первая
+     редакция ставила подписи `flex:1 1 100%`, то есть уводила на свою строку
+     ВСЕ: короткие выросли с 32 px до 53, и перечень стал не короче, а длиннее
+     — 655 px против 517. Одного `flex-wrap` довольно: короткая подпись
+     остаётся рядом с именем, длинная переносится и получает всю ширину.
+
+     ОТСТУП БОЛЬШЕ — РАДИ ПАЛЬЦА. Строка в 32 px пальцем берётся, но в этом
+     списке рядом стоят `/очистить` и `/выход`, и цена промаха тут не «не та
+     страница», а выход из учётной записи. Девять пикселей отступа дают ~40 px
+     — не 44 по руководствам, но и не 32; выше поднимать нельзя, не разойдясь
+     с остальной оболочкой, где пилюли и микрофон те же 30–38. */
+  @media (max-width:520px){
+    .cmdrow { flex-wrap:wrap; row-gap:2px; padding:9px 8px; }
+  }
+
+  /* Ответ команды. НЕ пузырь: подпись «Ф» означала бы, что говорила модель,
+     а здесь ответила страница, не потратив ни кредита. */
+  .cmdout { margin:8px 0; padding:10px 12px; border:1px dashed var(--hair);
+            border-radius:10px; display:flex; flex-direction:column; gap:5px;
+            font-size:13px; color:var(--ink); }
+  .cmdout .cmdrow { font-size:12.5px; }
+  .cmdhead { color:var(--ink-2); font-size:12px; }
+  .cmdfoot { color:var(--ink-3); font-size:11.5px; }
+  .cmdnote { font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+             overflow-wrap:anywhere; }
+  .cmdsample { font-family:var(--mono); font-size:12px; color:var(--ink-2);
+               background:var(--panel-2); border-radius:7px; padding:6px 9px;
+               overflow-wrap:anywhere; }
+  .cmdreport { border-top:1px solid var(--hair-soft); padding-top:6px;
+               display:flex; flex-direction:column; gap:3px; }
+  .cmdreport .bad { color:#b4544a; font-weight:600; }
+  /* Кнопки решения по поломке. У `.addone` свой margin-top:10px — в
+     плотном списке он разрывает строку пополам, поэтому снимается, как
+     и у `.prow .addone` выше. */
+  .cmdacts { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .cmdacts .addone { margin-top:0; padding:4px 9px; font-size:12px; }
+  form.composer { border-top:1px solid var(--hair-soft); padding:11px 13px;
+                  display:flex; gap:9px; align-items:center; }
+  /* min-width:0 обязателен, и это не украшение. У элемента флексбокса
+     min-width по умолчанию auto: поле отказывается сжиматься ниже своего
+     содержимого и выталкивает кнопку «Отправить» за край экрана. На узком
+     телефоне человек видел поле ввода и обрезанную кнопку, которой нечем
+     воспользоваться. */
+  .composer input { flex:1; min-width:0; background:var(--panel-2);
+    border:1px solid var(--hair);
+    border-radius:8px; padding:9px 12px; color:var(--ink);
+    font-family:var(--sans); font-size:14.5px; }
+  /* Кнопка не сжимается: обрезанное слово «Отпр…» хуже узкого поля. */
+  .composer .send { flex:none; }
+  /* На телефоне поле уходит на свою строку. Иначе оно делит ширину с тремя
+     кнопками и остаётся сотней пикселей: формально это работает, но писать
+     в такое поле нельзя — видно одно слово из фразы. */
+  @media (max-width:460px){
+    form.composer { flex-wrap:wrap; }
+    .composer input { flex:1 1 100%; order:-1; }
+  }
+  .composer input::placeholder { color:var(--ink-3); }
+  .mic { flex:none; width:38px; height:38px; border-radius:9px; cursor:pointer;
+         background:var(--panel-2); border:1px solid var(--hair); color:var(--ink-2);
+         display:grid; place-items:center; }
+  .mic:hover { border-color:var(--brass-dim); color:var(--ink); }
+  /* Запись видно без слов: цветом и пульсом. Подпись бы не заметили. */
+  .mic.rec { color:#14100A; background:var(--brass); border-color:var(--brass);
+             animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{ box-shadow:0 0 0 0 var(--brass-glow); }
+                     50%{ box-shadow:0 0 0 7px transparent; } }
+  @media (prefers-reduced-motion: reduce){ .mic.rec{ animation:none; } }
+  .mic:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  .send { background:var(--brass); color:#14100A; border:none; border-radius:8px;
+          padding:9px 16px; font-weight:620; cursor:pointer; font-size:14px;
+          font-family:var(--sans); }
+
+  .case.live { box-shadow:0 0 0 1px var(--brass-dim), 0 0 26px -8px var(--brass-glow); }
+  /* То же «дело живое», но на плоском разделе внутри колонки. Кольцо по
+     периметру там читалось бы рамкой, которых мы только что лишились,
+     поэтому знак — латунный торец слева. */
+  #casebody.live { box-shadow:inset 2px 0 0 var(--brass-dim); }
+  .empty { padding:26px 16px; color:var(--ink-3); font-size:13.5px; text-align:center; }
+  dl.fields { margin:0; padding:4px 0; }
+  dl.fields > div { display:grid; grid-template-columns:106px 1fr; gap:10px;
+    padding:8px 15px; border-bottom:1px solid var(--hair-soft);
+    animation:settle .34s ease both; }
+  dl.fields > div:last-child { border-bottom:none; }
+  @keyframes settle { from{opacity:0;transform:translateY(-3px);} to{opacity:1;} }
+  @media (prefers-reduced-motion: reduce){ dl.fields > div{ animation:none; } }
+  dl.fields dt { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em;
+                 text-transform:uppercase; color:var(--ink-3); padding-top:3px; }
+  dl.fields dd { margin:0; font-size:14px; }
+  dd .sub { color:var(--ink-2); font-size:12.5px; }
+  .badge { display:inline-flex; align-items:center; gap:6px; font-family:var(--mono);
+    font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--brass); border:1px solid var(--brass-dim); border-radius:4px;
+    padding:1px 7px; }
+
+  .invite { padding:15px; border-top:1px solid var(--hair); background:var(--panel-2); }
+  .invite h3 { margin:0 0 4px; font-size:15.5px; }
+  .invite .why { color:var(--ink-2); font-size:13px; margin:0 0 12px; }
+  .oauths { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .oauth { display:flex; align-items:center; gap:9px; padding:9px 11px;
+    background:var(--panel); border:1px solid var(--hair); border-radius:8px;
+    color:var(--ink); font-size:13.5px; cursor:pointer; font-family:var(--sans);
+    text-align:left; }
+  .oauth:hover { border-color:var(--brass-dim); }
+  .oauth i { flex:none; width:20px; height:20px; border-radius:5px; display:grid;
+    place-items:center; font-style:normal; font-family:var(--mono); font-size:11px;
+    font-weight:700; color:#fff; }
+  /* Цвета поставщиков привязаны к значку внутри кнопки, а не к голым буквам:
+     односимвольный класс .t «Т-Банка» иначе красит ЛЮБОЙ элемент с таким
+     классом. Поймано на списке дел: название дела приезжало жёлтой плашкой
+     с чёрным текстом, потому что у строки списка тоже был .t. */
+  .oauth i.g{background:#4285F4;} .oauth i.y{background:#FC3F1D;}
+  .oauth i.s{background:#21A038;}
+  .oauth i.t{background:#FFDD2D;color:#1A1A1A;}
+  .fine { margin:10px 0 0; color:var(--ink-3); font-size:11.5px; }
+
+  /* Где идёт разговор: в общем или в деле. Строка спокойная намеренно — это
+     указатель, а не сообщение: кричащая плашка над каждым экраном перестаёт
+     читаться через день. */
+  .where { display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    padding:11px 15px; }
+  .wnow { flex:1 1 auto; font-size:12.5px; color:var(--ink-2); }
+  .wout { padding:5px 11px; background:var(--panel); border:1px solid var(--hair);
+    border-radius:999px; color:var(--ink-2); font-size:12.5px; cursor:pointer;
+    font-family:var(--sans); white-space:nowrap; }
+  .wout:hover { border-color:var(--brass-dim); color:var(--ink); }
+  .wout:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  .wpick { padding:5px 8px; font:inherit; font-size:12px; max-width:220px;
+           border:1px solid var(--brass-dim); border-radius:6px;
+           background:var(--panel); color:var(--ink); }
+
+  /* Согласие и отказ стоят рядом и одинаково доступны: предложение, у
+     которого отказ спрятан, — это не предложение. */
+  .prow { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .prow .addone { margin-top:0; }
+  /* Поле с выданным ключом. Моноширинный и во всю строку: ключ читают глазами
+     при сверке и выделяют целиком мышью, а перенос посередине превращает
+     сверку в угадывание. */
+  .keyout { width:100%; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+            font-size:13px; padding:6px 8px; border:1px solid var(--line);
+            border-radius:6px; background:var(--bg2); color:var(--fg);
+            user-select:all; }
+  /* Поля хранилища: имя и значение в одну строку с кнопкой. Значение — поле
+     пароля, поэтому шрифт обычный: моноширинный тут ничего не даёт, всё равно
+     точки. */
+  .keyin { flex:1 1 8rem; min-width:6rem; font-size:13px; padding:6px 8px;
+           border:1px solid var(--line); border-radius:6px;
+           background:var(--bg2); color:var(--fg); }
+  .prow .send:disabled { opacity:.5; cursor:default; }
+
+  /* Пилюли областей жизни. Счётчик рядом с названием: пилюля без числа не
+     говорит, есть ли там что-нибудь, и человек жмёт наугад. */
+  .scopes { display:flex; flex-wrap:wrap; gap:6px; padding:12px 15px; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:5px 11px;
+    background:var(--panel); border:1px solid var(--hair); border-radius:999px;
+    color:var(--ink-2); font-size:12.5px; cursor:pointer; font-family:var(--sans); }
+  .pill:hover { border-color:var(--brass-dim); color:var(--ink); }
+  .pill.on { border-color:var(--brass); color:var(--ink); background:var(--panel-2); }
+  .pill.set { border-style:dashed; }
+  .pill b { font-family:var(--mono); font-size:11px; color:var(--ink-3); }
+  .pill.on b { color:var(--brass); }
+
+  /* Список дел. Пока его не было, дело было ровно одно: вернуться к
+     прежнему разговору человек не мог, и заметил это первым. Список живёт
+     под пилюлями, потому что пилюли его же и фильтруют. */
+  .caseshead { display:flex; align-items:center; gap:8px; padding:10px 15px 7px; }
+  .caseshead .cnt { flex:1 1 auto; font-family:var(--mono); font-size:10.5px;
+    letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); }
+  .newcase { padding:5px 11px; background:var(--panel); border:1px dashed var(--hair);
+    border-radius:999px; color:var(--ink-2); font-size:12.5px; cursor:pointer;
+    font-family:var(--sans); }
+  .newcase:hover { border-color:var(--brass-dim); color:var(--ink); }
+  .newcase:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  /* Список прокручивается внутри себя: у человека с полусотней дел карточка
+     дела иначе уезжает за нижний край экрана. */
+  .caserows { max-height:212px; overflow-y:auto; padding:0 10px 10px;
+    display:grid; gap:5px; }
+  /* Строка дела — настоящая ссылка <a href="#/case/…">, а не кнопка: так
+     браузер сам даёт «открыть в соседней вкладке», «Назад» и закладки.
+     Отсюда две строки, которых кнопке не требовалось: подчёркивание снять и
+     считать рамку внутрь ширины (у <a> box-sizing по умолчанию content-box,
+     и при width:100% строка вылезала бы за колонку на 22 пикселя). */
+  .case1 { display:grid; gap:2px; width:100%; box-sizing:border-box;
+    text-align:left; cursor:pointer; text-decoration:none;
+    background:var(--panel-2); border:1px solid var(--hair); border-radius:8px;
+    padding:7px 10px; color:var(--ink); font-family:var(--sans); }
+  .case1:hover { border-color:var(--brass-dim); }
+  .case1.on { border-color:var(--brass); background:var(--panel); }
+  .case1:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  .case1 .t { font-size:13.5px; }
+  .case1 .m { font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+    letter-spacing:.03em; }
+  /* Дело, заведённое другим, помечено ДО нажатия — но НЕ заперто. Прежний
+     довод здесь утверждал, что шлюз такое дело открыть не даст; это неправда,
+     и в app.js она уже исправлена живым вызовом: дверь ПУСКАЕТ участника с
+     правом читать. Пометка говорит «ведёт другой», а не «нельзя». */
+  .case1.alien { border-style:dashed; }
+  .case1.alien .t { color:var(--ink-2); }
+  .casenote { padding:0 15px 11px; color:var(--ink-3); font-size:12.5px; }
+  /* Сообщения о поломках — СВОЕЙ строкой во всю ширину панели.
+     Третьим предметом в шапке кнопка ломала её, и ломала не переносом:
+     `.caseshead` — flex без wrap, поэтому вместо переноса сжимались сами
+     надписи. Заголовок «обращений за сутки: 1183 · наружу: 742» разъезжался
+     на три строки, три предмета вставали на разной высоте, а сама шапка
+     росла с 50 до 98 пикселей. Замерено в живой колонке шириной 304 px.
+     Отдельная строка при этом честнее и по смыслу: журнал обращений и
+     сообщения людей — разные вещи, и в одной строке они только мешают. */
+  .opsreports { display:block; width:100%; text-align:left; cursor:pointer;
+    background:none; border:none; border-top:1px solid var(--hair-soft);
+    padding:8px 15px; color:var(--ink-2);
+    font-family:var(--sans); font-size:12.5px; }
+  .opsreports:hover { color:var(--ink); background:var(--panel-2); }
+  .opsreports:focus-visible { outline:2px solid var(--brass); outline-offset:-2px; }
+  /* Число моноширинным и табличными цифрами: оно меняется при каждом
+     обновлении, и прыгающая ширина читается как мелькание. */
+  .opsreports b { color:var(--ink); font-family:var(--mono);
+                  font-variant-numeric:tabular-nums; }
+  /* Форма заведения объекта. Поля рисуются по описанию направления, поэтому
+     правила общие: ни одного селектора под конкретное поле — иначе гостиница
+     и экскаватор снова потребовали бы правки оболочки. */
+  .oform { margin:0 15px 12px; padding:11px 12px; background:var(--panel-2);
+           border:1px solid var(--hair); border-radius:10px; }
+  .oform .oname { font-weight:600; font-size:13px; margin-bottom:8px; }
+  /* Подзаголовок внутри формы переноса: два пути к одному действию, и они
+     должны читаться как два, а не как один длинный список полей. */
+  .oform .opath { margin-top:14px; }
+  .oform .orow { display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
+  .oform .olabel { font-size:12px; color:var(--ink-2); }
+  .oform .oreq { color:var(--brass); }
+  .oform .ofield { font:inherit; font-size:13px; color:var(--ink);
+                   background:var(--panel); border:1px solid var(--hair);
+                   border-radius:7px; padding:6px 9px; width:100%;
+                   box-sizing:border-box; }
+  .oform .ofield:focus-visible { outline:2px solid var(--brass); outline-offset:1px; }
+  .oform .obool { width:auto; align-self:flex-start; }
+  /* Подсказка про образец — тем же моноширинным, что и прочие служебные
+     пояснения: человек по начертанию узнаёт, что это про форму записи. */
+  .oform .ohint { font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+                  line-height:1.4; }
+  .oform .omore { font:inherit; font-size:12px; color:var(--ink-3);
+                  background:none; border:0; padding:2px 0; cursor:pointer;
+                  text-decoration:underline dotted; }
+  .oform .omore:hover { color:var(--ink); }
+  .oform .ohidden { margin-top:6px; padding-top:8px;
+                    border-top:1px solid var(--hair-soft); }
+  .oform .obtns { display:flex; gap:8px; margin-top:10px; }
+  .oform .osubmit { font:inherit; font-size:12.5px; padding:6px 14px;
+                    color:var(--ground); background:var(--brass);
+                    border:1px solid var(--brass); border-radius:7px; cursor:pointer; }
+  .oform .osubmit[disabled] { opacity:.55; cursor:default; }
+  .oform .ocancel { font:inherit; font-size:12.5px; padding:6px 12px;
+                    color:var(--ink-3); background:var(--panel);
+                    border:1px solid var(--hair); border-radius:7px; cursor:pointer; }
+  .oform .ocancel:hover { color:var(--ink); }
+  .oform .osubmit:focus-visible,.oform .ocancel:focus-visible,
+  .oform .omore:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  .oform .casenote { padding:8px 0 0; }
+
+  /* Приложенное к делу. Список — не украшение: без него загрузка беззвучна,
+     и человек не знает, дошёл файл или нет. */
+  /* ── Окно переписки участников ──────────────────────────────────────
+     Отдельное от ленты разговора с агентом. Своя рамка и своя шапка нужны
+     не для красоты: человек должен видеть, что пишет ЛЮДЯМ, а не помощнику,
+     — цена ошибки тут разная, и одинаковый вид утверждал бы обратное.
+
+     Токены только те, что объявлены на :root. Правило выше в этом файле
+     объясняет, почему: var(--нет-такой) без запасного значения гасит
+     свойство целиком, и короб молча остался бы без рамки и фона. */
+  .thrbox { margin:0 0 12px; border:1px solid var(--brass-dim);
+            border-radius:8px; background:var(--panel-2);
+            display:flex; flex-direction:column; max-height:52vh; }
+  .thrhead { display:flex; align-items:center; gap:8px; padding:9px 12px;
+             border-bottom:1px solid var(--line); }
+  .thrtitle { flex:1; font-size:12px; font-family:var(--mono);
+              letter-spacing:.06em; text-transform:uppercase;
+              color:var(--brass); }
+  .thrclose { border:0; background:none; color:var(--ink-2); cursor:pointer;
+              font-size:19px; line-height:1; padding:0 4px; }
+  .thrclose:hover { color:var(--ink); }
+  .thrclose:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  .thrlog { flex:1; overflow-y:auto; padding:10px 12px; }
+  /* Своё и чужое различаются положением и подписью, а не одним оттенком:
+     на монохромном экране и при дальтонизме цвет не различается вовсе. */
+  .thrmsg { margin:0 0 9px; max-width:82%; }
+  .thrmsg.mine { margin-left:auto; }
+  .thrwho { display:block; font-size:10px; font-family:var(--mono);
+            color:var(--ink-3); margin-bottom:2px; }
+  .thrmsg.mine .thrwho { text-align:right; }
+  .thrbody { display:inline-block; padding:6px 9px; border-radius:7px;
+             background:var(--panel); color:var(--ink); font-size:13px;
+             line-height:1.45; white-space:pre-wrap; word-break:break-word; }
+  .thrmsg.mine .thrbody { background:var(--you); }
+  .thrnote { color:var(--ink-3); font-size:12px; padding:4px 0; }
+  .thrsend { display:flex; gap:8px; padding:9px 12px;
+             border-top:1px solid var(--line); }
+  .thrsend textarea { flex:1; resize:none; background:var(--bg);
+                      color:var(--ink); border:1px solid var(--line);
+                      border-radius:6px; padding:7px 9px; font-size:13px;
+                      font-family:var(--sans); line-height:1.4; }
+  .thrsend textarea:focus-visible { outline:2px solid var(--brass);
+                                    outline-offset:1px; }
+  .thrsendbtn { border:1px solid var(--brass-dim); border-radius:6px;
+                background:none; color:var(--brass); cursor:pointer;
+                padding:0 13px; font-size:13px; white-space:nowrap; }
+  .thrsendbtn:hover { background:var(--brass-glow); }
+  .thrsendbtn:disabled { opacity:.5; cursor:default; background:none; }
+  .thrsendbtn:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+
+  /* Общий короб артефактов. Внутренние разряды перестают быть карточками —
+     иначе рамка в рамке в рамке; у них остаётся только заголовок и отступ. */
+  .arts > .files { padding:0; margin:12px 0 0; border:0; background:none; }
+  .arts > .files:first-of-type { margin-top:0; }
+  .arts > .files h3 { font-size:12px; color:var(--ink-3); }
+
+  /* Форма ручного заведения дела. Родня окну переписки по виду — оба
+     всплывают над списком дел и оба закрываются крестиком. */
+  .mkbox { margin:0 0 12px; border:1px solid var(--brass-dim); border-radius:8px;
+           background:var(--panel-2); }
+  .mkhead { display:flex; align-items:center; gap:8px; padding:9px 12px;
+            border-bottom:1px solid var(--line); }
+  .mktitle { flex:1; font-size:12px; font-family:var(--mono);
+             letter-spacing:.06em; text-transform:uppercase; color:var(--brass); }
+  .mkform { padding:11px 12px; }
+  .mkrow { display:block; margin:0 0 9px; }
+  .mkrow > span { display:block; font-size:11px; font-family:var(--mono);
+                  color:var(--ink-3); margin-bottom:3px; }
+  .mkrow select, .mkrow input, .mkrow textarea {
+    width:100%; box-sizing:border-box; background:var(--bg); color:var(--ink);
+    border:1px solid var(--line); border-radius:6px; padding:7px 9px;
+    font-size:13px; font-family:var(--sans); }
+  /* Флажок — единственное поле, которому ширина в строку вредна: растянутый
+     на всю строку квадратик выглядит сломанным, а подпись уезжает от него на
+     полэкрана. Поэтому строка с флажком складывается в ряд. */
+  .mkrow.mkflag { display:flex; align-items:center; gap:8px; }
+  .mkrow.mkflag > span { margin:0; order:2; font-size:12px; color:var(--ink-2); }
+  .mkrow.mkflag input[type="checkbox"] {
+    width:16px; height:16px; flex:0 0 16px; padding:0; margin:0;
+    accent-color:var(--brass); order:1; }
+  .mkrow select:focus-visible, .mkrow input:focus-visible,
+  .mkrow textarea:focus-visible { outline:2px solid var(--brass);
+                                  outline-offset:1px; }
+  .mknote { font-size:12px; color:var(--ink-2); margin:0 0 9px; }
+  .mkbtns { display:flex; justify-content:flex-end; }
+
+  /* ── Колокольчик уведомлений ────────────────────────────────────────
+     Число на значке — не украшение: список без него заставляет открывать его,
+     чтобы узнать, есть ли новое, то есть отвечает на вопрос только после
+     действия. */
+  .speak { border:0; background:none; cursor:pointer; font-size:15px;
+           opacity:.4; padding:2px 4px; line-height:1; border-radius:6px;
+           transition:opacity .15s, background .15s; }
+  .speak:hover { opacity:.85; }
+  .speak.on { opacity:1; background:rgba(176,141,87,.16); }
+  .speak:focus-visible { outline:2px solid var(--brass); outline-offset:2px;
+                         opacity:1; }
+
+  /* Кнопка у отдельной реплики. Приглушена, пока на строку не навели: у
+     каждого ответа своя, и в полную силу они превратили бы ленту в частокол
+     значков. Читаемая — видна всегда, иначе остановить чтение можно было бы
+     только на ощупь. */
+  .sayit { align-self:flex-end; border:0; background:none; cursor:pointer;
+           font-size:12px; line-height:1; padding:3px 4px; margin-bottom:2px;
+           opacity:0; border-radius:5px; color:var(--ink-2);
+           transition:opacity .15s; }
+  .msg:hover .sayit, .sayit:focus-visible { opacity:.7; }
+  .sayit:hover { opacity:1; }
+  .sayit[aria-pressed="true"] { opacity:1; color:var(--brass); }
+  .sayit:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  @media (hover:none) { .sayit { opacity:.55; } }
+
+  .bellwrap { position:relative; }
+  .bell { border:0; background:none; cursor:pointer; font-size:16px;
+          line-height:1; padding:3px 5px; position:relative; opacity:.85; }
+  .bell:hover { opacity:1; }
+  .bell:focus-visible { outline:2px solid var(--brass); outline-offset:2px;
+                        border-radius:6px; }
+  .bellnum { position:absolute; top:-2px; right:-3px; min-width:15px;
+             height:15px; padding:0 3px; box-sizing:border-box;
+             border-radius:8px; background:var(--brass); color:#1a1408;
+             font:600 10px/15px var(--mono); text-align:center; }
+  .bellbox { position:absolute; right:0; top:28px; z-index:40; width:300px;
+             max-height:60vh; overflow-y:auto; border:1px solid var(--brass-dim);
+             border-radius:8px; background:var(--panel); }
+  .bellhead, .credhead { display:flex; align-items:center; gap:8px; padding:8px 11px;
+              border-bottom:1px solid var(--line); font:11px/1 var(--mono);
+              letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+  .bellall { margin-left:auto; border:0; background:none; cursor:pointer;
+             color:var(--brass); font-size:11px; font-family:var(--mono); }
+  .bellall:disabled { opacity:.45; cursor:default; }
+  .bellall:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  .bell1 { padding:9px 11px; border-top:1px solid var(--line); cursor:pointer; }
+  .bell1:first-child { border-top:0; }
+  .bell1:hover { background:var(--panel-2); }
+  /* Непрочитанное отличается ПОЛОСОЙ, а не только насыщенностью текста:
+     на монохромном экране и при дальтонизме оттенок не различается. */
+  .bell1.new { border-left:3px solid var(--brass); padding-left:8px; }
+  .bell1 .bt { display:block; color:var(--ink); font-size:13px; }
+  .bell1 .bb { display:block; color:var(--ink-2); font-size:12px; margin-top:2px; }
+  .bell1 .bw { display:block; color:var(--ink-3); font-size:11px;
+               font-family:var(--mono); margin-top:3px; }
+  /* Некуда идти — и курсор об этом говорит заранее. */
+  .bell1.flat { cursor:default; }
+  .bell1.flat:hover { background:none; }
+
+  /* Выбор схемы хранения. Каждая строка — решение о том, у кого физически
+     лежат бумаги, поэтому последствия написаны РЯДОМ с выбором, а не в
+     справке: настройка, последствий которой не видно в момент выбора, — это
+     согласие, полученное невнимательно. */
+  .vp1 { display:block; padding:9px 0; border-top:1px solid var(--line);
+         cursor:pointer; }
+  .vp1:first-child { border-top:0; }
+  .vp1.off { opacity:.5; cursor:default; }
+  .vp1 .vpn { color:var(--ink); font-size:13px; }
+  .vp1.on .vpn { color:var(--brass); }
+  .vp1 .vpw { display:block; color:var(--ink-2); font-size:12px; margin-top:2px; }
+  .vp1 .vpr { display:block; color:var(--ink-3); font-size:11px;
+              font-family:var(--mono); margin-top:3px; }
+
+  /* Род сведений у бумаги и в составе дела. Латунью, как и всё, что требует
+     внимания, но мелко: это пометка, а не заголовок. */
+  .doc1 .sens, .file1 .sens { font-size:11px; font-family:var(--mono);
+                              color:var(--brass); white-space:nowrap; }
+  /* Правка рода держится тихой: это действие, а не подпись, и на каждой
+     строке оно есть. Кричать ему незачем — но и прятать нельзя: поднять род
+     у бумаги, которую машина сочла обычной, можно только отсюда. */
+  .doc1 .sensedit { font-size:11px; font-family:var(--mono); color:var(--ink-3);
+                    background:none; border:0; padding:0 4px; cursor:pointer;
+                    white-space:nowrap; }
+  .doc1 .sensedit:hover { color:var(--brass); text-decoration:underline; }
+
+  /* Родословная правок. Отступ и черта слева говорят «это выросло из строки
+     выше» без единого слова; сама метка тихая — версия важна, но не важнее
+     названия документа. Ветвление латунью: о нём человек ДОЛЖЕН узнать
+     сейчас, потому что слить две ветки не возьмётся никто. */
+  .doc1.docrev { padding-left:14px; border-left:2px solid var(--hair); }
+  .doc1 .drev { font-size:11px; font-family:var(--mono); color:var(--ink-3);
+                white-space:nowrap; }
+  .doc1 .drev.dfork { color:var(--brass); }
+  /* Откуда взято. Латунью — это единственная строка на экране, которая
+     утверждает проверенное: «дословно» здесь стоит после машинной сверки,
+     а не со слов модели. */
+  .doc1 .dcite { font-size:11px; font-family:var(--mono); color:var(--brass);
+                 border-color:var(--brass-dim); white-space:nowrap;
+                 max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+  .doc1 .senspick { font-size:11px; font-family:inherit; max-width:190px; }
+  .who1 .see { font-size:11px; font-family:var(--mono); color:var(--brass); }
+  .who1 .see.dim { color:var(--ink-3); }
+  .who1 .see.edit { cursor:pointer; border-bottom:1px dashed currentColor; }
+  .who1 .see.edit:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  /* Выбор того, что увидит приглашённый. Переключатели, а не один выбор:
+     рода несравнимы, и «до какого уровня» смысла не имеет. */
+  .seepick { margin:0 0 8px; }
+  .seehead { display:block; font-size:11px; font-family:var(--mono);
+             color:var(--ink-3); margin-bottom:4px; }
+  .seerow { display:flex; flex-wrap:wrap; gap:6px; }
+  .seeone { border:1px solid var(--line); border-radius:14px; padding:3px 10px;
+            font-size:12px; color:var(--ink-2); cursor:pointer;
+            background:none; }
+  .seeone.on { border-color:var(--brass); color:var(--brass);
+               background:var(--brass-glow); }
+  .seeone:disabled { opacity:.55; cursor:default; }
+  .seeone:focus-visible { outline:2px solid var(--brass); outline-offset:1px; }
+
+  .files { padding:15px; }
+  .doc1 { display:flex; align-items:baseline; gap:8px; padding:5px 0;
+          border-top:1px solid var(--line); }
+  .doc1:first-child { border-top:0; }
+  .doc1 .dn { flex:1; color:var(--ink); font-size:13px; }
+  .doc1 .dst { font-size:11px; font-family:var(--mono); color:var(--ink-3); }
+  /* Состояние разбора у приложенного файла. Цветом различаются только три
+     исхода, и различать их важно: «разбирается» пройдёт само, «не извлёкся»
+     не пройдёт никогда, и человеку надо понять это без чтения справки. */
+  .file1 .fst { font-size:11px; font-family:var(--mono); margin-left:8px; }
+  .file1 .fst.ok { color:#7fb597; }
+  .file1 .fst.pending { color:var(--ink-3); }
+  .file1 .fst.failed { color:#c9a45c; }
+  .doc1 .dget { font-size:11px; padding:3px 8px; }
+  .dgaps { padding:2px 0 6px 0; color:#c9a45c; font-size:12px; }
+  .files h3 { margin:0 0 8px; font-size:14px; color:var(--ink-2);
+    font-family:var(--mono); letter-spacing:.06em; text-transform:uppercase; }
+  .file1 { display:flex; align-items:baseline; gap:8px; padding:6px 0;
+    border-bottom:1px solid var(--hair-soft); font-size:13px; }
+  .file1:last-child { border-bottom:0; }
+  .file1 .fn { color:var(--ink); word-break:break-all; }
+
+  /* Нажимается только то, что можно открыть. Строка без id — просто запись в
+     перечне, и делать её похожей на кнопку значит обещать несуществующее. */
+  .file1.can { cursor:pointer; }
+  .file1.can:hover .fn { color:var(--brass); }
+  .file1.can:focus-visible { outline:2px solid var(--brass); outline-offset:2px;
+    border-radius:4px; }
+  .file1.busy { opacity:.55; cursor:progress; }
+  .file1 .fsz, .filerow .fsz { font-family:var(--mono); font-size:11px;
+    color:var(--ink-3); white-space:nowrap; margin-left:auto; }
+  .fnote { color:var(--ink-3); font-size:12.5px; }
+  .subject { margin:0 15px 8px; font-size:12.5px; color:var(--ink-2); }
+  .subject .subj { color:var(--ink); }
+  .subject button { margin-left:8px; font-size:11px; padding:2px 8px; }
+  .objcases { margin:2px 0 8px 14px; border-left:2px solid var(--hair);
+    padding-left:10px; }
+  .objcase { display:flex; gap:8px; align-items:baseline; padding:3px 0;
+    font-size:12.5px; }
+  .objcase .dst { color:var(--ink-3); font-size:11px; margin-left:auto; }
+  .invtill { display:flex; align-items:center; gap:8px; font-size:12.5px;
+    color:var(--ink-2); margin:2px 0 4px; }
+  .invtill input { width:auto; }
+  .invtill .hint { color:var(--ink-3); font-size:12px; }
+  /* Состояние прогона. Три вида, и «встал» намеренно заметнее прочих:
+     «идёт» и «не смог» человек прочтёт и спокойно, а прерванная работа —
+     единственное, о чём он иначе не узнает никогда. */
+  .commission { margin:0 15px 10px; }
+  .commission .clab { display:block; font-size:12px; color:var(--dim); margin-bottom:4px; }
+  .commission .crow { display:flex; flex-wrap:wrap; gap:6px; }
+  .commission input { flex:1 1 140px; min-width:0; padding:8px 10px;
+    border:1px solid var(--hair); border-radius:8px; font:inherit;
+    background:var(--paper); color:var(--ink); }
+  .commission .addone { flex:0 0 auto; }
+  .commission .fnote { margin-top:5px; }
+  .runstate { margin:0 15px 10px; padding:9px 12px; border-radius:8px;
+    font-size:13px; border:1px solid var(--hair); color:var(--ink-2); }
+  .runstate.идёт { border-color:var(--hair); }
+  .runstate.не-смог { border-color:#c9a45c; color:var(--ink); }
+  .runstate.встал { border-color:#b3402a; color:var(--ink); background:#fdf6f4; }
+  .runstate.ждёт { border-color:var(--brass-dim); }
+  .runstate.кончилось { border-color:var(--hair); color:var(--ink-2); }
+  /* Лестница этапов. Пройденное спокойно, текущее заметно, впереди тускло —
+     цвет здесь несёт состояние, а не украшает. */
+  .runstate .rssteps { margin-top:7px; display:flex; flex-direction:column; gap:2px; }
+  .runstate .rsstep { display:flex; gap:7px; align-items:baseline;
+                      font-size:12.5px; color:var(--ink-3); }
+  .runstate .rsmark { font-family:var(--mono); width:11px; flex:none;
+                      text-align:center; }
+  .runstate .rsstep.succeeded { color:var(--ink-2); }
+  .runstate .rsstep.succeeded .rsmark { color:var(--ok, #7fb597); }
+  .runstate .rsstep.running { color:var(--ink); font-weight:600; }
+  .runstate .rsstep.running .rsmark { color:var(--brass); }
+  .runstate .rsstep.waiting_approval { color:var(--ink); }
+  .runstate .rsstep.waiting_approval .rsmark { color:var(--brass); }
+  .runstate .rsstep.failed .rsmark { color:#b3402a; }
+  .runstate .rsstep.failed { color:var(--ink-2); }
+  .cvframe { border:1px solid var(--hair); background:#fff; width:100%;
+    min-height:420px; }
+
+  /* Ждёт вашего слова. Рамка заметная, но не тревожная: это не ошибка, это
+     нормальный ход работы — агент подготовил, человек решает. */
+  .pending { padding:15px; }
+  /* Единственный заголовок в боковой зоне без галочки складывания: этот
+     раздел не складывается намеренно — это единственное место, где от
+     человека прямо сейчас чего-то ждут. Отступ повторяет ширину галочки,
+     иначе после сведения начертаний подпись встаёт на 12px левее всех
+     соседних и колонка выглядит сбитой. */
+  .pending h3 { margin:0 0 10px; font-size:14px; color:var(--ink-2);
+    font-weight:600; padding-left:12px; }
+  .pend1 { border:1px solid var(--hair); border-radius:10px; padding:12px;
+    margin-bottom:10px; background:var(--bg-2, transparent); }
+  .pend1 .pwhat { font-size:13px; color:var(--ink-2); margin-bottom:6px; }
+  .pend1 .pwho { font-family:var(--mono); font-size:11px; color:var(--ink-3);
+    word-break:break-all; margin-bottom:8px; }
+  .pend1 .ptext { white-space:pre-wrap; font-size:13.5px; color:var(--ink);
+    border-left:2px solid var(--hair); padding-left:10px; margin-bottom:10px; }
+  .pend1 .pwhy { font-size:12px; color:var(--ink-3); margin-bottom:10px; }
+  .pend1 .pacts { display:flex; gap:8px; flex-wrap:wrap; }
+  .pend1 button { font:inherit; font-size:13px; padding:7px 14px;
+    border-radius:8px; border:1px solid var(--hair); cursor:pointer; }
+  .pend1 .pyes { background:var(--ink); color:var(--bg, #fff); border-color:var(--ink); }
+  .pend1 .pno { background:transparent; color:var(--ink-2); }
+  .pend1 button[disabled] { opacity:.5; cursor:default; }
+  /* Строка загрузки идёт в самом разговоре: имя и размер видны ДО отправки,
+     иначе человек узнаёт, что послал не тот файл, уже после. */
+  .filerow { display:flex; align-items:baseline; gap:9px; padding:7px 11px;
+    border:1px dashed var(--hair); border-radius:9px; font-size:12.5px; }
+  .filerow .fn { color:var(--ink); word-break:break-all; }
+  .filerow .fst { font-family:var(--mono); font-size:10.5px; color:var(--brass); }
+  .filerow.bad { border-color:var(--brass-dim); }
+  .filerow.bad .fst { color:var(--ink-2); }
+  /* Перетаскивание обязано быть видно: без подсветки файл отпускают наугад. */
+  .log.drop { outline:2px dashed var(--brass); outline-offset:-6px; }
+  .clip { flex:none; width:38px; height:38px; border-radius:9px; cursor:pointer;
+    background:var(--panel-2); border:1px solid var(--hair); color:var(--ink-2);
+    display:grid; place-items:center; }
+  .clip:hover { border-color:var(--brass-dim); color:var(--ink); }
+  .clip:focus-within { outline:2px solid var(--brass); outline-offset:2px; }
+
+  /* Коворкинг. Условия участия — та же точка раскрытия, что у платного места:
+     оплаченное отличается цветом, видно без чтения. */
+  .crew { padding:15px; }
+  .crew h3 { margin:0 0 10px; font-size:14px; color:var(--ink-2);
+    font-family:var(--mono); letter-spacing:.06em; text-transform:uppercase; }
+
+  /* ОДНО НАЧЕРТАНИЕ НА ВСЕ ЗАГОЛОВКИ РАЗДЕЛОВ В БОКОВЫХ ЗОНАХ.
+     Их было пять: моно 10.5 у одних, моно 14 у бумаг и участников, обычный
+     полужирный у «ждёт вашего слова», плюс своё у h2. Одна и та же вещь,
+     набранная пятью способами, заставляет глаз каждый раз заново решать,
+     что перед ним — подпись или содержимое; четырнадцатый кегль вдобавок
+     спорил с текстом под собой. Берём тот же размер и разрядку, что у
+     заголовка центральной зоны: во всём экране остаётся одна ступень.
+     Правило стоит здесь, а не выше, чтобы перебить частные по порядку;
+     .caseshead .cnt перебивается весом. Приглашение войти (.signin h3)
+     объявлено ниже и остаётся при своём: это заголовок карточки. */
+  .side > h2, .side > * > h3, .side .caseshead .cnt {
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.11em;
+    text-transform:uppercase; font-weight:500; color:var(--ink-2); }
+  .who1 { display:flex; align-items:baseline; gap:8px; padding:7px 0;
+    border-bottom:1px solid var(--hair); font-size:13.5px; }
+  .who1:last-of-type { border-bottom:0; }
+  .who1 .nm { color:var(--ink); }
+  .who1 .rl { color:var(--ink-3); font-size:12px; }
+  .who1 .eng { margin-left:auto; display:inline-flex; align-items:center; gap:5px;
+    font-size:11.5px; color:var(--ink-2); font-family:var(--mono); }
+  .who1 .eng .dot { width:7px; height:7px; border-radius:50%;
+    background:var(--ink-3); flex:none; }
+  .who1 .eng.paid .dot { background:var(--brass); }
+  .who1 .eng.partner .dot { background:#7aa2f7; }
+  .who1 .note { flex-basis:100%; color:var(--ink-3); font-size:12px; }
+  .addone { margin-top:10px; padding:7px 12px; background:var(--panel);
+    border:1px solid var(--hair); border-radius:8px; color:var(--ink-2);
+    font-size:13px; cursor:pointer; font-family:var(--sans); }
+  .addone:hover { border-color:var(--brass-dim); color:var(--ink); }
+  /* Поле номера и кода живёт внутри строки входов, поэтому узкое и без
+     собственных отступов: строка уже задала ритм, а второй его ломает. */
+  .lphone { padding:6px 9px; background:var(--panel); border:1px solid var(--hair);
+    border-radius:8px; color:var(--ink); font-size:13px; font-family:var(--mono);
+    width:170px; }
+  .lphone:focus { outline:none; border-color:var(--brass-dim); }
+  /* Необратимое действие выглядит иначе обратимых — и гаснет, пока человек
+     не набрал название дела руками. Погашенная кнопка не «серая на всякий
+     случай»: до набора она физически не нажимается. */
+  .addone.danger { border-color:#7a3b32; color:#d98b7f; }
+  .addone.danger:hover:not(:disabled) { border-color:#b4544a; color:#f0a99c; }
+  .addone:disabled { opacity:.45; cursor:not-allowed; }
+  /* Входы теперь живут в панели у имени, а не в боковом коробе. Отступ там
+     свой: панель уже бокового, и прежние 15 точек по краям съедали её. */
+  .mepanel .loginwrap { margin-top:12px; border-top:1px solid var(--hair-soft);
+                        padding-top:10px; }
+  .mepanel .loginwrap h4 { margin:0 0 6px; font-size:13px; }
+  .mepanel .loginrow { padding:5px 0; }
+  /* Кнопка нового вида — как «Рабочая версия» на той стороне: неброская,
+     но не спрятанная. Акцентом красить нельзя: это не действие над делом, а
+     переход, и спорить с «Сказать» она не должна. */
+  /* ТОКЕНЫ БЕРУТСЯ ИЗ ЭТОЙ ПАЛИТРЫ, А НЕ ИЗ СОСЕДНЕЙ СТРАНИЦЫ.
+     Первая редакция красила `var(--surface)` и `var(--accent)` — имена из
+     палитры /start/, где я эту кнопку и подсмотрел. Здесь таких токенов нет,
+     и `var(--нет-такого)` без запасного значения гасит свойство ЦЕЛИКОМ: у
+     кнопки пропал бы фон, а не «стал другого оттенка». Поймано сторожом
+     `test_css_tokens_declared`, заведённым соседней сессией ровно на этот
+     род беды. */
+  .newview {
+    color: var(--ink-2); text-decoration: none; font-size: 13px;
+    background: var(--panel); border: 1px solid var(--hair);
+    border-radius: 8px; padding: 6px 10px; white-space: nowrap;
+  }
+  .newview:hover { border-color: var(--brass); color: var(--brass); }
+
+  .loginrow { display:flex; align-items:center; gap:10px; padding:6px 15px;
+    border-bottom:1px solid var(--hair); }
+  .loginrow .lname { flex:1; color:var(--ink); font-size:13px; }
+  .loginrow .lnote { color:var(--ink-3); font-size:12px; font-family:var(--mono); }
+  .loginrow .addone { margin-top:0; padding:5px 10px; font-size:12px; }
+  .prow { display:flex; align-items:center; gap:10px; padding:6px 15px;
+          border-top:1px solid var(--line); }
+  .prow .pname { flex:1; color:var(--ink); font-size:13px; }
+  .prow .pnote { color:var(--ink-3); font-size:12px; font-family:var(--mono); }
+  /* Потерянный корпус — поломка, а не оттенок состояния: ссылка есть, а базы
+     знаний за ней нет. Тем же цветом, что отказы в операторских панелях. */
+  .prow .pnote.bad { color:#b4544a; font-weight:600; }
+  .crow { display:flex; align-items:baseline; gap:10px; padding:7px 15px;
+          border-top:1px solid var(--line); }
+  .crow .cname { flex:1; color:var(--ink); font-size:13px; }
+  .crow .ccnt { color:var(--ink-3); font-size:12px; font-family:var(--mono); }
+  .ccase { padding:4px 15px 4px 30px; color:var(--ink-2); font-size:12px; }
+  .ccase .cstate { color:var(--ink-3); font-family:var(--mono); margin-left:6px; }
+  .erow { display:flex; align-items:baseline; gap:10px; padding:7px 15px;
+          border-top:1px solid var(--line); }
+  .erow .ewhen { color:var(--ink-3); font-family:var(--mono); font-size:12px;
+                 white-space:nowrap; }
+  .erow .etitle { flex:1; color:var(--ink); font-size:13px; }
+  /* Срок и заседание различаются цветом метки: пропущенный срок стоит дела,
+     и путать его с заседанием на экране нельзя. */
+  .erow .ekind { font-size:11px; font-family:var(--mono); color:var(--ink-3); }
+  .erow.deadline .ekind { color:#c9a45c; }
+  /* Журнал обращений. Строка ПЕРЕНОСИТСЯ, а не уезжает за край: в первой
+     версии тревожные пометки («без полномочия: 173») оказывались за
+     границей окна — то есть невидимым было ровно то, ради чего экран и
+     заведён. Тревога, которую надо доскроллить, тревогой не работает. */
+  .opsrow { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 9px;
+    padding:6px 15px; font-family:var(--mono); font-size:11px;
+    color:var(--ink-3); border-bottom:1px solid var(--hair); }
+  .opsrow .who { flex:0 0 auto; min-width:120px; color:var(--ink);
+    font-weight:600; }
+  .opsrow .n { color:var(--ink-2); }
+  .opsrow .out { color:#b4544a; }
+  /* Отказы и «без полномочия» стоят сразу за именем и не бледнеют: они
+     значат больше, чем объём. */
+  .opsrow .bad { color:#b4544a; font-weight:600; }
+  .opsrow .none { color:#9a6b1f; font-weight:600; }
+  /* Расход кредитов. Тем же начертанием, что журнал обращений: обе панели
+     операторские, и человек по виду узнаёт, что смотрит НЕ СВОЁ. */
+  .crrow { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 9px;
+    padding:6px 15px; font-family:var(--mono); font-size:11px;
+    color:var(--ink-3); border-bottom:1px solid var(--hair); }
+  .crrow .who { flex:0 0 auto; min-width:150px; color:var(--ink);
+    font-weight:600; }
+  .crrow .n { color:var(--ink-2); font-weight:600; }
+  .crrow .note { color:var(--ink-3); }
+  .crrow .bad { color:#b4544a; font-weight:600; }
+  /* Счёт площадки отделён рамкой, а не только словом: он первым в списке, и
+     принять его за человека проще всего именно там. */
+  .crrow.head { background:var(--panel-2); border-left:2px solid var(--brass); }
+  .crsep { padding:9px 15px 4px; font-family:var(--mono); font-size:10.5px;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
+    border-bottom:1px solid var(--hair); }
+  /* Проводник. Возле раздела, а не поверх экрана: окно поверх работы
+     превращает объяснение в препятствие, и человек закрывает его не читая. */
+  .tourbox { position:fixed; z-index:60; max-width:23rem;
+             background:var(--panel); border:1px solid var(--brass);
+             border-radius:10px; padding:12px 14px; font-size:13px;
+             line-height:1.5; box-shadow:0 10px 32px rgba(0,0,0,.32); }
+  .tourbox .tourname { font-family:var(--mono); font-size:10.5px;
+                       letter-spacing:.1em; text-transform:uppercase;
+                       color:var(--brass); margin-bottom:5px; }
+  .tourbox .tourtext { color:var(--ink); }
+  .tourbox .tourbtns { display:flex; align-items:center; gap:8px;
+                       margin-top:11px; }
+  .tourbox .tourcount { flex:1; font-family:var(--mono); font-size:10.5px;
+                        color:var(--ink-3); }
+  .tourbox .tournext { font:inherit; font-size:12.5px; padding:5px 13px;
+                       color:var(--ground); background:var(--brass);
+                       border:1px solid var(--brass); border-radius:7px;
+                       cursor:pointer; }
+  .tourbox .tourstop { font:inherit; font-size:12.5px; padding:5px 11px;
+                       color:var(--ink-3); background:var(--panel);
+                       border:1px solid var(--hair); border-radius:7px;
+                       cursor:pointer; }
+  .tourbox .tourstop:hover { color:var(--ink); }
+  .tourbox .tournext:focus-visible,.tourbox .tourstop:focus-visible {
+    outline:2px solid var(--brass); outline-offset:2px; }
+  /* Подсветка обводкой, а не заливкой: заливка перекрасила бы содержимое
+     раздела, и человек смотрел бы на изменившийся экран вместо своего. */
+  .tourhi { outline:2px solid var(--brass); outline-offset:3px;
+            border-radius:8px; }
+  .fillrow { display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+             margin-top:7px; }
+  .fillrow .addone { margin-top:0; padding:5px 10px; font-size:12px; }
+  .fillrow .casenote { flex:1 1 12rem; }
+  /* НА ТЕЛЕФОНЕ СТОЛБИКОМ. Рядом подпись жалась сбоку в четыре строки, а
+     кнопка оставалась мелкой целью для пальца — при том что именно на
+     телефоне она единственный способ подставить название: клавиши Tab там
+     нет. Столбиком подпись читается строкой, а кнопка берёт всю ширину и
+     промахнуться по ней нечем. */
+  @media (max-width:460px){
+    .fillrow { flex-direction:column; align-items:stretch; }
+    .fillrow .addone { padding:10px 12px; font-size:13px; }
+    /* Сброс роста ОБЯЗАТЕЛЕН. В строке `flex:1 1 12rem` растит подпись вширь,
+       а в столбике та же запись растит её ВВЫСЬ — подпись раздувалась на всю
+       свободную высоту и отпихивала «Удалить навсегда» вниз, за край экрана.
+       Видно это только на настоящей узкой ширине: медиа-запрос смотрит на
+       окно, и рамка в 375px посреди широкого окна его не включает. */
+    .fillrow .casenote { flex:0 0 auto; }
+  }
+  .namecheck { width:100%; margin-top:8px; padding:8px 10px;
+    background:var(--panel); border:1px solid var(--hair); border-radius:8px;
+    color:var(--ink); font-size:13.5px; font-family:var(--sans); }
+  .invite input { width:100%; margin-top:8px; padding:8px 10px;
+    background:var(--panel); border:1px solid var(--hair); border-radius:8px;
+    color:var(--ink); font-size:13.5px; font-family:var(--sans); }
+  .terms { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .invited { margin-top:10px; padding:10px; background:var(--panel-2);
+    border:1px solid var(--brass-dim); border-radius:8px; font-size:12.5px; }
+  .invited code { font-family:var(--mono); font-size:11.5px; color:var(--brass);
+    word-break:break-all; display:block; margin-top:5px; }
+
+  /* Приглашение войти — единственное в боковой зоне, что подняли над
+     поверхностью: это призыв к действию, а не справка. Поднимаем ровно
+     до уровня разговора (--panel), а не выше: на затемнённом боку
+     прежний --panel-2 стал самым громким пятном экрана. Своя верхняя
+     линия ему больше не нужна — её даёт колонка.
+
+     Селектор с ДВУМЯ классами намеренно: сброс `aside.side > *` весит
+     (0,1,1) и обнуляет фон всем разделам подряд, а голое `.signin` —
+     (0,1,0) и ему проигрывает. Карточка становилась прозрачной, и
+     единственное поднятое место в колонке пропадало. Поймано замером
+     фона у всех прямых детей зоны: из шестнадцати пострадала одна. */
+  .signin { padding:15px; }
+  .side > .signin { background:var(--panel); }
+  /* Заголовок карточки, а не подпись раздела: общее правило боковых зон
+     объявлено выше и достаёт сюда через .side > * > h3, поэтому свой
+     облик приходится назвать целиком, а не одним кеглем. */
+  .signin h3 { margin:0 0 4px; font-size:15.5px; font-family:var(--sans);
+    letter-spacing:normal; text-transform:none; font-weight:600;
+    color:var(--ink); }
+  .signwhy { color:var(--ink-2); font-size:13px; margin:0 0 12px; }
+  .bymail { display:flex; gap:6px; margin-top:8px; }
+  /* Утоплено тем же --bg, что и соседний выбор канала: два поля в одной
+     карточке обязаны выглядеть одинаково, а до сих пор одно брало
+     --panel, другое — несуществующий --bg, то есть вообще ничего.
+     Фоном поле здесь не держится и не держалось: замер даёт 1.13:1 к
+     карточке против 1.07:1 прежде — на светлой теме чуть лучше, на
+     тёмной без разницы. Читается оно рамкой, 1.46:1. */
+  .bymail input { flex:1; padding:8px 10px; background:var(--bg);
+    border:1px solid var(--hair); border-radius:8px; color:var(--ink);
+    font-size:13.5px; font-family:var(--sans); }
+  #phonechan { padding:6px 8px; border:1px solid var(--hair); border-radius:8px;
+               background:var(--bg); color:var(--ink); font-size:12.5px; }
+  .signnote { margin-top:10px; color:var(--ink-3); font-size:12px; }
+
+  /* Атрибут hidden обязан прятать. Правило браузера `[hidden]{display:none}`
+     живёт в его же таблице стилей, и ЛЮБОЙ наш `display:flex` его перебивает
+     — потому что наш селектор специфичнее. Итог: скрытое остаётся на экране,
+     а в коде всё выглядит правильно, и ищется это долго.
+     Поймано на живом: форма почты висела у вошедшего, хотя hidden стоял. */
+  [hidden] { display:none !important; }
+
+  /* Кто вошёл — в шапке. Имя и чем вошёл: под двумя входами это разные
+     аккаунты, и человек должен видеть, в котором он сейчас. */
+  .me { display:inline-flex; align-items:center; gap:7px; padding:3px 10px;
+    border:1px solid var(--hair); border-radius:999px; font-size:12.5px;
+    color:var(--ink-2); }
+  .me .nm { color:var(--ink); }
+  .me { cursor:pointer; }
+  .me[aria-expanded="true"] { border-color:var(--brass-dim); }
+  /* Подсветка, когда отказ отправил человека сюда: без неё «нажмите своё имя
+     вверху» — это просьба искать глазами. Гаснет сама. */
+  .me[data-nudge] { border-color:var(--brass); box-shadow:0 0 0 3px rgba(196,154,74,.18); }
+  .me .lvl { font-family:var(--mono); font-size:10.5px; padding:0 5px;
+             border-radius:6px; border:1px solid var(--hair); color:var(--ink-3); }
+  .me .lvl.low { color:var(--brass); border-color:var(--brass-dim); }
+
+  /* Панель подтверждения. Абсолютная, чтобы не двигать шапку: сдвиг всего
+     ряда при каждом нажатии читается как «страница дёрнулась». */
+  .mepanel { position:absolute; z-index:40; margin-top:6px; max-width:27rem;
+             background:var(--panel); border:1px solid var(--hair);
+             border-radius:10px; padding:13px 15px; font-size:13px;
+             line-height:1.55; box-shadow:0 8px 28px rgba(0,0,0,.28); }
+  .mepanel h4 { margin:0 0 3px; padding-right:34px; font-size:13.5px; }
+  .mepanel .meclose {
+    position:absolute; top:3px; right:3px; width:44px; height:44px;
+    border:0; border-radius:8px; background:transparent; color:var(--ink-3);
+    font:inherit; font-size:22px; line-height:1; cursor:pointer;
+  }
+  .mepanel .meclose:hover, .mepanel .meclose:focus-visible {
+    color:var(--ink); background:var(--hair-soft);
+  }
+  .mepanel .sub { color:var(--ink-3); font-size:12px; margin-bottom:10px; }
+  .mepanel .way { display:flex; align-items:baseline; gap:8px; padding:5px 0;
+                  border-top:1px solid var(--hair-soft); }
+  .mepanel .way:first-of-type { border-top:none; }
+  .mepanel .wn { flex:1; }
+  .mepanel .wnote { font-family:var(--mono); font-size:10.5px; color:var(--ink-3); }
+  .mepanel .cant { margin-top:10px; padding-top:9px;
+                   border-top:1px solid var(--hair-soft);
+                   color:var(--ink-3); font-size:12px; }
+  .mepanel .cant b { color:var(--ink-2); font-weight:600; }
+  .me .via { font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+    letter-spacing:.04em; text-transform:uppercase; }
+
+  /* Остаток кредитов — рядом с именем и тем же спокойным тоном, что и «кто
+     вошёл»: это справка, а не предупреждение. Сервер считает расход и ничего
+     по нему не запрещает, и плашка, кричащая красным, обещала бы запрет,
+     которого нет. */
+  .credwrap { position:relative; display:inline-flex; }
+  .credbox { position:absolute; right:0; top:28px; z-index:40; width:330px;
+             max-height:60vh; overflow-y:auto; border:1px solid var(--brass-dim);
+             border-radius:8px; background:var(--panel); }
+  .credlist { padding:2px 11px 8px; }
+  .credits { display:inline-flex; align-items:center; gap:6px; padding:3px 10px;
+    background:none; border:1px solid var(--hair); border-radius:999px;
+    color:var(--ink-2); font-size:12.5px; font-family:var(--sans);
+    cursor:pointer; }
+  .credits:hover { border-color:var(--brass-dim); color:var(--ink); }
+  .credits:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+  .credits b { font-family:var(--mono); font-size:11.5px; font-weight:600;
+    color:var(--brass); font-variant-numeric:tabular-nums; }
+  /* Ноль отличается только оттенком числа. Ярче делать нельзя: ноль здесь не
+     запрет — работа идёт и на нуле, а подарок придёт сам. */
+  .credits.zero b { color:var(--ink-2); }
+  /* Выпадающий список у кредитов: пополнить и обменять на рубли.
+     Ставится ПОД кнопкой и поверх всего: он про деньги, и перекрыть его
+     соседней плашкой нельзя. */
+  .credmenu { position:absolute; z-index:60; min-width:260px; margin-top:6px;
+    background:var(--paper); border:1px solid var(--hair); border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,.16); padding:8px; }
+  .credmenu .cm1 { display:block; width:100%; text-align:left; padding:8px 10px;
+    background:none; border:0; border-radius:7px; cursor:pointer;
+    font-family:var(--sans); font-size:13px; color:var(--ink); }
+  .credmenu .cm1:hover { background:var(--hair-soft, rgba(0,0,0,.05)); }
+  .credmenu .cm1[disabled] { color:var(--ink-3); cursor:default; }
+  /* Разбор остатка: сколько выводимо, сколько подарочных, сколько удержано.
+     Одним числом обойтись нельзя — оно скрыло бы, что часть вывести нельзя. */
+  .credmenu .cmsplit { padding:6px 10px 8px; font-size:12px; color:var(--ink-2);
+    border-bottom:1px solid var(--hair); margin-bottom:6px; }
+  .credmenu .cmsplit b { font-family:var(--mono); color:var(--ink);
+    font-variant-numeric:tabular-nums; }
+  .credmenu .cmnote { padding:6px 10px 2px; font-size:11.5px;
+    color:var(--ink-3); line-height:1.45; }
+
+  /* Строка расхода: за что и когда — слева, сколько — справа. Цифры табличные,
+     иначе столбец сумм пляшет от строки к строке. */
+  .cred1 { display:flex; align-items:baseline; gap:9px; padding:6px 0;
+    border-bottom:1px solid var(--hair-soft); font-size:13px; }
+  .cred1:last-child { border-bottom:0; }
+  .cred1 .cwhat { color:var(--ink); }
+  .cred1 .cwhen { font-family:var(--mono); font-size:10.5px; color:var(--ink-3); }
+  .cred1 .camt { margin-left:auto; font-family:var(--mono); font-size:12px;
+    font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--ink-2); }
+  .cred1 .camt.plus { color:var(--ok); }
+
+  footer { margin-top:18px; padding-top:14px; border-top:1px solid var(--hair);
+           color:var(--ink-3); font-size:12.5px; display:grid; gap:5px; }
+  footer b { color:var(--ink-2); }
+
+  /* ── Уведомление о хранении в браузере ───────────────────────────────────
+     НЕ «согласие на куки», и это не придирка к слову. Cookie сайт не ставит
+     НИ ОДНОЙ, чужих счётчиков на странице нет ни одного — значит соглашаться
+     не на что. Кнопка «отклонить», которая ничего не отключает, обманывает
+     ровно так же, как галочка, проставленная заранее: человек решает, что за
+     ним следят и он это запретил, а следят или нет — он так и не узнал.
+     Поэтому здесь уведомление и настоящая кнопка «стереть». */
+  .cookiebar {
+    position:fixed; left:12px; right:12px; bottom:12px; z-index:70;
+    background:var(--panel); border:1px solid var(--hair); border-radius:12px;
+    padding:14px 16px; display:flex; gap:14px; align-items:flex-start;
+    flex-wrap:wrap; box-shadow:0 10px 30px rgba(0,0,0,.35);
+    max-width:760px; margin:0 auto;
+  }
+  .cookiebar[hidden] { display:none; }
+  .cookiebar .txt { flex:1 1 320px; min-width:260px; font-size:13px;
+                    line-height:1.5; color:var(--ink-2); }
+  .cookiebar .txt b { color:var(--ink); font-weight:600; }
+  /* Список — самое содержательное место уведомления, и он был самым
+     нечитаемым: на --ink-3 замер дал 3.08:1 при пороге 4.5. Приглушать надо
+     то, что можно не читать, а тут наоборот — ради этого списка уведомление
+     и существует. На --ink-2 выходит 5.81:1. */
+  .cookiebar ul { margin:7px 0 0; padding-left:16px; color:var(--ink-2);
+                  font-size:12.5px; line-height:1.6; }
+  .cookiebar .acts { display:flex; gap:8px; flex-wrap:wrap; align-self:center; }
+  .cookiebar button { font:inherit; font-size:13px; cursor:pointer;
+                      border-radius:8px; padding:7px 14px; }
+  /* Обе кнопки одного веса: «стереть» не спрятана серым под «понятно».
+     Разный вес и есть тот приём, за который ругают баннеры согласия. */
+  .cookiebar .ok, .cookiebar .wipe {
+    background:var(--panel-2); border:1px solid var(--hair); color:var(--ink);
+  }
+  .cookiebar .ok:hover, .cookiebar .wipe:hover { border-color:var(--ink-3); }
+  .cookiebar button:focus-visible { outline:2px solid var(--accent,#7fb597);
+                                    outline-offset:1px; }
+  @media (max-width:560px) { .cookiebar .acts { width:100%; } }
+
+  .chip:focus-visible,.send:focus-visible,.oauth:focus-visible,
+  .composer input:focus-visible { outline:2px solid var(--brass); outline-offset:2px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <!-- Знак 1b «Деталь»: крест из двух засечных балок — та же сборка, что
+         в анимации, где из вертикали вставал X. Он заменяет букву, а не
+         соседствует с ней, поэтому прежней печати «Ф» рядом больше нет:
+         две марки в одном углу спорили бы за то, чем называется сайт.
+         Буквы остались ТЕКСТОМ — шрифтом и кеглем шапки. Рисовать их в SVG
+         значило бы возить свой шрифт ради четырёх букв и потерять их для
+         поиска и чтения вслух; читалке имя даёт role="img" с aria-label,
+         иначе она произнесла бы «Фи» и «АР» порознь. -->
+    <b class="mark" role="img" aria-label="ФиксАР" data-en-aria-label="FixAR">Fi<svg viewBox="-40 -40 80 80"
+         aria-hidden="true" focusable="false"><path
+           d="M-13,-32 h26 v6 h-6 V26 h6 v6 h-26 v-6 h6 V-26 h-6 Z"
+           transform="rotate(-30)"></path><path class="accent"
+           d="M-13,-32 h26 v6 h-6 V26 h6 v6 h-26 v-6 h6 V-26 h-6 Z"
+           transform="rotate(30)"></path></svg>AR</b><span class="tag">FIX ALL RIGHT</span>
+    <!-- Кто вошёл. Рядом с именем — чем вошёл: человек с двумя входами
+         должен видеть, под каким он сейчас, иначе «почему тут нет моих дел»
+         останется без ответа. -->
+    <!-- Пилюля — КНОПКА: по нажатию видно, насколько твёрдо подтверждён вход и
+         чем его поднять. Прежде уровень доверия не показывался нигде, и отказ
+         агента «нужен подтверждённый вход» приходил к человеку без объяснения,
+         что именно подтвердить и как. -->
+    <button class="me" id="me" type="button" hidden
+            aria-expanded="false" aria-controls="mepanel"></button>
+    <div class="mepanel" id="mepanel" hidden role="dialog"
+         aria-label="Подтверждение учётной записи" data-en-aria-label="Account verification"></div>
+    <!-- Остаток кредитов. Кнопка, а не надпись: по нажатию видно, за что
+         списано — иначе число объясняет себя само, а оно не умеет.
+         Скрыта, пока служба не ответила числом: «0» или «—» вместо
+         неизвестного человек прочитает как «у меня кончилось», и это будет
+         неправдой про его же счёт. -->
+    <div class="credwrap" id="credwrap">
+      <button class="credits" id="credits" type="button" hidden
+              aria-haspopup="true" aria-expanded="false"></button>
+      <!-- «Куда ушли кредиты» ВЫПАДАЮЩЕЙ ПАНЕЛЬЮ, а не строками в переписке.
+           Прежде выписка дописывалась в log — в тот самый поток, где идёт
+           разговор, — и вставала между вопросом человека и ответом
+           собеседника. Хуже того, оставалась там навсегда: перечитывая
+           разговор через неделю, человек находил посреди него служебные
+           списания, которых в разговоре не было.
+
+           Разговор — это разговор. Счёт смотрят рядом с числом, которое
+           объясняют, и закрывают, когда посмотрели. -->
+      <div class="credbox" id="credbox" hidden role="dialog"
+           aria-labelledby="credits">
+        <div class="credhead"><span data-en="Where credits went">Куда ушли кредиты</span></div>
+        <div class="credlist" id="credlist"></div>
+      </div>
+    </div>
+    <span class="sp"></span>
+    <!-- НОВЫЙ ВИД — ССЫЛКОЙ, А НЕ ПЕРЕКЛЮЧАТЕЛЕМ ВНУТРИ ОБОЛОЧКИ.
+
+         Решение владельца 04.09.2026: «если выкладывать — то по кнопке
+         „Новый вид“ в шапке». То есть новое поле НЕ заменяет собой главный
+         экран, а открывается по прямому желанию человека.
+
+         Ссылка, потому что это отдельная страница со своим кодом (/start/):
+         подменять ею содержимое оболочки значило бы держать в одном файле два
+         несовместимых устройства экрана и решать при каждой правке, которое
+         из них правишь.
+
+         Возврат обеспечивает сама страница: у неё в шапке стоит «Рабочая
+         версия» обратно сюда. Кнопки «назад» в браузере для этого мало —
+         человек мог прийти на /start/ по ссылке. -->
+    <a class="newview" id="newview" href="/"
+       title="Поле: ваши вещи фигурками на земле"
+       data-en-title="Field: your things as figures on the ground"
+       data-en="New view">Новый вид</a>
+    <!-- Створки боковых панелей. Кнопки в шапке, а не внутри самих панелей:
+         сложенную панель нечем было бы разложить обратно. Состав каждой
+         помнится между заходами — человек складывает то, чем не пользуется,
+         и не хочет складывать это заново каждое утро. -->
+    <button class="fold" id="foldleft" type="button" aria-pressed="false"
+            title="Дела и настройки" data-en-title="Cases and settings">◧</button>
+    <button class="fold" id="foldright" type="button" aria-pressed="false"
+            title="Переписка, документы, календарь" data-en-title="Correspondence, documents, calendar"
+            data-en-title="Correspondence, documents, calendar">◨</button>
+    <!-- Место для выбора языка. Пусто в разметке намеренно: кнопку ставит
+         lang.js, и знает про неё только он. Четыре страницы держали бы четыре
+         копии одной кнопки, и они разъехались бы при первой же правке. -->
+    <span id="langmount"></span>
+    <!-- Колокольчик. РЯДОМ СО СТАТУСОМ, а не в боковой панели: он отвечает
+         на вопрос «что случилось, пока меня не было», и вопрос этот задают,
+         едва открыв страницу, — искать ответ прокруткой человек не должен.
+
+         Скрыт, пока служба не ответила числом. Показать пустой колокольчик
+         тому, у кого ящика нет, — обещать раздел, который отвечает отказом. -->
+    <!-- Чтение вслух. РЯДОМ С КОЛОКОЛЬЧИКОМ И СТАТУСОМ: это переключатель
+         режима, а не действие над сообщением, и место ему там же, где
+         остальные переключатели состояния.
+
+         Скрыт, пока не найден русский голос. Показать его тому, у кого в
+         системе голоса нет, — обещать звук, которого не будет: нажатие
+         ничего не произведёт, и человек решит, что сломались мы. -->
+    <button class="speak" id="speak" type="button" aria-pressed="false" hidden
+            aria-label="Читать ответы вслух" data-en-aria-label="Read replies aloud" title="Читать ответы вслух" data-en-title="Read replies aloud">
+      <span aria-hidden="true">🔊</span>
+    </button>
+    <div class="bellwrap" id="bellwrap" hidden>
+      <button class="bell" id="bell" type="button" aria-haspopup="true"
+              aria-expanded="false" title="Уведомления" data-en-title="Notifications">
+        <span aria-hidden="true">🔔</span>
+        <span class="bellnum" id="bellnum" hidden></span>
+      </button>
+      <div class="bellbox" id="bellbox" hidden role="menu"
+           aria-labelledby="bell">
+        <div class="bellhead">
+          <span data-en="Notifications">Уведомления</span>
+          <button class="bellall" id="bellall" type="button" data-en="Mark all read">Все прочитаны</button>
+        </div>
+        <div class="belllist" id="belllist"></div>
+      </div>
+    </div>
+    <span class="state" id="state" data-en="checking connection…">проверяю связь…</span>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+      <!-- ПОЛЕ. Отдельным режимом смотрения ПОВЕРХ, а не внутри колонки:
+       колонка 304 пикселя, а полю нужна ширина — фигурка на сетке в такой
+       колонке нечитаема, и класть её туда значило бы сделать вид, что
+       поле есть, а показать невозможное.
+
+       Список при этом НЕ ЗАМЕНЯЕТСЯ. Поле красивее, но список честнее:
+       он работает на узком экране, читается голосом и не требует
+       наведения. Кто пришёл за делом, а не за видом, остаётся со
+       списком. -->
+  <div id="landfield" hidden>
+    <div id="landfieldbar">
+      <span id="landfieldtitle" data-en="Landscape">Ландшафт</span>
+      <span id="landfieldnote"></span>
+      <button id="landfieldclose" type="button"
+              aria-label="Закрыть поле" data-en-aria-label="Close the field"
+              title="Esc">×</button>
+    </div>
+    <div id="landfieldplane"></div>
+    <div id="landfieldcard" hidden></div>
+  </div>
+
+  <!-- ПОЛЕ ЛАНДШАФТА. ВНЕ #panes, и это несущее.
+
+       Первая редакция стояла рядом с панелью ландшафта — то есть ВНУТРИ
+       колонки. Подметающий цикл раскладки унёс её в #sideright (короб не
+       назван в РАСКЛАД и не должен быть: это накладка, а не раздел), а
+       правая колонка бывает свёрнута — `display:none`. Элемент
+       `position:fixed` внутри скрытого предка НЕ РИСУЕТСЯ ВОВСЕ: в DOM он
+       есть, `hidden` снят, а прямоугольник 0×0 и на экране пусто.
+
+       Накладке нельзя жить в том, что можно сложить. -->
+  <div class="panes" id="panes">
+    <!-- ЛЕВАЯ: то, что отвечает на «что у меня есть» — дела и настройки. -->
+    <aside class="side left" id="sideleft"></aside>
+
+    <section class="pane center">
+      <h2 data-en="Conversation">Разговор</h2>
+
+      <!-- Холст. Скрыт, пока ничего не открыто: пустая рамка над разговором
+           отнимала бы место у того, ради чего сюда пришли. -->
+      <div class="canvas" id="canvaspane" hidden>
+        <div class="cvhead">
+          <span class="cvtitle" id="cvtitle"></span>
+          <span class="cvfrom" id="cvfrom"></span>
+          <button class="cvx" id="cvclose" type="button"
+                  aria-label="Закрыть холст" data-en-aria-label="Close canvas" title="Закрыть холст" data-en-title="Close canvas">&times;</button>
+        </div>
+        <textarea class="cvbody" id="cvbody" spellcheck="true"
+                  aria-label="Текст документа" data-en-aria-label="Document text"></textarea>
+        <!-- Принесённая бумага показывается как есть, а не пересказом. Кадр
+             и поле не бывают видны одновременно: одно и то же место занято
+             либо правимым текстом, либо исходным файлом. -->
+        <iframe class="cvbody cvframe" id="cvframe" hidden
+                title="Просмотр файла" data-en-title="File preview"></iframe>
+        <div class="cvnote" id="cvnote"></div>
+        <div class="cvbtns">
+          <button class="send" id="cvsave" type="button" data-en="Save">Сохранить</button>
+          <button class="addone" id="cvget" type="button" data-en="Download">Скачать</button>
+        </div>
+      </div>
+
+      <div class="log" id="log" aria-live="polite"></div>
+      <div class="chips" id="chips"></div>
+      <!-- Подсказка команд. Пустая и скрытая до первого знака «/»: список,
+           висящий всегда, отнимает у ленты половину экрана ради того, чем
+           пользуются раз в сеанс. Строки рисует app.js. -->
+      <div class="cmdhint" id="cmdhint" role="listbox" hidden
+           aria-label="Команды" data-en-aria-label="Commands"></div>
+      <form class="composer" id="composer">
+        <button class="mic" id="mic" type="button" aria-label="Сказать голосом" data-en-aria-label="Speak" title="Сказать голосом" data-en-title="Speak">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>
+            <path fill="currentColor" d="M18 11a1 1 0 1 0-2 0 4 4 0 0 1-8 0 1 1 0 1 0-2 0 6 6 0 0 0 5 5.9V19H9a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-2v-2.1A6 6 0 0 0 18 11z"/>
+          </svg>
+        </button>
+        <!-- Приложить файл. Ярлык, а не кнопка: выбор файла открывается самим
+             браузером, и посредник тут только добавляет способ сломаться. -->
+        <label class="clip" for="file" title="Приложить файл" data-en-title="Attach a file">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  d="M21.4 11.05 12.25 20.2a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.19 5.19l-9.2 9.19a1.83 1.83 0 0 1-2.59-2.59l8.49-8.49"/>
+          </svg>
+          <input id="file" type="file" multiple hidden aria-label="Приложить файл" data-en-aria-label="Attach a file">
+        </label>
+        <input id="input" placeholder="Напишите или скажите…" data-en-placeholder="Type or speak…" autocomplete="off">
+        <button class="send" type="submit" data-en="Send">Отправить</button>
+      </form>
+    </section>
+
+    <!-- ПРАВАЯ: инструменты вокруг дела — переписка, бумаги, сроки, лента. -->
+    <aside class="side right" id="sideright"></aside>
+
+    <section class="pane case" id="casepane">
+      <!-- Удаление стоит в шапке дела, рядом с его состоянием: там же, где
+           человек видит, ЧТО именно он собирается удалить. Пилюля не удаляет —
+           она открывает опись: что исчезнет навсегда, что останется, и набор
+           названия дела рукой. Необратимое не должно случаться с одного
+           нажатия. -->
+      <h2><span data-en="Case">Дело</span> <span class="badge" id="badge" hidden data-en="draft">черновик</span><button
+          class="pill act" id="casedrop" type="button" hidden data-en="Delete">Удалить</button></h2>
+
+      <!-- Где идёт разговор. Мест два: общий разговор и открытое дело. Строка
+           стоит первой в панели дела намеренно — человек должен видеть, куда
+           уедет сказанное, ДО того как это скажет, а не узнавать из ответа. -->
+      <div class="where" id="where" hidden>
+        <span class="wnow" id="wnow"></span>
+        <button class="wout" id="togeneral" type="button" hidden data-en="To the general conversation">В общий разговор</button>
+        <!-- Увести дело в другое направление.
+
+             Домен заведённого дела не пересчитывался никогда: попав не туда
+             первым сообщением, человек оставался там навсегда, и агент
+             чужого направления честно отвечал «у меня нет доступа» — что для
+             человека неотличимо от свойства площадки. Служба смену умела с
+             самого начала, рычага не было. -->
+        <button class="wout" id="reroute" type="button" hidden data-en="Wrong area">Не то направление</button>
+        <!-- Сменить работника внутри направления.
+
+             Работника выбирают за человека, и он об этом не знал: все ответы
+             подписаны «Ф», списка допущенных нет нигде, а имя выбранного до
+             22.08 вдобавок отвергалось проверкой. Выбор при этом настоящий —
+             у подтверждённого человека в 19 парах из 30 допущено больше
+             одного, и между ними решает модель, читая обращение. -->
+        <button class="wout" id="swagent" type="button" hidden data-en="Change the worker">Сменить работника</button>
+        <!-- Назвать стадию дела.
+
+             В пакетах объявлено 245 стадий у агентов и 59 видов сделки со
+             своим порядком — и в подборе всё это даёт ноль. Сперва стадия
+             должна стать видимой и двигаться рукой человека; пускать её в
+             подбор раньше значит молча переставлять работников по полю,
+             которого никто не видел. Довод целиком — docs/STAGE_AXIS.md. -->
+        <button class="wout" id="stage" type="button" hidden data-en="Case stage">Стадия дела</button>
+      </div>
+
+      <!-- Схема дела: план от заведения до итога одной картинкой, с пульсом
+           «что нужно сейчас». План строится из журнала дела — тех же событий,
+           что уже приходят оболочке, — и лишь красится состоянием: пройденное
+           сплошным, впереди пунктиром, текущее дышит. Вершина или ребро по
+           нажатию объясняются словами под схемой, а не всплывашкой: в узкой
+           панели всплывашка закрывала бы то, что объясняет. -->
+      <div class="files sxsec" id="scheme" hidden>
+        <h3 id="schemehead" data-en="Case map">Схема дела</h3>
+        <div class="sxpulse"><span class="sxdot" id="sxdot"></span>
+          <span class="sxwhat" id="sxwhat"></span></div>
+        <div class="sxpills">
+          <button class="pill act" id="sxaddwho" type="button"
+                  data-en="+ participant">+ участник</button>
+          <button class="pill act" id="sxadddoc" type="button"
+                  data-en="+ document">+ документ</button>
+          <button class="pill act" id="sxbranches" type="button"
+                  data-en="+ branches">+ ветви</button>
+        </div>
+        <svg id="sxg" viewBox="0 0 320 40" role="img"
+             aria-label="План дела сверху вниз: вехи и действия"></svg>
+        <div class="fnote sxdesc" id="sxdesc" hidden></div>
+      </div>
+
+      <!-- Пилюли областей. Строятся из ответа службы вместе со счётчиками:
+           пилюля с числом, посчитанным на странице, врёт тем сильнее, чем
+           больше у человека дел — и ровно тогда, когда фильтр нужнее. -->
+      <div class="scopes" id="scopes" hidden></div>
+
+      <!-- Дела человека. Список отдаёт и те, где он лишь участник: открыть
+           такое шлюз не даст (проверка владельца), поэтому они помечены —
+           обещать открытие и получить отказ хуже, чем сказать заранее. -->
+      <div class="cases" id="caselist" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="casescount"></span>
+        </div>
+        <!-- Заведение дела живёт ПИЛЮЛЕЙ в этом ряду, а не отдельной кнопкой
+             выше. Два органа для одного действия расходятся молча: правка
+             одного однажды не доезжает до другого, и человек нажимает тот,
+             который остался прежним. -->
+        <div class="pills" id="casepills"></div>
+        <div class="caserows" id="caserows"></div>
+      </div>
+
+      <!-- Чем можно войти в эту же учётную запись. Пока каналы не связаны,
+           вход гуглом и вход яндексом — два разных человека для системы, и
+           узнаёт об этом человек по пустому списку дел. -->
+      <div class="cases" id="logins" hidden>
+        <div class="caseshead"><span class="cnt" data-en="ways to sign in to this account">входы в эту учётную запись</span></div>
+        <div class="caserows" id="loginrows"></div>
+      </div>
+
+      <!-- Кабинет практики. Показывается только тому, у кого он включён:
+           дверь отдаёт свои кабинеты и ничего больше, а кнопка включения
+           появляется у подтверждённого входа — иначе она обещала бы то,
+           на что дверь ответит 403. -->
+      <div class="cases" id="practice" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="practicehead" data-en="practice desk">кабинет практики</span>
+        </div>
+        <div class="caserows" id="practicerows"></div>
+      </div>
+
+      <!-- СТРАНИЦА ПОДБОРА. Стоит сразу за кабинетом: она его принадлежность,
+           как календарь и картотека, и без включённого кабинета не бывает. -->
+      <div class="cases" id="pickpage" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="pickhead">страница подбора</span>
+        </div>
+        <div class="caserows" id="pickrows"></div>
+      </div>
+
+      <!-- Партнёрские ссылки кабинета. Отдельным разделом, а не строкой в
+           странице подбора: там ссылка ОДНА и она про витрину, здесь их
+           столько, сколько офферов, и каждая про деньги. -->
+      <!-- ЛЕНДИНГИ КЛИЕНТАМ. Рядом с заявками и партнёрскими ссылками: это
+           третий способ, которым к практику приходит человек, и все три
+           читаются вместе. -->
+      <div class="cases" id="sites" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="siteshead">страницы клиентам</span>
+        </div>
+        <div class="caserows" id="siterows"></div>
+      </div>
+
+      <div class="cases" id="affil" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="affilhead">партнёрские ссылки</span>
+        </div>
+        <div class="caserows" id="affilrows"></div>
+      </div>
+
+      <!-- Заявки со страницы. Отдельным разделом, а не строкой в предыдущем:
+           страница — настройка, а заявки — работа, и смотрят их в разное
+           время и с разным настроением. -->
+      <div class="cases" id="leads" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="leadshead">заявки</span>
+        </div>
+        <div class="caserows" id="leadrows"></div>
+      </div>
+
+      <!-- Календарь: ближайшие заседания и процессуальные сроки. Стоит ВЫШЕ
+           картотеки намеренно: пропущенный срок стоит дела, а картотека
+           подождёт. Показывается только с кабинетом. -->
+      <div class="cases" id="calendar" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="calhead" data-en="upcoming">ближайшее</span>
+          <button class="newcase" id="calfeed" type="button" data-en="Phone feed">Лента для телефона</button>
+        </div>
+        <div class="caserows" id="calrows"></div>
+      </div>
+
+      <!-- ЛАНДШАФТ — ВЕСЬ, а не колонка кабинета.
+           ОТДЕЛЬНЫМ КОРОБОМ, А НЕ ВНУТРИ #clients, и это несущее: объекты
+           кабинета (#objectshead/#objectrows) лежат ВНУТРИ картотеки и
+           скрываются вместе с ней. У человека без кабинета — а это почти все —
+           своих объектов не видно вовсе, хотя служба готова отдать их все.
+
+           Замер, ради которого короб и заведён: на 02.09.2026 на проде 13
+           объектов у 12 субъектов, и показать их было негде. -->
+      <div class="cases" id="landscape" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="landscapecnt" data-en="landscape">ландшафт</span>
+          <button class="newcase" id="landfieldopen" type="button"
+                  title="Показать ландшафт полем"
+                  data-en-title="Show the landscape as a field"
+                  data-en="field">полем</button>
+          <button class="newcase" id="landscaperefresh" type="button"
+                  data-en="Refresh">Обновить</button>
+        </div>
+        <div class="caserows" id="landscaperows"></div>
+      </div>
+
+
+      <!-- Картотека клиентов. Появляется вместе с кабинетом: без него дверь
+           отвечает 403, и раздел не рисуется. Дела показаны под клиентом, а
+           не отдельным списком: у юриста дело без клиента — это дело ни для
+           кого, и искать его глазами по общему списку он не должен. -->
+      <div class="cases" id="clients" hidden>
+        <!-- Объекты кабинета. ПЕРВЫМИ и над картотекой намеренно: кабинет
+             собран вокруг объекта, а не вокруг людей. У кабинета без объекта
+             (юрист, психолог) раздел скрыт целиком. -->
+        <div class="caseshead" id="objectshead" hidden>
+          <span class="cnt" id="objectscnt" data-en="objects">объекты</span>
+          <button class="newcase" id="objectadd" type="button" data-en="Add">Добавить</button>
+        </div>
+        <div class="caserows" id="objectrows" hidden></div>
+
+        <div class="caseshead">
+          <span class="cnt" id="clientshead" data-en="records">картотека</span>
+          <button class="newcase" id="clientadd" type="button" data-en="Add">Добавить</button>
+        </div>
+        <div class="caserows" id="clientrows"></div>
+      </div>
+
+      <!-- Мои объявления: то, что человек предлагает сам — экскаватор,
+           квартира, услуга. НЕ картотека и не объекты кабинета: объект
+           кабинета это то, вокруг чего идут дела, а объявление — то, что
+           показывают чужим.
+
+           Стоит ПОСЛЕ картотеки намеренно: у большинства объявлений нет
+           вовсе, и пустой раздел не должен занимать верх экрана.
+
+           ПЕРЕНОС С ЧУЖИХ ПЛОЩАДОК ЖИВЁТ ЗДЕСЬ, А НЕ В РАЗГОВОРЕ. Ключи от
+           кабинета Авито уходят из браузера прямо в дверь и модели не
+           показываются ни разу. Сказанное в разговоре попадает в подсказку, а
+           оттуда в журнал прогона — ключ от чужого бизнеса там оставаться не
+           должен. Ссылку спросить в разговоре можно, ключи — нет, и потому
+           оба пути сведены в одну форму. -->
+      <!-- Витрина паков. Слово «пак» в оболочке занято направлениями, поэтому
+           раздел и его поля названы storefront: искать окна среди
+           экскаваторов однажды придётся, если дать двум вещам одно имя. -->
+      <div class="cases" id="storefront" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="storefrontcnt">расширения</span>
+          <select class="newcase" id="storefrontcat"></select>
+        </div>
+        <div class="caserows" id="storefrontrows"></div>
+      </div>
+
+      <div class="cases" id="board" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="boardcnt" data-en="my listings">мои объявления</span>
+          <button class="newcase" id="boardimport" type="button" data-en="Import">Перенести</button>
+        </div>
+        <div class="caserows" id="boardrows"></div>
+      </div>
+
+      <!-- Переписка. Служба умеет её с самого начала (нити по делам и прямые
+           одним списком), но в оболочке её не было ни разу: человек не мог
+           прочитать то, что ему написали, — только узнать из уведомления,
+           что написали. -->
+      <!-- Окно переписки участников. ОТДЕЛЬНОЕ от ленты разговора с
+           агентом, и это решение, а не небрежность: в общей ленте человек не
+           видит, кому уходит написанное, — агенту или людям. Цена ошибки
+           разная, и одинаковое место утверждало бы обратное. -->
+      <div class="thrbox" id="thrwin" hidden>
+        <div class="thrhead">
+          <span class="thrtitle" id="thrtitle" data-en="Correspondence">Переписка</span>
+          <button class="thrclose" id="thrclose" type="button"
+                  aria-label="Закрыть переписку" data-en-aria-label="Close correspondence">×</button>
+        </div>
+        <div class="thrlog" id="thrlog"></div>
+        <div class="thrsend">
+          <textarea id="thrinput" rows="1" placeholder="Написать участникам…" data-en-placeholder="Write to participants…"
+                    aria-label="Сообщение участникам дела" data-en-aria-label="Message to case participants"></textarea>
+          <button class="thrsendbtn" id="thrsendbtn" type="button" data-en="Send">Отправить</button>
+        </div>
+      </div>
+
+      <!-- ═══ ЗАВЕСТИ ДЕЛО РУКАМИ ══════════════════════════════════════
+           Дело до сих пор появлялось единственным способом: разговор
+           предлагал, человек соглашался. Способ хороший, но не единственно
+           нужный — когда человек УЖЕ знает, что ему нужно, объяснять это
+           разговору, чтобы тот догадался, дольше, чем заполнить четыре поля.
+
+           Вид дела — это ШАБЛОН, а не отдельное поле: колонки kind в деле
+           нет вовсе, значение читается из закреплённого снимка шаблона. Два
+           списка — направление и шаблон, — потому что шаблоны объявлены
+           внутри направлений. -->
+      <div class="mkbox" id="mkcase" hidden>
+        <div class="mkhead">
+          <span class="mktitle" data-en="Start a case">Завести дело</span>
+          <button class="thrclose" id="mkclose" type="button"
+                  aria-label="Закрыть" data-en-aria-label="Close">×</button>
+        </div>
+        <form class="mkform" id="mkform">
+          <label class="mkrow">
+            <span data-en="Area">Направление</span>
+            <select id="mkdomain" required></select>
+          </label>
+          <label class="mkrow">
+            <span data-en="Case type">Вид дела</span>
+            <select id="mktemplate" required></select>
+          </label>
+          <!-- Сторона обмена. Спрашиваем прямо, потому что от неё зависит,
+               кого агент ищет и кто ему платит; догадка тут дороже вопроса. -->
+          <label class="mkrow">
+            <span data-en="Your role">Ваша роль</span>
+            <select id="mkside" required>
+              <option value="need_help" data-en="I need help">Мне нужна помощь</option>
+              <option value="offer_help" data-en="I am offering help">Я предлагаю помощь</option>
+            </select>
+          </label>
+          <label class="mkrow">
+            <span data-en="Title">Название</span>
+            <input id="mktitle" maxlength="300"
+                   placeholder="Коротко, для списка дел" data-en-placeholder="Short, for the case list">
+          </label>
+          <!-- Поля шаблона. Рисуются по его описанию, а не захардкожены:
+               иначе новое направление потребовало бы правки оболочки, и
+               обещание «ни строки кода на направление» стало бы неправдой. -->
+          <div id="mkfields"></div>
+          <div class="mknote" id="mknote" hidden></div>
+          <div class="mkbtns">
+            <button type="submit" class="thrsendbtn" id="mkgo" data-en="Start">Завести</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="cases sect" id="threads" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="threadshead" data-en="correspondence">переписка</span>
+        </div>
+        <div class="caserows" id="threadrows"></div>
+      </div>
+
+      <!-- Лента кабинета: что произошло по делам, пока человека не было.
+           Своё, а не внешние подписки: вопрос, ради которого лента заводится,
+           — «что изменилось», и ответ на него лежит в журналах дел. -->
+      <div class="cases sect" id="feed" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="feedhead" data-en="events">события</span>
+          <button class="newcase" id="feedrefresh" type="button" data-en="Refresh">Обновить</button>
+        </div>
+        <div class="caserows" id="feedrows"></div>
+      </div>
+
+      <!-- Журнал обращений. Виден ТОЛЬКО оператору: дверь отвечает 404 всем
+           остальным, и панель не рисуется. Здесь данные всей системы —
+           чужие метки, чужие дела, — и это единственное место в оболочке,
+           где показано не своё. -->
+      <div class="cases" id="opspanel" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="opscount" data-en="request log">журнал обращений</span>
+          <button class="newcase" id="opsrefresh" type="button" data-en="Refresh">Обновить</button>
+        </div>
+        <!-- Сообщения людей о поломках — СВОЕЙ строкой, а не третьим предметом
+             в шапке: там она ломала не перенос, а сами надписи (довод и замер
+             в CSS у .opsreports).
+             Подпись ставит app.js вместе с числом, поэтому здесь её нет и
+             data-en не нужен: перевод берётся словарём на границе вывода, а не
+             парой у текста. Скрыта, пока дверь не ответила: у списка своя
+             дверь (/ops/reports), отдельная от двери самой панели. -->
+        <button class="opsreports" id="opsreports" type="button" hidden
+                title="Сообщения людей о поломках"
+                data-en-title="Breakage reports from people"></button>
+        <div class="caserows" id="opsrows"></div>
+      </div>
+
+      <!-- Расход кредитов по всей площадке. Операторская, как и соседняя:
+           открыта дверью, а не флагом в оболочке. Тому, кто не оператор, шлюз
+           отвечает 404, и панель не появляется вовсе. -->
+      <!-- Обзор цен расширением. Панель показывается ТОЛЬКО когда расширение
+           объявилось: обещать кнопку, которая ничего не сделает, — хуже, чем не
+           показывать её вовсе. -->
+      <div class="cases" id="expanel" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="excount" data-en="price overview">обзор цен</span>
+          <button class="newcase" id="exrun" type="button" data-en="Collect">Собрать</button>
+        </div>
+        <div class="caserows">
+          <input id="exquery" type="text" autocomplete="off"
+                 placeholder="что искать — например, наушники беспроводные" data-en-placeholder="what to look for — wireless headphones, say">
+          <div id="exnote" class="empty"></div>
+          <div id="exrows"></div>
+        </div>
+      </div>
+
+      <!-- ЗАЯВКИ НА ВЫВОД, ЖДУЩИЕ РАЗРЕШЕНИЯ. Операторская панель.
+
+           Одобряет по устройству НЕ получатель: `approval_not_self` в базе
+           запрещает разрешать выплату себе. Поэтому экран этот — не «мои
+           заявки», а «чужие, которые я разрешаю», и открывает его ДВЕРЬ:
+           тому, кто не оператор, шлюз отвечает 404, и панель не появляется.
+
+           Номер счёта здесь только хвостом. Для решения довольно имени,
+           суммы и хвоста; полный номер решению не помогает, а утечь может. -->
+      <div class="cases" id="paypanel" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="paycount" data-en="payouts awaiting approval">выплаты ждут разрешения</span>
+          <button class="newcase" id="payrefresh" type="button" data-en="Refresh">Обновить</button>
+        </div>
+        <div class="caserows" id="payrows"></div>
+      </div>
+
+      <div class="cases" id="crpanel" hidden>
+        <div class="caseshead">
+          <span class="cnt" id="crcount" data-en="credit spending">расход кредитов</span>
+          <button class="newcase" id="crrefresh" type="button" data-en="Refresh">Обновить</button>
+        </div>
+        <div class="caserows" id="crrows"></div>
+      </div>
+
+      <div id="casebody">
+        <div class="empty" id="caseempty"><span data-en="A case appears the moment you begin.">Дело появится, как только вы начнёте.</span><br>
+          <span data-en="It assembles itself from the conversation — there is nothing to fill in.">Оно собирается из разговора — заполнять ничего не нужно.</span></div>
+      </div>
+
+      <!-- Что ждёт слова человека. Стоит ВЫШЕ приложенного и участников
+           намеренно: это единственное место, где от человека прямо сейчас
+           чего-то ждут, и искать его прокруткой он не должен. -->
+      <!-- Чем занят агент. Пусто, пока поручений не было: строка «ничего не
+           происходит» занимает место и ничего не сообщает. -->
+      <!-- Над чем идёт дело. Пусто и скрыто, пока объект не указан: строка
+           «предмет не указан» под каждым делом была бы упрёком, а не
+           сведением. -->
+      <div class="subject" id="subject" hidden></div>
+      <!-- Поручить агенту работу по делу.
+
+           Кнопка эта была написана и НИ РАЗУ не подключена: startRun в
+           app.js существовала, а элемента под неё в разметке не было — то
+           есть завести дело человек мог, а запустить его не мог никак.
+
+           ПОЛЕ «ЧТО ИСКАТЬ» — НЕ УКРАШЕНИЕ. Прежде запрос брался из
+           заголовка дела, и на живой витрине это давало НОЛЬ находок:
+           «Аренда экскаватора» отвечает десятью, она же «в Ленинградской
+           области» — нулём. А ноль находок роняет шаг и весь прогон, то
+           есть неудачная формулировка выглядела бы как поломка системы.
+           Поэтому человек ВИДИТ строку поиска до нажатия и может её
+           поправить: подставленное — догадка, и она объявлена догадкой. -->
+      <div class="commission" id="commission" hidden>
+        <label class="clab" for="runquery" data-en="What to look for on the marketplace">Что искать на витрине</label>
+        <div class="crow">
+          <input id="runquery" type="text" autocomplete="off" maxlength="120"
+                 placeholder="коротко: экскаватор, траншея" data-en-placeholder="briefly: excavator, trench">
+          <button class="addone" id="startrun" type="button" data-en="Hand it to the agent">Поручить агенту</button>
+        </div>
+        <div class="fnote" id="runhint"></div>
+      </div>
+      <!-- ПРОСЬБА СОСТАВИТЬ ПРОЕКТ ДОКУМЕНТА.
+
+           Отдельный короб, а не вторая кнопка в поручении, и это не вкус.
+           Поручение запускает объявленный план целиком; здесь человек просит
+           ОДНУ работу и говорит своими словами, что за бумага нужна. Слить их
+           значило бы предложить «поручить агенту» тому, кто хотел претензию,
+           и получить прогон совсем другого плана. -->
+      <div class="commission" id="paperdraft" hidden>
+        <label class="clab" for="draftask">Составить проект документа</label>
+        <div class="crow">
+          <input id="draftask" type="text" autocomplete="off" maxlength="300"
+                 placeholder="какая бумага нужна: претензия, ходатайство…">
+          <button class="addone" id="startdraft" type="button">Составить</button>
+        </div>
+        <div class="fnote" id="drafthint"></div>
+      </div>
+
+      <!-- ═══ ОБЩИЕ ТАБЛИЦЫ ДЕЛА ═══════════════════════════════════════
+           Просьба владельца 13.09.2026 после живой пробы «Бюджета семьи
+           вдвоём»: пара ведёт одну таблицу расходов вместе — обоим видно и
+           можно править, и правка одного не должна тихо съедать правку
+           другого. Служба (services/case_service/tables.py) хранит версию у
+           КАЖДОЙ ячейки отдельно: правки разных ячеек никогда не спорят,
+           спорит только та, где двое написали в одну секунду, — и тогда
+           один получает, что сохранил другой, а не теряет своё молча.
+
+           Стоит СРАЗУ ЗА «составить проект документа»: обе панели про
+           содержимое дела, которое пишет сам человек, а не про разговор.
+           Скрыта целиком без открытого дела — renderSheets решает это первой
+           строкой, так же как остальные короба этой колонки. -->
+      <div class="files sheets" id="sheets" hidden>
+        <h3 data-en="Shared tables">Общие таблицы</h3>
+        <div id="sheetlist"></div>
+        <div class="fnote" id="sheethidden" hidden></div>
+        <button class="addone" id="sheetnew" type="button" hidden>Новая таблица</button>
+
+        <!-- Форма новой таблицы. Род сведений в выборе — ТОЛЬКО из открытых
+             этому участнику (`may_see` в ответе списка): предложить род,
+             которого сам не видишь, значит завести таблицу вслепую себе же,
+             а служба его и не примет (422 со словами). -->
+        <div class="commission" id="sheetform" hidden>
+          <label class="clab" for="sheettitle">Название таблицы</label>
+          <div class="crow">
+            <input id="sheettitle" type="text" maxlength="200" autocomplete="off"
+                   placeholder="например: Бюджет на сентябрь">
+          </div>
+          <label class="clab" for="sheetsens">Кто увидит</label>
+          <div class="crow">
+            <select id="sheetsens"></select>
+          </div>
+          <label class="clab">Столбцы</label>
+          <div id="sheetcols"></div>
+          <div class="crow">
+            <button class="addone" id="sheetaddcol" type="button">Добавить столбец</button>
+            <button class="addone" id="sheetpreset" type="button">Бюджет: дата, статья, сумма, кто</button>
+          </div>
+          <div class="crow">
+            <button class="addone" id="sheetcreate" type="button">Создать таблицу</button>
+            <button class="addone" id="sheetcancel" type="button">Отмена</button>
+          </div>
+          <div class="fnote bad" id="sheetformerr"></div>
+        </div>
+
+        <!-- Открытая таблица. Список и форма выше прячутся, пока грид на
+             экране: это тот же короб, а не второе окно. -->
+        <div id="sheetgrid" hidden>
+          <div class="crow">
+            <button class="addone" id="sheetback" type="button">← К списку таблиц</button>
+          </div>
+          <div class="fnote" id="sheetgridhead"></div>
+          <div class="tablewrap"><table class="md" id="sheettable"></table></div>
+          <div class="fnote bad" id="sheetconflicts"></div>
+          <div class="crow">
+            <button class="addone" id="sheetaddrow" type="button">Добавить строку</button>
+            <button class="addone" id="sheetdownload" type="button">Скачать CSV</button>
+          </div>
+          <div class="fnote" id="sheetstatus"></div>
+        </div>
+      </div>
+
+      <!-- ═══ ПРИЁМКА КУПЛЕННОЙ РАБОТЫ ═══════════════════════════════
+           Короб виден только у дел, где работа оплачивается ПОСЛЕ приёмки:
+           у прочих принимать нечего, деньги взяты при заказе.
+
+           Отдельным коробом, а не сообщением в разговоре, потому что решение
+           живёт дольше одной реплики: человек уходит, возвращается через день
+           и должен найти его на том же месте, а не отматывать журнал.
+
+           «Вернуть» стоит рядом с «Принять» и НЕ прячется. Приёмка, у которой
+           единственная кнопка — «принять», не приёмка, а счёт. -->
+      <div class="commission" id="acceptwork" hidden>
+        <label class="clab" id="acceptlab" data-en="Accepting the work">Приёмка работы</label>
+        <div class="fnote" id="accepthint"></div>
+        <div class="crow" id="acceptrow"></div>
+      </div>
+      <div class="runstate" id="runstate" hidden></div>
+      <div class="pending" id="pending" hidden>
+        <h3 data-en="Waiting on you">Ждёт вашего слова</h3>
+        <div id="pendinglist"></div>
+      </div>
+
+      <!-- ═══ АРТЕФАКТЫ ДЕЛА ═══════════════════════════════════════════
+           Один короб на все четыре разряда, и он виден ВСЕГДА, пока дело
+           открыто.
+
+           Прежде каждый разряд прятал сам себя, когда пуст, — довод был
+           разумный: заголовок над пустотой ничего не сообщает и занимает
+           место. Но четыре самопрячущихся короба дают в сумме не экономию, а
+           невидимость: человек не знает, что место для бумаг вообще есть, и
+           не понимает, куда попадёт загруженный файл или составленный
+           документ. Пустое место, названное словами, отвечает на вопрос
+           «а где это будет»; отсутствие места не отвечает ни на что.
+
+           Разряды при этом НЕ сливаются в один список, и это тоже решение:
+           бумага — то, что дали, документ — то, что мы составили, находка —
+           чужое объявление, за которое не отвечает никто из нас. Одна строка
+           на всех стёрла бы разницу между фактом, намерением и рекламой. -->
+      <div class="files arts" id="artifacts" hidden>
+        <h3 id="artifactshead" data-en="Case artifacts">Артефакты дела</h3>
+        <div class="fnote" id="artempty" hidden></div>
+        <!-- Разговор по делу листом. Пригождается, когда дело обсуждают вне
+             площадки: показать юристу, приложить к письму, унести себе. -->
+        <button class="addone" id="talkpdf" type="button" data-en="Conversation as PDF">Разговор в PDF</button>
+
+      <!-- Что приложено к делу. Хранилище личное: документ принадлежит
+           человеку, а к делу привязано тем, откуда пришло. -->
+      <div class="files" id="files" hidden>
+        <h3 data-en="Attached to the case">Приложено к делу</h3>
+        <div id="filelist"></div>
+      </div>
+
+      <!-- Документы дела. У юриста здесь его проекты — с пропусками, которые
+           надо заполнить, и кнопкой «отдать клиенту». У клиента — только
+           выданное ему: рабочая бумага юриста клиенту не адресована. -->
+      <!-- Принесённое. Отдельно от документов намеренно: материал — то, что
+           дали, проект — то, что мы составили, и смешивать их в одном списке
+           значит стирать разницу между фактом и намерением. -->
+      <div class="files" id="papers" hidden>
+        <h3 id="papershead" data-en="Case papers">Бумаги дела</h3>
+        <div id="paperlist"></div>
+      </div>
+
+      <div class="files" id="docs" hidden>
+        <h3 id="docshead" data-en="Documents">Документы</h3>
+        <div id="doclist"></div>
+      </div>
+
+      <!-- Найденное на витрине. Отдельно от бумаг и документов намеренно:
+           бумага — то, что дали, документ — то, что мы составили, а это —
+           чужое объявление, за которое не отвечает никто из нас. Оно и
+           стареет иначе: цена в карточке верна минуту. -->
+      <div class="files" id="finds" hidden>
+        <h3 data-en="Marketplace findings">Найденное на витрине</h3>
+        <div id="findlist"></div>
+        <!-- Лист уносят, показывают и по нему решают. Оговорку про витрину
+             документ несёт в себе — экран с пояснением остаётся здесь. -->
+        <button class="addone" id="findspdf" type="button" data-en="Save as PDF">Сохранить в PDF</button>
+      </div>
+
+      </div>
+
+      <!-- Где лежат бумаги человека. Настройка была построена целиком —
+           три схемы, запись выбора с датой, ручка выбора открыта в двери, — и
+           оболочка её не показывала НИ РАЗУ. Оттого все 196 субъектов на
+           проде сидели на умолчании: не потому, что выбрали площадку, а
+           потому, что выбора им не показали.
+
+           Стоит НАД делом, а не внутри: это решение про все бумаги человека
+           разом, а не про одно дело. -->
+      <div class="files" id="vaultplace" hidden>
+        <h3 data-en="Where your papers are kept">Где лежат ваши бумаги</h3>
+        <div id="vpnow" class="fnote"></div>
+        <div id="vprows"></div>
+        <div id="vpwarn" class="fnote" hidden></div>
+        <button type="button" class="addone" id="vperase" hidden data-en="Erase everything at the platform">Стереть всё у площадки</button>
+      </div>
+
+      <!-- Воля человека про вынос. Настройка, до которой не дотянуться, — не
+           воля, а украшение: ровно этим была may_send_to_model, поле в
+           мандате, которое ставили службы и которого человек не видел. -->
+      <!-- Уровень усилия. Стоит РЯДОМ С ВЫНОСОМ намеренно: обе настройки
+           про одно дело и обе решают, чем именно его читают. Ступени
+           приходят от службы, а не лежат здесь списком: свой список
+           разошёлся бы со схемой молча, и человек выбрал бы ступень,
+           которой нет. -->
+      <div class="files" id="effort" hidden>
+        <h3 data-en="How hard to try">Насколько стараться</h3>
+        <div id="effortrows"></div>
+        <div id="effortnote" class="fnote"></div>
+      </div>
+
+      <!-- ДВЕ ВОЛИ ЧЕЛОВЕКА ПРО СОДЕРЖИМОЕ, и они разные. Первая — покидает
+           ли оно наш периметр вообще. Вторая — чей закон над тем местом, куда
+           оно попало. Спрашиваются В НАЧАЛЕ разговора: после первого хода
+           содержимое уже ушло, и спрашивать поздно. -->
+      <div class="files" id="egress" hidden>
+        <h3 data-en="Where the case contents may go">Куда уходит содержимое дела</h3>
+        <label class="jurline">
+          <input type="checkbox" id="egressbox">
+          <span data-en="May leave our perimeter">Можно выпускать за наш периметр</span>
+        </label>
+        <label class="jurline">
+          <input type="checkbox" id="jurbox">
+          <span data-en="Foreign models allowed">Разрешить иностранные модели</span>
+        </label>
+        <div id="egressnote" class="fnote"></div>
+      </div>
+
+      <!-- Коворкинг: кто в деле и на каких условиях. Условия видны рядом с
+           человеком всегда — «почему он мне советует» тот же вопрос
+           раскрытия, что и «кто платил за это место». -->
+      <div class="crew" id="crew" hidden>
+        <h3 data-en="Who is in the case">Кто в деле</h3>
+        <div id="crewlist"></div>
+        <button class="addone" id="addone" type="button" data-en="Invite a participant">Позвать участника</button>
+        <form class="invite" id="inviteform" hidden>
+          <div class="terms" id="terms"></div>
+          <input id="invitenote" placeholder="Что сказать приглашённому" data-en-placeholder="What to tell the invitee" maxlength="300">
+          <!-- ЧТО ПРИГЛАШЁННЫЙ УВИДИТ. По умолчанию — только обычное, и это
+               правильное умолчание: закрытое. Но пока выбора не было, юрист,
+               позванный ради договора, договора и не видел — а понять это
+               было нельзя ниоткуда, список бумаг у него просто короче.
+               Переключателями, а не одним выбором: рода несравнимы, и
+               «до какого уровня» смысла не имеет. -->
+          <div class="seepick">
+            <span class="seehead" data-en="What they will see in the case">Что он увидит в деле</span>
+            <div class="seerow" id="invitesee"></div>
+          </div>
+          <input id="invitepay" placeholder="Чем оплачивается" data-en-placeholder="How it is paid for" maxlength="300" hidden>
+          <!-- Срок участия. Пусто — бессрочно, и это большинство: соседа
+               посмотреть дело, юриста в спор зовут без конца. Дата нужна
+               там, где участие кончается само: жилец до выезда, подрядчик до
+               сдачи, врач до выписки. -->
+          <label class="invtill" for="invitetill"><span data-en="Takes part until">Участвует до</span>
+            <input id="invitetill" type="date">
+            <span class="hint" data-en="empty — no expiry">пусто — без срока</span>
+          </label>
+          <button class="send" type="submit" data-en="Get a link">Получить ссылку</button>
+        </form>
+        <div class="invited" id="invited" hidden></div>
+      </div>
+
+      <!-- Вход. Кнопки строятся из /auth/providers: показать Сбер, которого
+           нет в настройках, хуже, чем не показать его вовсе. -->
+      <div class="signin" id="signin" hidden>
+        <h3 data-en="Sign in">Войти</h3>
+        <p class="signwhy" data-en="The conversation will not be lost: signing in binds a second channel to the same subject. Without signing in you cannot commit to obligations or invite people into a case.">Разговор не потеряется: вход привязывает второй
+          канал к тому же субъекту. Без входа нельзя подписывать обязательства
+          и звать людей в дело.</p>
+        <div class="oauths" id="oauths"></div>
+        <form class="bymail" id="bymail" hidden>
+          <input id="email" type="email" placeholder="Почта для кода" data-en-placeholder="Email for the code" autocomplete="email">
+          <button class="send" type="submit" data-en="Code by email">Код на почту</button>
+        </form>
+        <!-- Вход по телефону. Показывается только если служба сообщила, что
+             СМС настроены: форма, за которой ничего нет, — это обещание
+             входа, отвечающего отказом. -->
+        <form class="bymail" id="byphone" hidden>
+          <input id="phone" type="tel" placeholder="Телефон для кода" data-en-placeholder="Phone for the code" autocomplete="tel">
+          <!-- Чем прислать код. Список приходит от службы, а она спрашивает
+               провайдера: что включено в шлюзе, знает только он. Телеграм
+               первым — он бесплатный, а СМС покупается у оператора. -->
+          <select id="phonechan" aria-label="Куда прислать код" data-en-aria-label="Where to send the code" hidden></select>
+          <button class="send" type="submit" data-en="Send the code">Прислать код</button>
+        </form>
+        <!-- Вход Телеграмом. Показывается, только когда служба сказала, что
+             бот есть И опрос включён: бот без опроса молча съедает код, а
+             человек смотрит на «ждём подтверждения» до истечения срока.
+             Дверь, за которой никого нет, хуже отсутствующей двери. -->
+        <div class="bytg" id="bytg" hidden>
+          <button class="send" type="button" id="tggo"
+                  data-en="Sign in with Telegram">Войти через Телеграм</button>
+          <!-- Пара слов стоит ЗДЕСЬ, на экране, где вход начали, и её же
+               покажет бот. Без неё довольно прислать человеку ссылку: он
+               откроет её, подтвердит — и сессию получит чужой браузер. -->
+          <div class="tgwait" id="tgwait" hidden>
+            <p><span data-en="The bot must show">Бот должен показать</span>
+               <b id="tgphrase"></b>.
+               <span data-en="If it shows something else — do not confirm: someone else is signing in.">Если там другое — не подтверждайте: входит кто-то другой.</span></p>
+            <a class="send" id="tglink" target="_blank" rel="noopener"
+               data-en="Open the bot">Открыть бота</a>
+            <p class="tghand"><span data-en="Did not open — send the bot this code:">Не открылось — отправьте боту код:</span>
+               <code id="tgcode"></code></p>
+          </div>
+        </div>
+        <div class="signnote" id="signnote" hidden></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Стрелки у краёв и затемнение. Стоят ПОСЛЕ зон: человек, идущий табом,
+       проходит сначала разговор, ради которого пришёл, и только потом
+       створки. На широком экране их нет вовсе — там зоны стоят рядом. -->
+  <button class="edge l" id="edgeleft" type="button" aria-controls="sideleft"
+          aria-expanded="false" aria-label="Дела и настройки" data-en-aria-label="Cases and settings">&rsaquo;</button>
+  <button class="edge r" id="edgeright" type="button" aria-controls="sideright"
+          aria-expanded="false" aria-label="Переписка, документы, календарь" data-en-aria-label="Correspondence, documents, calendar">&lsaquo;</button>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <footer>
+    <div><b data-en="Disclosure is mandatory.">Раскрытие обязательно.</b> <span data-en="Under every option stands who paid for the slot and what could not be verified. An option without these fields is not rendered at all — the schema is built that way, and the interface cannot hide them.">Под каждым вариантом стоит, кто платил за это место и чего проверить не удалось. Вариант без этих полей не отрисовывается — так устроена схема, спрятать их интерфейс не может.</span></div>
+    <div><b data-en="The case is yours from the first message.">Дело принадлежит вам с первого сообщения.</b> <span data-en="Signing in binds the channel to the same subject: the conversation is neither migrated nor lost.">Вход привязывает канал к тому же субъекту: разговор не переносится и не теряется.</span></div>
+  </footer>
+</div>
+
+<!-- Уведомление о хранении. Ставится ПОСЛЕ footer и до скриптов: оболочка
+     рисует свой первый кадр сразу, и узел, вставленный скриптом, мигал бы. -->
+<div class="cookiebar" id="cookiebar" hidden role="region"
+     aria-label="Что сайт хранит в браузере"
+     data-en-aria-label="What this site stores in your browser">
+  <div class="txt">
+    <b data-en="No cookies, no counters.">Cookie нет, счётчиков нет.</b>
+    <span data-en="The site keeps a few values in your browser — only those without which it cannot work. Nothing leaves your device, and nobody else reads them.">Сайт держит в браузере несколько значений — только те, без которых он не работает. Наружу они не уходят, и никто посторонний их не читает.</span>
+    <ul>
+      <li data-en="the session token — so a page reload does not log you out;">ключ сессии — чтобы перезагрузка страницы не выкидывала вас;</li>
+      <li data-en="the current case and tab — so two tabs do not fight each other;">текущее дело и вкладка — чтобы две вкладки не мешали друг другу;</li>
+      <li data-en="the interface language and which hints you have already seen.">язык оболочки и то, какие подсказки вы уже видели.</li>
+    </ul>
+  </div>
+  <div class="acts">
+    <button class="ok" id="cookieok" type="button" data-en="Got it">Понятно</button>
+    <button class="wipe" id="cookiewipe" type="button"
+            title="Стереть всё, что сайт хранит в этом браузере"
+            data-en="Erase" data-en-title="Erase everything this site keeps in this browser">Стереть</button>
+  </div>
+</div>
+
+
+<!-- Язык оболочки. Строго ДО app.js: он рисует шапку и список дел сразу
+     при запуске, и без словаря первый кадр вышел бы русским, а второй
+     английским. Мигание языка человек читает как поломку. -->
+<script src="/lang-en.js"></script>
+<script src="/lang.js"></script>
+<script src="/rabochaya/app.js"></script>
+<script src="/space/bootstrap.js" defer></script>
+</body>
+</html>

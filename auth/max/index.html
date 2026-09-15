@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>ФиксАРик — вход через MAX</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  :root { color-scheme: light dark; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center;
+    padding:24px; font:15px/1.55 ui-sans-serif,system-ui,-apple-system,
+    "Segoe UI",Roboto,sans-serif; background:#faf7f2; color:#22201c; }
+  @media (prefers-color-scheme:dark) {
+    body { background:#14130f; color:#e8e3d8; }
+  }
+  .card { max-width:480px; text-align:center; }
+  .seal { width:42px; height:42px; margin:0 auto 14px; border-radius:50%;
+    border:1px solid #a8813f; display:grid; place-items:center;
+    color:#a8813f; font-weight:700; }
+  h1 { margin:0 0 8px; font-size:20px; font-weight:650; }
+  p { margin:0 0 14px; opacity:.78; }
+  a { color:#a8813f; }
+  .actions { display:flex; flex-wrap:wrap; justify-content:center; gap:10px;
+    margin-top:18px; }
+  .action { appearance:none; border:1px solid #a8813f; border-radius:10px;
+    padding:10px 14px; background:#a8813f; color:#fff; cursor:pointer;
+    font:inherit; text-decoration:none; }
+  .action.secondary { background:transparent; color:#a8813f; }
+  .error { color:#b4483a; }
+  /* У .actions свой display, и без этого правила [hidden] ему проигрывает:
+     кнопки Домашкина стояли на экране ещё до ответа сервиса входа. */
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="seal">Ф</div>
+  <h1 id="head">Входим через MAX…</h1>
+  <p id="text">Проверяем одноразовую ссылку из личного чата.</p>
+  <p><a id="back" href="/" hidden>Вернуться на agrigate.pro</a></p>
+  <p class="actions" id="domashkinActions" hidden>
+    <!-- Безопасный href уже ведёт в нужный мастер. JS повторно проверит
+         server-side destination, но даже WebView, взявший ссылку до
+         присваивания обработчика, больше не унесёт пользователя на `/`. -->
+    <a class="action" id="continueDomashkin"
+       href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Продолжить полную настройку</a>
+    <button class="action secondary" id="returnToMax" type="button">Вернуться в MAX</button>
+  </p>
+</main>
+<script>
+(function () {
+  "use strict";
+  var API = "https://api.agrigate.pro";
+  var head = document.getElementById("head");
+  var text = document.getElementById("text");
+  var back = document.getElementById("back");
+  var domashkinActions = document.getElementById("domashkinActions");
+  var continueDomashkin = document.getElementById("continueDomashkin");
+  var returnToMax = document.getElementById("returnToMax");
+  var FALLBACK_NEXT = "/fixclo/?channel=max";
+  var DOMASHKIN_GUIDED_NEXT = "/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin";
+
+  function fail(message) {
+    head.textContent = "Вход не завершён";
+    head.className = "error";
+    text.textContent = message;
+    back.hidden = false;
+  }
+
+  function safeNext(value) {
+    if (typeof value !== "string" || !value || value.length > 1024) {
+      return FALLBACK_NEXT;
+    }
+    try {
+      var target = new URL(value, location.origin);
+      if (target.origin !== location.origin) return FALLBACK_NEXT;
+      if (target.pathname !== "/fixclo/" && target.pathname !== "/fixclo") {
+        return FALLBACK_NEXT;
+      }
+      // Fragment не переносим: одноразовый ticket уже погашен.
+      var destination = target.pathname + target.search;
+      return destination === FALLBACK_NEXT || destination === DOMASHKIN_GUIDED_NEXT
+        ? destination : FALLBACK_NEXT;
+    } catch (e) {
+      return FALLBACK_NEXT;
+    }
+  }
+
+  // Билет лежит во фрагменте: браузер не посылает его CDN и веб-серверу.
+  var fragment = new URLSearchParams(location.hash.slice(1));
+  var ticket = fragment.get("ticket") || "";
+  history.replaceState(null, "", location.pathname);
+  if (!/^[A-Za-z0-9_-]{32,256}$/.test(ticket)) {
+    fail("Ссылка неполная. В MAX отправьте /setup и откройте новую.");
+    return;
+  }
+
+  fetch(API + "/auth/max/finish", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ticket: ticket})
+  }).then(function (response) {
+    return response.text().then(function (raw) {
+      var data;
+      try { data = raw ? JSON.parse(raw) : {}; }
+      catch (e) { data = {detail: raw}; }
+      if (!response.ok) {
+        throw new Error(typeof data.detail === "string"
+          ? data.detail : "Ссылка не сработала (HTTP " + response.status + ")");
+      }
+      return data;
+    });
+  }).then(function (d) {
+    if (!d.token) throw new Error("Сервис входа не выдал сессию");
+    try {
+      // Оба экрана работают на одном origin, но исторически имеют два ключа.
+      // Перезаписываем оба: живой гостевой ключ не должен победить MAX-вход.
+      localStorage.setItem("fixar.token", d.token);
+      localStorage.setItem("fixar.start.token", d.token);
+    } catch (e) {
+      throw new Error("Браузер запретил сохранить вход");
+    }
+    head.textContent = d.outcome === "created" ? "Запись создана" : "Вы вошли";
+    if (d.flow === "domashkin_guided_setup") {
+      // Сам тип подтверждённого server-side flow и есть выбор маршрута.
+      // Старый ответ без `next` не должен по FALLBACK_NEXT потерять preset.
+      var guidedNext = DOMASHKIN_GUIDED_NEXT;
+      head.textContent = "MAX подключён — шаг 1 готов";
+      text.textContent = "Базовый текстовый Домашкин уже работает. Можно вернуться в MAX прямо сейчас. Полный режим не включается автоматически: продолжение откроет сопровождаемую настройку, где отдельно подтверждается уровень 2, выбираются профиль ребёнка и учебники.";
+      continueDomashkin.href = guidedNext;
+      // href остаётся рабочим fallback, а явный переход закрывает особенности
+      // встроенных WebView, которые иногда открывают исходное значение ссылки.
+      continueDomashkin.onclick = function (event) {
+        event.preventDefault();
+        location.replace(guidedNext);
+      };
+      domashkinActions.hidden = false;
+      return;
+    }
+    var next = safeNext(d.next);
+    text.textContent = "MAX подключён с уровнем 1: это вход и черновая настройка. Если личный вход ещё не подтверждён до уровня 2, конструктор покажет следующий шаг. Открываем конструктор…";
+    setTimeout(function () { location.replace(next); }, 700);
+  }).catch(function (error) {
+    fail(error.message || "Не удалось войти. В MAX отправьте /setup и повторите.");
+  });
+
+  returnToMax.addEventListener("click", function () {
+    window.close();
+    head.textContent = "Вернитесь в чат с Домашкиным";
+    text.textContent = "Если вкладка не закрылась автоматически, закройте её вручную. Базовый текстовый режим уже подключён.";
+    domashkinActions.hidden = true;
+  });
+})();
+</script>
+</body>
+</html>

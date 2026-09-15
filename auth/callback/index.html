@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="FixAR — coming back">ФиксАР — возвращаемся</title>
+<!-- Значок вкладки. SVG — основной: он один переключает тон вместе с системой.
+     PNG рядом для тех, кто SVG в значке не умеет; apple-touch — для домашнего
+     экрана, там углы скругляет сама iOS, поэтому картинка квадратная.
+     Пути от корня: вложенные страницы иначе искали бы значок у себя. -->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/icon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<!--
+  Страница возврата от поставщика личности.
+
+  ЗАЧЕМ ОНА ВООБЩЕ ЕСТЬ. Адрес возврата — не украшение: он прописан в трёх
+  местах сразу (в кабинете Google, в кабинете Яндекса и в OAUTH_REDIRECTS
+  службы) и обязан во всех трёх совпадать буквально. Сайт статический, файла
+  по этому пути не было — и поставщик возвращал человека на 404, теряя код
+  вместе с ним. Отсюда отдельный файл.
+
+  ЧТО ОНА ДЕЛАЕТ. Ровно одно: отдаёт state и code службе. Обмен кода на токен
+  делает сервер — у него секрет поставщика, и здесь его быть не может.
+  redirect_uri сервер берёт из своей же записи, а не из этого запроса: иначе
+  подменой адреса возврата код уводился бы на сторону.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center;
+    font:15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background:#faf7f2; color:#22201c; padding:24px; }
+  @media (prefers-color-scheme: dark) { body { background:#14130f; color:#e8e3d8; } }
+  .card { max-width:460px; text-align:center; }
+  .seal { width:38px; height:38px; margin:0 auto 14px; border-radius:50%;
+    border:1px solid #a8813f; display:grid; place-items:center; color:#a8813f;
+    font-weight:700; }
+  h1 { font-size:19px; margin:0 0 8px; font-weight:650; }
+  p { margin:0 0 14px; opacity:.75; }
+  a { color:#a8813f; }
+  .err { color:#b4483a; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="seal" data-en="F">Ф</div>
+  <h1 id="head" data-en="Coming back…">Возвращаемся…</h1>
+  <p id="text" data-en="One moment — finishing the sign-in.">Секунду — заканчиваем вход.</p>
+  <p><a href="/" id="back" hidden data-en="Back to the conversation">Вернуться к разговору</a></p>
+</div>
+<!-- Язык оболочки. СТРОГО ВЫШЕ встроенного сценария: тот выполняется
+     сразу, и без словаря его надписи вышли бы русскими. -->
+<script src="/lang-en.js"></script>
+<script src="/lang.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* Перевод оболочки. Запасной вариант — тождество: без lang.js страница
+     обязана открыться по-русски, а не упасть на первом же слове. */
+  var T = (window.ЯЗЫК && window.ЯЗЫК.T) || function (с) { return с; };
+  var API = "https://api.agrigate.pro";
+  var KEY = "fixar.token";
+  /* Метка «мы уходили привязывать второй вход, а не входить».
+     Состояние от поставщика для нас непрозрачно, и отличить возврат
+     привязки от возврата входа больше нечем. Сверяем ИМЕННО состояние, а не
+     просто наличие метки: иначе забытая метка увела бы в привязку обычный
+     вход, и человек, вошедший заново, получил бы отказ вместо входа. */
+  var LINK_KEY = "fixar.link.state";
+  /* КУДА ВЕРНУТЬ. Возврат жёстко вёл на «/» — то есть в старую оболочку,
+     даже когда человек ушёл привязывать вход с первого экрана /start/ и
+     ждал вернуться туда же. Список ЗАКРЫТ: в него уезжает только то, что
+     мы сами написали, и посторонний адрес из хранилища никого никуда не
+     уведёт. Метка гасится сразу — она про один переход, а не про привычку. */
+  var BACK_KEY = "fixar.link.back";
+  var LOGIN_KEY = "fixar.login.state";
+  var LOGIN_BACK_KEY = "fixar.login.back";
+  var КУДА = [
+    "/",
+    "/start/",
+    "/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin",
+    // Та же настройка для семьи из Telegram (с 14.09.2026: Домашкин без MAX).
+    "/fixclo/?preset=education.domashkin&channel=tg&pilot=domashkin"
+  ];
+
+  function назад(привязка) {
+    var к = null;
+    try {
+      var имя = привязка ? BACK_KEY : LOGIN_BACK_KEY;
+      к = localStorage.getItem(имя);
+      localStorage.removeItem(имя);
+    } catch (e) { /* приватное окно */ }
+    return к && КУДА.indexOf(к) >= 0 ? к : "/";
+  }
+  var head = document.getElementById("head");
+  var text = document.getElementById("text");
+  var back = document.getElementById("back");
+
+  function fail(msg) {
+    head.textContent = T("Вход не завершён");
+    head.className = "err";
+    text.textContent = msg;
+    back.hidden = false;
+  }
+
+  var q = new URLSearchParams(location.search);
+  var code = q.get("code"), state = q.get("state");
+
+  // Поставщик сообщает об отказе своим полем, а не молчанием: человек нажал
+  // «отменить» — это не ошибка, и пугать его нечем.
+  if (q.get("error")) {
+    fail(q.get("error") === "access_denied"
+      ? T("Вы отменили вход. Разговор на месте — дело осталось вашим.")
+      : T("Поставщик вернул ошибку: ") + q.get("error"));
+    return;
+  }
+  if (!code || !state) {
+    fail(T("Поставщик не вернул код. Попробуйте войти ещё раз."));
+    return;
+  }
+
+  var ждали = null;
+  try { ждали = localStorage.getItem(LINK_KEY); } catch (e) {}
+  var привязка = ждали && ждали === state;
+  if (привязка) { try { localStorage.removeItem(LINK_KEY); } catch (e) {} }
+  if (!привязка) {
+    var ждалиВход = null;
+    try { ждалиВход = localStorage.getItem(LOGIN_KEY); } catch (e) {}
+    /* Новый экран всегда оставляет одноразовую метку входа. Если метка есть,
+       но state другой, это не наш возврат: не позволяем чужой ссылке сменить
+       учётную запись в браузере (login CSRF). Старую оболочку без метки пока
+       принимаем ради совместимости; она будет снята после переезда. */
+    if (ждалиВход && ждалиВход !== state) {
+      fail(T("Этот вход начат в другой вкладке. Вернитесь туда и повторите."));
+      return;
+    }
+    if (ждалиВход === state) {
+      try { localStorage.removeItem(LOGIN_KEY); } catch (e) {}
+    }
+  }
+
+  var заголовки = { "Content-Type": "application/json" };
+  if (привязка) {
+    // Привязка идёт ОТ ИМЕНИ вошедшего: без токена служба не поймёт, к кому
+    // цеплять, и честно ответит «требует входа».
+    /* ТОКЕН ТОЙ ВКЛАДКИ, ОТКУДА УШЛИ. `fixar.token` — ключ старой оболочки;
+       у гостя первого экрана он может быть чужим и мёртвым, а сам экран
+       живёт на своём ключе. Кто уходил привязывать, тот и положил сюда
+       рабочий ключ; гасим его сразу — он про один переход. */
+    var t = null;
+    try {
+      t = localStorage.getItem("fixar.link.token") || localStorage.getItem(KEY);
+      localStorage.removeItem("fixar.link.token");
+    } catch (e) {}
+    if (!t) {
+      fail(T("Привязка не завершена: вход в браузере не найден. " +
+           "Войдите и попробуйте снова."));
+      return;
+    }
+    заголовки["Authorization"] = "Bearer " + t;
+  }
+
+  fetch(API + (привязка ? "/auth/link/finish" : "/auth/finish"), {
+    method: "POST",
+    headers: заголовки,
+    body: JSON.stringify({
+      state: state, code: code, device_id: q.get("device_id") || ""
+    })
+  }).then(function (r) {
+    return r.text().then(function (t) {
+      var d; try { d = t ? JSON.parse(t) : {}; } catch (e) { d = { detail: t }; }
+      if (!r.ok) {
+        var подробность = d && d.detail;
+        var слово = typeof подробность === "string" ? подробность
+          : (подробность && (подробность.message || подробность.reason));
+        var ошибка = new Error(слово || ("HTTP " + r.status));
+        ошибка.status = r.status;
+        ошибка.reason = подробность && typeof подробность === "object"
+          ? (подробность.reason || "") : "";
+        throw ошибка;
+      }
+      return d;
+    });
+  }).then(function (d) {
+    // Токен обязателен: при переносе дел прежняя привязка погашена, и старый
+    // токен в браузере уже мёртв. Складываем новый — иначе следующий запрос
+    // заведёт человека заново анонимом сразу после того, как он вошёл.
+    if (d.token) { try { localStorage.setItem(KEY, d.token); } catch (e) {} }
+    if (привязка) {
+      // Токена здесь нет и быть не должно: человек уже вошёл, и привязка
+      // второго входа не выдаёт сессию.
+      /* «Вошли» и «привязали» — разные события, и человеку важна разница:
+         в первом случае он ПЕРЕШЁЛ в свою прежнюю запись, и записи этого
+         браузера в ней уже нет. */
+      head.textContent = d.outcome === "signed_in"
+        ? T("Вы вошли в свою запись") : T("Вход привязан");
+      text.textContent = d.outcome === "already"
+        ? T("Этот вход и так был вашим. Возвращаемся…")
+        : d.outcome === "absorbed"
+          ? T("Готово: пустая учётная запись, где висел этот вход, влилась в вашу. Возвращаемся…")
+          : d.outcome === "signed_in"
+            ? T("Этот вход уже вёл в вашу учётную запись — мы перевели вас туда, а начатое в этом браузере перенесли следом. Возвращаемся…")
+            : T("Теперь этим способом вы попадёте в ту же учётную запись. Возвращаемся…");
+      setTimeout(function () { location.replace(назад(true)); }, 1600);
+      return;
+    }
+    head.textContent = T("Вы вошли");
+    text.textContent = d.cases_moved
+      ? T("Дела перенесены к вашей личности: ") + d.cases_moved + T(". Возвращаемся…")
+      : T("Разговор на месте — дело было вашим с первого сообщения. Возвращаемся…");
+    setTimeout(function () { location.replace(назад(false)); }, 1200);
+  }).catch(function (e) {
+    var возвратВMAX = false;
+    if (привязка) {
+      // Ошибка step-up не должна выбрасывать человека с того маршрута, где
+      // уже работает MAX L1. Возврат берётся только из закрытого allowlist.
+      var путьНазад = назад(true);
+      back.href = путьНазад;
+      возвратВMAX = путьНазад ===
+        "/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin";
+      back.textContent = возвратВMAX
+        ? T("Продолжить с MAX") : T("Вернуться к настройке");
+    }
+    fail(привязка && e.reason === "identity_account_conflict"
+      ? T("Поставщик подтвердил вход, но этот способ уже связан с другой "
+          + "непустой записью ФиксАРа. Мы не смешали две истории автоматически. "
+          + (возвратВMAX
+            ? "Ничего не потеряно: MAX продолжает работать. "
+              + "Дополнительный вход для первого запуска не нужен."
+            : "Ничего не потеряно. Вернитесь к настройке и выберите вход "
+              + "в существующую запись."))
+      : e.message);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+/* ОБЩЕЕ ДЛЯ ЧЕТЫРЁХ ВХОДОВ. Разъехавшиеся палитры на соседних страницах
+   одного пути читаются как разные площадки — это уже проверено на паре
+   дверь/первый экран. Один файл на все четыре: правка приходит сразу во все.
+
+   Палитра 3а: глубокая сине-зелёная ночь, один акцент — циан. Токены бумаги
+   сюда не подключаются, светлой темы нет намеренно. */
+/* Палитра 3а: глубокая сине-зелёная ночь, один акцент — циан. Это НЕ палитра
+   старой оболочки и НЕ палитра поля: у двери свой свет, и токены бумаги сюда
+   не подключаются — правило то же, что у поля. Светлой темы нет намеренно. */
+:root{
+  --bg0:#062028; --bg1:#0B1218; --panel:#0F1922; --hair:rgba(232,237,247,.09);
+  --ink:#E8EDF7; --mut:#8A95AB; --dim:#68738A; --cy:#22CFEE; --bad:#E8A44C;
+}
+*{box-sizing:border-box} html,body{margin:0;min-height:100%}
+body{
+  background:radial-gradient(900px 520px at 50% 32%, #0E2833 0%, transparent 62%),
+             linear-gradient(160deg, var(--bg0) 0%, var(--bg1) 58%, #0A0F14 100%);
+  background-color:#0A0F14;
+  color:var(--ink); font-family:'Golos Text',system-ui,sans-serif;
+}
+.mono{font-family:'IBM Plex Mono',monospace}
+.top{display:flex; align-items:center; justify-content:space-between;
+     padding:26px 34px}
+.brand{font-weight:700; letter-spacing:.14em; font-size:14px}
+.brand b{color:var(--cy)}
+.enter{color:var(--dim); font-size:13px; text-decoration:none}
+.enter:hover{color:var(--mut)}
+.stage{display:flex; align-items:center; justify-content:center;
+       min-height:calc(100vh - 180px); padding:20px}
+.col{width:640px; max-width:94vw; display:flex; flex-direction:column; gap:18px}
+.badge{font:500 11px 'IBM Plex Mono',monospace; letter-spacing:.16em;
+       color:var(--cy); text-transform:uppercase; opacity:.85; min-height:14px}
+h1{margin:0; font:600 34px/1.15 'Golos Text',sans-serif; text-wrap:balance}
+.sub{margin:0; color:var(--mut); font-size:15.5px; line-height:1.55; max-width:56ch}
+.who{display:flex; align-items:center; gap:12px; padding:10px 14px;
+     width:max-content; max-width:100%;
+     background:var(--panel); border:1px solid var(--hair); border-radius:999px}
+.who .ava{width:34px;height:34px;border-radius:50%;display:grid;
+     place-items:center; flex:none;
+     background:linear-gradient(135deg,#1F6152,#123B32);
+     font-weight:600; font-size:13px}
+.who .nm{font-size:14px; font-weight:500}
+.who .rl{font-size:12px; color:var(--mut)}
+.zone{position:relative; margin-top:6px}
+.zone::before{content:""; position:absolute; inset:-14px; border-radius:22px;
+     background:radial-gradient(60% 130% at 50% 50%, rgba(34,207,238,.14),
+                transparent 70%);
+     animation:breathe 3.2s ease-in-out infinite; pointer-events:none}
+@keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion: reduce){ .zone::before{animation:none} }
+.ask{display:flex; gap:10px; padding:10px 10px 10px 20px; position:relative;
+     background:rgba(15,25,34,.9); border:1px solid rgba(34,207,238,.4);
+     border-radius:16px;
+     box-shadow:0 0 0 1px rgba(34,207,238,.08), 0 18px 50px rgba(0,0,0,.45)}
+.ask input{flex:1; min-width:0; background:none; border:none; outline:none;
+     color:var(--ink); font:400 16px 'Golos Text',sans-serif}
+.ask input::placeholder{color:var(--dim)}
+.ask .go{width:46px;height:46px;border-radius:12px;border:none;cursor:pointer;
+     flex:none; background:var(--cy); color:#06232B; font-size:19px;
+     font-weight:700}
+.micro{font-size:12.5px; color:var(--dim); margin:8px 4px 0; min-height:16px}
+.micro.bad{color:var(--bad)}
+.pills{display:flex; flex-wrap:wrap; gap:10px; margin-top:4px}
+.pill{padding:9px 16px; border-radius:999px; font-size:13.5px; cursor:pointer;
+      background:transparent; color:var(--mut); border:1px solid var(--hair);
+      font-family:inherit}
+.pill:hover{border-color:rgba(34,207,238,.5); color:var(--ink)}
+/* ГОРЯЧАЯ ПИЛЮЛЯ — та, которую человек, скорее всего, и хотел. У поиска это
+   «начать с того, что искал»: он уже сказал, зачем пришёл, и ставить этот
+   ответ вровень с остальными значит заставлять выбирать заново.
+   Ровно ОДНА на экран: две горячие — это ни одной. */
+.pill.hot{border-color:rgba(34,207,238,.55); color:var(--ink);
+  background:rgba(34,207,238,.09); box-shadow:0 0 18px rgba(34,207,238,.12)}
+/* Второй шаг: контакт и согласие. Появляется ПОСЛЕ вопроса — дверь начинает
+   с разговора, а не с анкеты. */
+.step2{display:flex; flex-direction:column; gap:12px; margin-top:6px;
+       background:var(--panel); border:1px solid var(--hair);
+       border-radius:16px; padding:18px 20px}
+.step2 input[type=text]{background:rgba(6,32,40,.6); border:1px solid var(--hair);
+       border-radius:10px; color:var(--ink); padding:12px 14px;
+       font:400 15px 'Golos Text',sans-serif; outline:none}
+.step2 input[type=text]:focus{border-color:rgba(34,207,238,.5)}
+.consent{display:flex; gap:10px; align-items:flex-start; font-size:12.5px;
+       color:var(--mut); line-height:1.5; cursor:pointer}
+.consent input{margin-top:2px; accent-color:var(--cy)}
+.send{align-self:flex-start; padding:12px 22px; border-radius:12px; border:none;
+      cursor:pointer; background:var(--cy); color:#06232B;
+      font:600 14.5px 'Golos Text',sans-serif}
+.send:disabled{opacity:.5; cursor:default}
+.done{display:flex; flex-direction:column; gap:14px; margin-top:6px;
+      background:var(--panel); border:1px solid rgba(34,207,238,.35);
+      border-radius:16px; padding:20px 22px}
+.done .big{font-size:17px; font-weight:600}
+.done .key{font:500 13px 'IBM Plex Mono',monospace; color:var(--cy);
+      background:rgba(6,32,40,.7); padding:10px 12px; border-radius:8px;
+      word-break:break-all; user-select:all}
+.done .why{font-size:12.5px; color:var(--dim); line-height:1.5}
+.onward{align-self:flex-start; padding:12px 22px; border-radius:12px;
+      text-decoration:none; background:var(--cy); color:#06232B;
+      font:600 14.5px 'Golos Text',sans-serif}
+.foot{display:flex; justify-content:space-between; align-items:flex-end;
+      padding:0 34px 26px; gap:20px}
+.note{color:var(--dim); font-size:12.5px}
+[hidden]{display:none !important}
+
+.offer{display:flex; flex-direction:column; gap:2px; margin-top:6px;
+  background:var(--panel); border:1px solid var(--hair); border-radius:16px;
+  padding:18px 20px}
+.offer .row{display:flex; gap:14px; align-items:baseline; padding:8px 0;
+  border-bottom:1px solid var(--hair)}
+.offer .row:last-of-type{border-bottom:0}
+.offer .k{flex:none; width:170px; font-size:12.5px; color:var(--dim)}
+.offer .v{font-size:15px; color:var(--ink)}
+.offer .v.warn{color:var(--bad)}
+.ofhint{margin:12px 0 0; font-size:12.5px; color:var(--dim); line-height:1.5}
+.ofbtns{display:flex; gap:10px; align-items:center; margin-top:16px}
+@media (max-width:720px){
+  .offer .row{flex-direction:column; gap:2px}
+  .offer .k{width:auto}
+}
+@media (max-width:720px){
+  h1{font-size:27px}
+  .foot{flex-direction:column; align-items:flex-start}
+}
+
+/* ═══ КНОПКА-СЛОВО ═══ У двери из ВК поля ввода нет: там не спрашивают, а
+   ведут. Круглая стрелка без поля рядом читается как обрубок формы. */
+.go.wide{width:auto; border-radius:12px; padding:0 22px; font-size:15px;
+         font-weight:600; letter-spacing:.01em}

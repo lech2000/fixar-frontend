@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Кабинет автора пака</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/sborka/sborka.css">
+<style>
+  /* Только своё. Цвета — токенами общего файла сборщиков: вторая палитра на
+     соседней странице того же пути читалась бы как другая площадка. */
+  .narrow{max-width:760px}
+  .steps{display:grid;gap:14px;margin-top:24px}
+  /* Класс с display побеждает [hidden] — без этой строки шаги видны до входа. */
+  .steps[hidden]{display:none}
+  .step[aria-busy="true"]{opacity:.7}
+  .state{margin:4px 0 12px;color:var(--ink-2);font-size:15px}
+  .state .flag{margin-left:0;margin-right:7px}
+  .grid2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+  .grid2 .wide{grid-column:1 / -1}
+  label{display:block;margin:10px 0 5px;color:var(--ink-3);font-size:13.5px}
+  .tabs{margin-top:6px}
+  .tabpane{border:1px solid var(--hair);border-radius:0 12px 12px 12px;
+           padding:4px 16px 16px;background:var(--surface)}
+  .tabpane[hidden]{display:none}
+  .versions{display:grid;gap:10px}
+  .ver{padding:13px 15px;border:1px solid var(--hair);border-radius:11px;
+       background:var(--surface)}
+  .ver h3{margin:0 0 5px;font:500 14.5px/1.35 'IBM Plex Mono',monospace;
+          overflow-wrap:anywhere}
+  .ver p{margin:5px 0;color:var(--ink-2);font-size:14px}
+  .ver .src{overflow-wrap:anywhere;color:var(--ink-3);font-size:13px}
+  .ver form{margin-top:8px}
+  .empty{color:var(--ink-3);font-size:14px;margin:4px 0}
+  .msg{margin-top:18px}
+  code{font-family:'IBM Plex Mono',monospace;font-size:.92em}
+  @media (max-width:640px){ .grid2{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">ФИКС<b>АР</b></span>
+  <a class="back" href="/pak/">к сборщику пака</a>
+</header>
+
+<div class="wrap narrow">
+  <h1>Кабинет автора пака</h1>
+  <p class="lead">Подайте пак ссылкой на выпуск GitHub. Площадка сама заберёт
+     архив, сверит отпечаток и проверит содержимое. После разбора пак появится
+     в каталоге.</p>
+
+  <div class="verdict msg" id="msg" role="status" aria-live="polite"></div>
+
+  <div class="steps" id="steps" hidden>
+    <section class="step" id="pub" aria-labelledby="pubH">
+      <h2 id="pubH"><span class="num">1</span>Издатель</h2>
+      <p class="hint">Имя на площадке, под которым выходят ваши паки. Занимается
+         навсегда: так чужой пак не выйдет под знакомым людям именем.</p>
+      <div id="pubBody"></div>
+    </section>
+
+    <section class="step" id="idn" aria-labelledby="idnH">
+      <h2 id="idnH"><span class="num">2</span>Кто вы</h2>
+      <p class="hint">Издателя допускают только со сверенными документами —
+         паспортом или документами организации. Здесь вы заявляете данные,
+         распорядитель площадки сверяет их с документами.</p>
+      <div id="idnBody"></div>
+    </section>
+
+    <section class="step" id="sub" aria-labelledby="subH">
+      <h2 id="subH"><span class="num">3</span>Подать версию</h2>
+      <p class="hint">Соберите архив <code>.tar.gz</code> с <code>pack.yaml</code>,
+         тестами и оценками, приложите его к выпуску (release) открытого
+         репозитория и дайте ссылку на файл.</p>
+      <form id="subForm" novalidate>
+        <label for="yaml">pack.yaml — тот же, что лежит в архиве</label>
+        <textarea id="yaml" rows="10" spellcheck="false" class="mono"
+                  placeholder="apiVersion: aios.dev/v1alpha1&#10;kind: Pack&#10;metadata:&#10;  namespace: …"></textarea>
+        <label for="url">Ссылка на архив в выпуске GitHub</label>
+        <input id="url" inputmode="url" autocomplete="off" spellcheck="false"
+               placeholder="https://github.com/владелец/репозиторий/releases/download/v1.0.0/пак-1.0.0.tar.gz">
+        <label for="sha">Отпечаток архива, SHA-256</label>
+        <input id="sha" class="mono" autocomplete="off" spellcheck="false"
+               maxlength="64" placeholder="64 знака: shasum -a 256 пак-1.0.0.tar.gz">
+        <div class="bar">
+          <button class="btn" type="submit" id="subBtn">Подать на разбор</button>
+        </div>
+      </form>
+      <div class="verdict" id="subOut" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="step" id="mine" aria-labelledby="mineH">
+      <h2 id="mineH"><span class="num">4</span>Мои версии</h2>
+      <p class="hint">Что подано, что решила площадка и что нашёл сканер. О
+         решении площадка напишет и в ваш ящик уведомлений.</p>
+      <div class="versions" id="mineBody"></div>
+    </section>
+  </div>
+
+  <footer>
+    Одобренную версию видят в каталоге; в дело её ставят
+    <a href="/pak/dogovor/">договором</a> с пределом трат, и подписывают его все
+    участники дела, чьи сведения пак увидит.
+    Пак декларативный — внутри YAML, исполнять нечего, поэтому отдельной
+    проверки развёртыванием нет: архив разбирает сканер. Номер документа
+    площадка не хранит — только последние четыре цифры; копий документов у
+    площадки нет.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var API = "https://api.agrigate.pro";
+  var KEY = "fixar.token";            // тот же ключ, что у оболочки
+  var я = { токен: "", pid: "" };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function узел(тег, класс, текст) {
+    var у = document.createElement(тег);
+    if (класс) у.className = класс;
+    if (текст !== undefined && текст !== null) у.textContent = текст;
+    return у;
+  }
+
+  // ── дверь ──────────────────────────────────────────────────────────────
+  //
+  // Слова отказа — ТОЛЬКО текстом. Служба отвечает строкой, объектом с
+  // problems или списком ошибок разбора; всё это сводится к строкам и
+  // кладётся через textContent. Чужой текст разметкой не становится.
+  function слова(данные, код) {
+    var д = данные && данные.detail;
+    if (typeof д === "string") return [д];
+    if (Array.isArray(д)) {
+      return д.map(function (б) {
+        return (б && б.msg) ? String(б.msg) : String(б);
+      });
+    }
+    if (д && typeof д === "object") {
+      var список = [];
+      if (д.detail) список.push(String(д.detail));
+      if (д.message) список.push(String(д.message));
+      (д.problems || []).forEach(function (п) { список.push(String(п)); });
+      if (список.length) return список;
+    }
+    return ["служба ответила " + код];
+  }
+
+  async function зов(метод, путь, тело) {
+    var opts = { method: метод, headers: { "Content-Type": "application/json",
+                                           "Authorization": "Bearer " + я.токен } };
+    if (тело !== undefined) opts.body = JSON.stringify(тело);
+    var о;
+    try { о = await fetch(API + путь, opts); }
+    catch (e) { var связь = new Error("связь оборвалась"); связь.список = ["Связь с площадкой оборвалась — это про сеть, а не про пак. Попробуйте ещё раз."]; throw связь; }
+    var текст = await о.text();
+    var данные = null;
+    try { данные = текст ? JSON.parse(текст) : null; } catch (e) { данные = null; }
+    if (!о.ok) {
+      var беда = new Error("отказ");
+      беда.status = о.status;
+      беда.список = слова(данные, о.status);
+      throw беда;
+    }
+    return данные;
+  }
+
+  function сказать(куда, заголовок, строки, хорошо) {
+    var в = $(куда);
+    в.className = "verdict " + (хорошо ? "ok" : "no") + (куда === "msg" ? " msg" : "");
+    в.textContent = "";
+    в.appendChild(узел("h4", null, заголовок));
+    if (строки && строки.length) {
+      var ul = узел("ul");
+      строки.forEach(function (с) { ul.appendChild(узел("li", null, с)); });
+      в.appendChild(ul);
+    }
+  }
+
+  function флаг(текст, вид) {
+    return узел("span", "flag" + (вид ? " " + вид : ""), текст);
+  }
+
+  function когда(iso) {
+    if (!iso) return "";
+    var д = new Date(iso);
+    if (isNaN(д.getTime())) return "";
+    return д.toLocaleString("ru-RU", { day: "numeric", month: "long",
+                                       hour: "2-digit", minute: "2-digit" });
+  }
+
+  function поле(метка, id, опции) {
+    var обёртка = узел("div", опции && опции.wide ? "wide" : "");
+    var l = узел("label", null, метка); l.htmlFor = id;
+    var i = document.createElement("input"); i.id = id;
+    if (опции && опции.placeholder) i.placeholder = опции.placeholder;
+    if (опции && опции.max) i.maxLength = опции.max;
+    if (опции && опции.mono) i.className = "mono";
+    if (опции && опции.value) i.value = опции.value;
+    i.autocomplete = "off";
+    обёртка.appendChild(l); обёртка.appendChild(i);
+    return обёртка;
+  }
+
+  // ── 1. издатель ────────────────────────────────────────────────────────
+  async function издатель() {
+    var тело = $("pubBody"); тело.textContent = "";
+    var о = await зов("GET", "/registry/publishers/" + encodeURIComponent(я.pid));
+    var п = о && о.publisher;
+    if (п) {
+      var с = узел("p", "state");
+      if (п.suspended) {
+        с.appendChild(флаг("приостановлен", "no"));
+        с.appendChild(document.createTextNode(п.suspend_note || ""));
+      } else if (п.approved) {
+        с.appendChild(флаг("допущен", "yes"));
+        с.appendChild(document.createTextNode("Можно подавать версии."));
+      } else {
+        с.appendChild(флаг("ждёт решения"));
+        с.appendChild(document.createTextNode(
+          "Решение — после сверки документов" +
+          (п.decide_by ? ", срок разбора до " + когда(п.decide_by) : "") + "."));
+      }
+      тело.appendChild(с);
+      var имя = узел("p", "state");
+      имя.appendChild(узел("code", null, п.namespace));
+      имя.appendChild(document.createTextNode(" — " + п.display_name));
+      тело.appendChild(имя);
+      return п;
+    }
+
+    var ф = document.createElement("form"); ф.noValidate = true;
+    var g = узел("div", "grid2");
+    g.appendChild(поле("Пространство имён, латиницей", "ns",
+                       { placeholder: "acme-tools", max: 64, mono: true }));
+    g.appendChild(поле("Название издателя", "dn",
+                       { placeholder: "Acme Tools", max: 120 }));
+    g.appendChild(поле("Как с вами связаться, чтобы попросить документы", "ct",
+                       { placeholder: "почта или ник в Telegram", max: 200, wide: true }));
+    ф.appendChild(g);
+    var bar = узел("div", "bar");
+    var b = узел("button", "btn", "Подать заявку издателя"); b.type = "submit";
+    bar.appendChild(b); ф.appendChild(bar);
+    ф.addEventListener("submit", async function (e) {
+      e.preventDefault(); b.disabled = true;
+      try {
+        await зов("POST", "/registry/publishers", {
+          namespace: $("ns").value.trim(), display_name: $("dn").value.trim(),
+          contact: $("ct").value.trim() });
+        сказать("msg", "Заявка издателя подана", [
+          "Пространство имён закреплено за вами.",
+          "Следующий шаг — заявить паспорт или организацию ниже."], true);
+        await издатель();
+      } catch (беда) {
+        сказать("msg", "Заявка не подана", беда.список, false);
+      } finally { b.disabled = false; }
+    });
+    тело.appendChild(ф);
+    return null;
+  }
+
+  // ── 2. кто вы ──────────────────────────────────────────────────────────
+  async function личность() {
+    var тело = $("idnBody"); тело.textContent = "";
+    var д = await зов("GET", "/trust/" + encodeURIComponent(я.pid));
+    var сверено = (д && д.documents_checked) || [];
+    var заявлено = (д && д.verified) || [];
+    var с = узел("p", "state");
+    if (сверено.length) {
+      с.appendChild(флаг("документы сверены", "yes"));
+      с.appendChild(document.createTextNode(
+        сверено.indexOf("legal") >= 0 ? "Организация подтверждена." : "Личность подтверждена."));
+      тело.appendChild(с);
+      return;
+    }
+    if (заявлено.length) {
+      с.appendChild(флаг("ждёт сверки"));
+      с.appendChild(document.createTextNode(
+        "Данные заявлены. Распорядитель свяжется по контакту из заявки издателя " +
+        "и попросит документы."));
+      тело.appendChild(с);
+      return;
+    }
+    с.appendChild(флаг("не заявлено", "no"));
+    с.appendChild(document.createTextNode("Заявите паспорт или организацию — одно из двух."));
+    тело.appendChild(с);
+
+    var вкладки = узел("div", "tabs"); вкладки.setAttribute("role", "tablist");
+    var т1 = узел("button", "tab", "Паспорт"); т1.type = "button";
+    var т2 = узел("button", "tab", "Организация"); т2.type = "button";
+    [т1, т2].forEach(function (т) { т.setAttribute("role", "tab"); вкладки.appendChild(т); });
+
+    var п1 = узел("form", "tabpane"); п1.noValidate = true;
+    var g1 = узел("div", "grid2");
+    g1.appendChild(поле("Фамилия, имя и отчество, как в паспорте", "fn", { max: 200, wide: true }));
+    g1.appendChild(поле("Серия и номер", "dnum", { max: 64, mono: true }));
+    g1.appendChild(поле("Страна, две буквы", "dc", { max: 2, value: "RU", mono: true }));
+    п1.appendChild(g1);
+
+    var п2 = узел("form", "tabpane"); п2.noValidate = true;
+    var g2 = узел("div", "grid2");
+    g2.appendChild(поле("Название организации", "ln", { max: 300, wide: true }));
+    g2.appendChild(поле("ИНН (или номер в своей стране)", "li1", { max: 64, mono: true }));
+    g2.appendChild(поле("ОГРН или ОГРНИП", "li2", { max: 64, mono: true }));
+    g2.appendChild(поле("Страна, две буквы", "lc", { max: 2, value: "RU", mono: true }));
+    п2.appendChild(g2);
+
+    function вкладка(n) {
+      т1.setAttribute("aria-selected", n === 1 ? "true" : "false");
+      т2.setAttribute("aria-selected", n === 2 ? "true" : "false");
+      п1.hidden = n !== 1; п2.hidden = n !== 2;
+    }
+    т1.addEventListener("click", function () { вкладка(1); });
+    т2.addEventListener("click", function () { вкладка(2); });
+
+    function кнопка(ф, текст, отправить) {
+      var bar = узел("div", "bar");
+      var b = узел("button", "btn", текст); b.type = "submit";
+      bar.appendChild(b); ф.appendChild(bar);
+      ф.addEventListener("submit", async function (e) {
+        e.preventDefault(); b.disabled = true;
+        try {
+          var о = await отправить();
+          сказать("msg", "Данные заявлены", [
+            о && о.proves ? "Что записано: " + о.proves : "",
+            "Дальше распорядитель сверит их с документами."
+          ].filter(Boolean), true);
+          await личность();
+        } catch (беда) {
+          сказать("msg", "Не записано", беда.список, false);
+        } finally { b.disabled = false; }
+      });
+    }
+    кнопка(п1, "Заявить паспорт", function () {
+      return зов("POST", "/trust/verify/identity", {
+        full_name: $("fn").value.trim(), doc_number: $("dnum").value.trim(),
+        doc_type: "passport", country: $("dc").value.trim().toUpperCase() });
+    });
+    кнопка(п2, "Заявить организацию", function () {
+      return зов("POST", "/trust/verify/legal", {
+        legal_name: $("ln").value.trim(), legal_id: $("li1").value.trim(),
+        legal_id2: $("li2").value.trim(), country: $("lc").value.trim().toUpperCase() });
+    });
+
+    тело.appendChild(вкладки); тело.appendChild(п1); тело.appendChild(п2);
+    вкладка(1);
+  }
+
+  // ── 3. подать ──────────────────────────────────────────────────────────
+  var ПРИЗНАКИ_ССЫЛКИ = /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\/[^/?#]+\/[^/?#]+\.tar\.gz$/;
+
+  async function приложить(vid, url, sha) {
+    return зов("POST", "/registry/artifacts/from-github",
+               { version_id: vid, url: url, declared_digest: sha });
+  }
+
+  function итог_архива(а) {
+    var строки = [];
+    if (а.state === "scan_passed") строки.push("Архив забран и прошёл сканер. Дальше — разбор площадкой.");
+    else if (а.state === "scan_failed") строки.push("Сканер не пропустил архив: " + (а.note || "см. отчёт"));
+    (а.scan_report && а.scan_report.findings || []).forEach(function (н) {
+      if (н.fatal) строки.push(н.code + " — " + (н.where || "") + (н.detail ? ": " + н.detail : ""));
+    });
+    return строки;
+  }
+
+  $("subForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var url = $("url").value.trim(), sha = $("sha").value.trim().toLowerCase();
+    var беды = [];
+    if (!$("yaml").value.trim()) беды.push("Вставьте pack.yaml.");
+    if (!ПРИЗНАКИ_ССЫЛКИ.test(url)) беды.push("Нужна ссылка на файл .tar.gz в выпуске GitHub: …/releases/download/<метка>/<файл>.tar.gz");
+    if (!/^[0-9a-f]{64}$/.test(sha)) беды.push("Отпечаток — 64 знака 0–9 и a–f, как печатает shasum -a 256.");
+    if (беды.length) { сказать("subOut", "Проверьте поля", беды, false); return; }
+
+    var b = $("subBtn"); b.disabled = true;
+    сказать("subOut", "Подаю версию…", [], true);
+    var версия;
+    try {
+      версия = await зов("POST", "/registry/versions", { pack_yaml: $("yaml").value });
+    } catch (беда) {
+      сказать("subOut", "Версия не подана", беда.список, false);
+      b.disabled = false; await мои(); return;
+    }
+    сказать("subOut", "Версия подана, забираю архив с GitHub…",
+            [версия.namespace + "/" + версия.name + "@" + версия.version], true);
+    try {
+      var а = await приложить(версия.id, url, sha);
+      сказать("subOut", а.state === "scan_passed" ? "Подано на разбор" : "Архив не прошёл",
+              итог_архива(а), а.state === "scan_passed");
+    } catch (беда) {
+      сказать("subOut", "Версия подана, но архив не принят",
+              беда.список.concat(["Архив можно приложить заново в списке «Мои версии»."]), false);
+    } finally {
+      b.disabled = false;
+      await мои();
+    }
+  });
+
+  // ── 4. мои версии ──────────────────────────────────────────────────────
+  var СОСТОЯНИЯ = {
+    submitted: ["ждёт разбора", ""], approved: ["в каталоге", "yes"],
+    rejected: ["не принята", "no"], suspended: ["снята площадкой", "no"],
+    yanked: ["отозвана вами", ""]
+  };
+  var АРХИВ = {
+    awaiting_upload: "архив ждёт", uploaded: "архив загружен",
+    scan_passed: "архив прошёл сканер", scan_failed: "сканер не пропустил архив",
+    promoted: "архив принят площадкой"
+  };
+
+  async function мои() {
+    var тело = $("mineBody"); тело.textContent = "";
+    var о;
+    try { о = await зов("GET", "/registry/publishers/" + encodeURIComponent(я.pid) + "/versions"); }
+    catch (беда) { тело.appendChild(узел("p", "empty", беда.список.join(" "))); return; }
+    var список = (о && о.versions) || [];
+    if (!список.length) { тело.appendChild(узел("p", "empty", "Поданных версий пока нет.")); return; }
+
+    список.forEach(function (в) {
+      var к = узел("article", "ver");
+      к.appendChild(узел("h3", null, в.full_name));
+      var с = узел("p");
+      var сост = СОСТОЯНИЯ[в.state] || [в.state, ""];
+      с.appendChild(флаг(сост[0], сост[1]));
+      if (в.state === "submitted" && в.decide_by) с.appendChild(document.createTextNode(" решение до " + когда(в.decide_by)));
+      if (в.decided_at) с.appendChild(document.createTextNode(" решено " + когда(в.decided_at)));
+      к.appendChild(с);
+      if (в.note) к.appendChild(узел("p", null, "Причина: " + в.note));
+
+      var а = в.artifact;
+      if (а) {
+        var ар = узел("p", null, (АРХИВ[а.state] || а.state) +
+          (а.fatal_findings ? " — находок, закрывающих путь: " + а.fatal_findings : ""));
+        к.appendChild(ар);
+        if (а.note) к.appendChild(узел("p", null, а.note));
+        if (а.source_url) к.appendChild(узел("p", "src", "Взят из " + а.source_url));
+      }
+
+      // Приложить архив можно, пока версия ждёт и архива ещё нет.
+      if (в.state === "submitted" && (!а || а.state === "awaiting_upload")) {
+        var ф = document.createElement("form"); ф.noValidate = true;
+        var g = узел("div", "grid2");
+        var idu = "u_" + в.id, ids = "s_" + в.id;
+        g.appendChild(поле("Ссылка на архив в выпуске GitHub", idu, { wide: true, max: 600 }));
+        g.appendChild(поле("SHA-256", ids, { wide: true, max: 64, mono: true,
+                                             value: а ? а.declared_digest : "" }));
+        ф.appendChild(g);
+        var bar = узел("div", "bar");
+        var b = узел("button", "btn ghost", "Приложить архив"); b.type = "submit";
+        bar.appendChild(b); ф.appendChild(bar);
+        var out = узел("div", "verdict"); out.id = "o_" + в.id; out.setAttribute("role", "status");
+        ф.addEventListener("submit", async function (e) {
+          e.preventDefault(); b.disabled = true;
+          try {
+            var r = await приложить(в.id, $(idu).value.trim(), $(ids).value.trim().toLowerCase());
+            сказать(out.id, r.state === "scan_passed" ? "Архив принят к разбору" : "Архив не прошёл",
+                    итог_архива(r), r.state === "scan_passed");
+            setTimeout(мои, 2500);
+          } catch (беда) {
+            сказать(out.id, "Архив не принят", беда.список, false);
+          } finally { b.disabled = false; }
+        });
+        к.appendChild(ф); к.appendChild(out);
+      }
+      тело.appendChild(к);
+    });
+  }
+
+  // ── вход ───────────────────────────────────────────────────────────────
+  async function начать() {
+    try { я.токен = localStorage.getItem(KEY) || ""; } catch (e) { я.токен = ""; }
+    if (!я.токен) {
+      var m = $("msg"); m.className = "verdict no msg"; m.textContent = "";
+      m.appendChild(узел("h4", null, "Войдите в ФиксАР"));
+      var p = узел("p", null, "Кабинет автора открывается вошедшему: паки подаются от вашего имени. ");
+      var a = узел("a", null, "Войти"); a.href = "/vhod/";
+      p.appendChild(a); m.appendChild(p);
+      return;
+    }
+    try {
+      var кто = await зов("GET", "/entry/whoami");
+      я.pid = (кто && кто.principal_id) || "";
+      if (!я.pid) throw Object.assign(new Error("нет"), { status: 401, список: ["Сессия не узнана."] });
+    } catch (беда) {
+      сказать("msg", беда.status === 401 ? "Вход кончился — войдите заново" : "Не узнали, кто вы",
+              беда.status === 401 ? [] : беда.список, false);
+      return;
+    }
+    $("steps").hidden = false;
+    var части = [["pub", издатель], ["idn", личность], ["mine", мои]];
+    for (var i = 0; i < части.length; i++) {
+      var блок = $(части[i][0]);
+      блок.setAttribute("aria-busy", "true");
+      try { await части[i][1](); }
+      catch (беда) {
+        var тело = блок.querySelector("div");
+        if (тело) { тело.textContent = ""; тело.appendChild(узел("p", "empty", (беда.список || [String(беда)]).join(" "))); }
+      } finally { блок.removeAttribute("aria-busy"); }
+    }
+  }
+
+  начать();
+})();
+</script>
+</body>
+</html>

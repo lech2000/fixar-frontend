@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Собери пак</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/sborka/sborka.css">
+</head>
+<body>
+<header class="top">
+  <span class="brand">ФИКС<b>АР</b></span>
+  <a class="back" href="/">на первый экран</a>
+</header>
+
+<div class="wrap">
+  <h1>Собери помощника</h1>
+  <p class="lead">Заполни шесть окошек — справа сам собой напишется файл.
+     Это настоящий файл: его проверяет та же площадка, что принимает паки от всех.</p>
+
+  <div class="cols">
+    <div>
+      <div class="step">
+        <h2><span class="num">1</span>Как его зовут?</h2>
+        <p class="hint">Имя, которое увидят люди.</p>
+        <input id="title" value="Фиксарик" maxlength="80">
+        <label for="ns">Твоё имя на площадке и короткое имя пака (латиницей)</label>
+        <div class="row">
+          <input id="ns" value="fixar" maxlength="30" aria-label="пространство имён">
+          <input id="name" value="fixarik" maxlength="30" aria-label="имя пака">
+        </div>
+      </div>
+
+      <div class="step">
+        <h2><span class="num">2</span>Что он делает?</h2>
+        <p class="hint">Одно предложение. Так, как объяснил бы другу.</p>
+        <textarea id="summary">Разбирает письмо и говорит, чего от тебя хотят и к какому сроку.</textarea>
+      </div>
+
+      <div class="step">
+        <h2><span class="num">3</span>Про что он?</h2>
+        <p class="hint">Выбери одно-два. Без этого его никто не найдёт.</p>
+        <div class="chips" id="cats"></div>
+      </div>
+
+      <div class="step">
+        <h2><span class="num">4</span>Что он говорит человеку?</h2>
+        <p class="hint">Обращайся к нему на «ты» — это его наставление.</p>
+        <textarea id="purpose">Разбираешь бумагу, которую принёс человек: называешь, что это, кто прислал, чего хотят и к какому сроку. Отвечаешь только по тексту, который тебе дали.</textarea>
+      </div>
+
+      <div class="step">
+        <h2><span class="num">5</span>Чего он НИКОГДА не делает?</h2>
+        <p class="hint">Самое важное окошко. Не меньше трёх — это его границы.</p>
+        <div class="rows" id="nevers"></div>
+        <button class="add" id="addNever" type="button">+ ещё одна граница</button>
+      </div>
+
+      <div class="step">
+        <h2><span class="num">6</span>Как его зовут внутри?</h2>
+        <p class="hint">Короткое слово латиницей — по нему его узнаёт площадка.</p>
+        <input id="agent" value="triage" maxlength="30">
+      </div>
+    </div>
+
+    <div class="out">
+      <div class="tabs" role="tablist">
+        <button class="tab" id="t1" role="tab" aria-selected="true" aria-controls="p1">pack.yaml</button>
+        <button class="tab" id="t2" role="tab" aria-selected="false" aria-controls="p2">файл помощника</button>
+      </div>
+      <pre id="p1" role="tabpanel"></pre>
+      <pre id="p2" role="tabpanel" hidden></pre>
+
+      <div class="bar">
+        <button class="btn" id="check" type="button">Проверить</button>
+        <button class="btn ghost" id="copy" type="button">Скопировать</button>
+      </div>
+      <div class="verdict" id="verdict" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <footer>
+    Проверяет настоящая площадка — та же схема, что принимает паки от всех
+    авторов. «Годен» здесь значит «правильно написан», а не «принят»: примут
+    ли пак, решает разбор.
+    Готовый пак подают в <a href="/pak/kabinet/">кабинете автора</a> —
+    ссылкой на выпуск GitHub.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var API = "https://api.agrigate.pro";
+
+  // Рубрики — закрытый список площадки, человеческими словами. Свободная
+  // рубрика превращается в четыре написания одного и того же у четырёх
+  // авторов, и поиск перестаёт работать ровно тогда, когда впервые нужен.
+  var РУБРИКИ = [
+    ["documents",     "бумаги"],
+    ["sourcing",      "найти и купить"],
+    ["knowledge",     "знания"],
+    ["analytics",     "посчитать"],
+    ["automation",    "делать само"],
+    ["integration",   "связать с чужим"],
+    ["observability", "присмотр"]
+  ];
+  var выбрано = ["documents"];
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  // ── YAML ──────────────────────────────────────────────────────────────
+  //
+  // Кавычим ВСЁ, что человек напечатал, и экранируем по правилам YAML для
+  // двойных кавычек. Складывать чужой текст в файл без кавычек нельзя: одно
+  // двоеточие в предложении — и файл читается иначе, чем выглядит.
+  function стр(s){
+    return '"' + String(s).replace(/\\/g,"\\\\").replace(/"/g,'\\"')
+                          .replace(/\n/g," ") + '"';
+  }
+  function блок(s, отступ){
+    // Длинный текст — блоком: так его видно целиком и не надо думать о кавычках.
+    var п = " ".repeat(отступ);
+    var слова = String(s).replace(/\s+/g," ").trim().split(" ");
+    var строки = [], тек = "";
+    слова.forEach(function(w){
+      if ((тек + " " + w).trim().length > 64){ строки.push(тек.trim()); тек = w; }
+      else { тек += " " + w; }
+    });
+    if (тек.trim()) строки.push(тек.trim());
+    return ">-\n" + строки.map(function(с){ return п + с; }).join("\n");
+  }
+
+  function поля(){
+    var нев = [];
+    $("nevers").querySelectorAll("input").forEach(function(i){
+      if (i.value.trim()) нев.push(i.value.trim());
+    });
+    return {
+      title: $("title").value.trim(),
+      ns: $("ns").value.trim(),
+      name: $("name").value.trim(),
+      summary: $("summary").value.trim(),
+      purpose: $("purpose").value.trim(),
+      agent: $("agent").value.trim(),
+      nevers: нев
+    };
+  }
+
+  function packYaml(п){
+    return [
+      "apiVersion: aios.dev/v1alpha1",
+      "kind: Pack",
+      "",
+      "metadata:",
+      "  namespace: " + (п.ns || "your-namespace"),
+      "  name: " + (п.name || "your-pack"),
+      "  version: 1.0.0",
+      "  publisher: pub_" + (п.ns || "you"),
+      "  title: " + стр(п.title),
+      "  summary: " + блок(п.summary, 4),
+      "  license: MIT",
+      "  categories: [" + выбрано.join(", ") + "]",
+      "",
+      "spec:",
+      "  compatibility:",
+      "    min_aios: 2.1.0",
+      "",
+      "  components:",
+      "    domains: [" + (п.name || "your-pack") + "]",
+      "    agents: [" + (п.agent || "helper") + "]",
+      "",
+      "  # Просим только то, без чего не обойтись. Право, которое не нужно,",
+      "  # не просят — на него однажды нажмут «разрешить», не читая.",
+      "  requested_capabilities:",
+      "    - traces:aggregate",
+      "  secrets: []",
+      "",
+      "  resources:",
+      "    timeout_seconds: 30",
+      "    memory_mb: 128",
+      "    requests_per_minute: 12",
+      "",
+      "  tests:",
+      "    fixtures: tests/",
+      "    evals: evals/",
+      ""
+    ].join("\n");
+  }
+
+  function domainYaml(п){
+    var имя = п.name || "your-pack";
+    var стрк = [
+      "id: " + имя,
+      "title: " + стр(п.title),
+      "version: 1",
+      "description: " + блок(п.summary, 2),
+      "",
+      "case_templates:",
+      "  - id: " + имя + ".main",
+      "    version: 1",
+      "    title: " + стр(п.title),
+      "    kind: task",
+      "    intake:",
+      "      - {key: text, title: Что случилось, kind: text, required: true}",
+      "    workflow:",
+      "      initial_state: intake",
+      "      states: [intake, done]",
+      "      terminal_states: [done]",
+      "      transitions:",
+      "        - {source: intake, target: done}",
+      "    required_capabilities: [dialog, case_patch]",
+      "    approvals: {human_from: 2, always_require: [propose_decision]}",
+      "    done_criteria:",
+      "      - Человеку сказано то, ради чего он пришёл.",
+      "",
+      "entity_types:",
+      "  - type: item",
+      "    title: Запись",
+      "    plural: Записи",
+      "    sensitivity: pii",
+      "    fields:",
+      "      - {key: about, title: О чём, kind: text, required: true}",
+      "",
+      "agents:",
+      "  - id: " + (п.agent || "helper"),
+      "    title: " + стр(п.title),
+      "    purpose: " + блок(п.purpose, 6),
+      "    label: " + имя.replace(/-/g,"_") + "_" + (п.agent || "helper"),
+      "    side: need_help",
+      "    capabilities: [dialog, case_patch]",
+      "    tools: []",
+      "    web_search: false",
+      "    match_priority: 50",
+      "    model: mimo-v2.5",
+      "    max_calls: 12",
+      "    never:"
+    ];
+    var нев = п.nevers.length ? п.nevers : ["…впиши хотя бы одну границу"];
+    нев.forEach(function(н){ стрк.push("      - " + стр(н)); });
+    стрк.push("");
+    return стрк.join("\n");
+  }
+
+  function перерисовать(){
+    var п = поля();
+    $("p1").textContent = packYaml(п);
+    $("p2").textContent = domainYaml(п);
+    $("verdict").className = "verdict";
+  }
+
+  // ── рубрики ────────────────────────────────────────────────────────────
+  РУБРИКИ.forEach(function(пара){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = пара[1];
+    b.setAttribute("aria-pressed", выбрано.indexOf(пара[0]) >= 0 ? "true" : "false");
+    b.addEventListener("click", function(){
+      var i = выбрано.indexOf(пара[0]);
+      if (i >= 0){ if (выбрано.length > 1) выбрано.splice(i,1); }
+      else if (выбрано.length < 3) выбрано.push(пара[0]);
+      b.setAttribute("aria-pressed", выбрано.indexOf(пара[0]) >= 0 ? "true" : "false");
+      перерисовать();
+    });
+    $("cats").appendChild(b);
+  });
+
+  // ── границы ────────────────────────────────────────────────────────────
+  function строкаГраницы(текст){
+    var d = document.createElement("div"); d.className = "row";
+    var i = document.createElement("input");
+    i.value = текст || ""; i.maxLength = 160;
+    i.setAttribute("aria-label", "граница");
+    i.addEventListener("input", перерисовать);
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = "×"; b.title = "убрать";
+    b.addEventListener("click", function(){ d.remove(); перерисовать(); });
+    d.appendChild(i); d.appendChild(b);
+    $("nevers").appendChild(d);
+  }
+  ["не выдумываешь срок, которого нет в тексте",
+   "не советуешь платить или не платить",
+   "не отправляешь ничего и никуда"].forEach(строкаГраницы);
+  $("addNever").addEventListener("click", function(){ строкаГраницы(""); });
+
+  // ── вкладки ────────────────────────────────────────────────────────────
+  function вкладка(какая){
+    $("t1").setAttribute("aria-selected", какая === 1 ? "true" : "false");
+    $("t2").setAttribute("aria-selected", какая === 2 ? "true" : "false");
+    $("p1").hidden = какая !== 1;
+    $("p2").hidden = какая !== 2;
+  }
+  $("t1").addEventListener("click", function(){ вкладка(1); });
+  $("t2").addEventListener("click", function(){ вкладка(2); });
+
+  // ── проверка ───────────────────────────────────────────────────────────
+  $("check").addEventListener("click", async function(){
+    var в = $("verdict");
+    $("check").disabled = true;
+    в.className = "verdict ok";
+    в.innerHTML = "<h3>Проверяю…</h3>";
+    try{
+      // Отправляем ИМЕННО ТОТ ТЕКСТ, который на экране: проверить одно, а
+      // унести другое — худшее, что может сделать сборщик.
+      var r = await fetch(API + "/registry/validate", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ pack_yaml: $("p1").textContent,
+                               domain_yaml: $("p2").textContent })
+      });
+      var д = await r.json();
+      if (д.ok){
+        в.className = "verdict ok";
+        в.innerHTML = "<h3>Годится ✓</h3><p>" +
+          "Файл написан правильно: <code>" + (д["полное_имя"]||"") + "</code>." +
+          "</p><p>" + (д.note || "") + "</p>";
+      } else {
+        var сп = (д.problems || []).map(function(б){
+          return "<li>" + б.replace(/[<>&]/g, function(c){
+            return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c]; }) + "</li>";
+        }).join("");
+        в.className = "verdict no";
+        в.innerHTML = "<h3>Пока не годится</h3><ul>" + сп + "</ul>";
+      }
+    } catch(e){
+      в.className = "verdict no";
+      в.innerHTML = "<h3>Не дозвонился до площадки</h3><p>" +
+        "Проверить не вышло — это про связь, а не про твой файл. " +
+        "Попробуй ещё раз.</p>";
+    } finally {
+      $("check").disabled = false;
+    }
+  });
+
+  $("copy").addEventListener("click", async function(){
+    var текст = ($("p1").hidden ? $("p2") : $("p1")).textContent;
+    try { await navigator.clipboard.writeText(текст);
+          $("copy").textContent = "Скопировано"; }
+    catch(e){ $("copy").textContent = "Выдели и скопируй сам"; }
+    setTimeout(function(){ $("copy").textContent = "Скопировать"; }, 1800);
+  });
+
+  ["title","ns","name","summary","purpose","agent"].forEach(function(id){
+    $(id).addEventListener("input", перерисовать);
+  });
+  перерисовать();
+})();
+</script>
+</body>
+</html>

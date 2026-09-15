@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Подбор жилья — ФиксАР</title>
+<!-- НЕ ИНДЕКСИРОВАТЬ. Страница именная и живёт по ключу в ссылке; попав в
+     поисковую выдачу, ключ перестаёт быть ключом. referrer тоже гасим: адрес
+     с ключом не должен уезжать на чужие сайты в заголовке. -->
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+
+<!--
+  СТРАНИЦА ПОДБОРА — ОТДЕЛЬНЫЙ ФАЙЛ, как и справочная, и по той же причине:
+  у оболочки свой разбор адреса, и маршрут внутри неё лёг бы поперёк.
+
+  ЧЕГО ЭТА СТРАНИЦА НЕ ДЕЛАЕТ.
+
+  Не трогает fixar.token и не трогает fixar.desk.token. Свой ключ хранения
+  включает КЛЮЧ СТРАНИЦЫ: у человека, зашедшего к двум разным риелторам,
+  это два разных разговора, и связывать их одним субъектом мы не будем.
+
+  Не зовёт модель. Отбор делает служба по анкете, и «подбор» здесь означает
+  отбор и объяснение, а не суждение машины о том, что человеку нужно.
+
+  Не собирает ничего, кроме ответов анкеты и контакта, который человек дал
+  сам. Ни IP, ни utm, ни того, что он смотрел. Согласие спрашивается ОДИН раз,
+  ровно перед отправкой контакта, и его текст уходит в базу вместе с заявкой.
+
+  Не строит DOM строками. Весь вывод — createElement/textContent: на страницу
+  приезжают чужие тексты (названия объявлений, подпись риелтора), и innerHTML
+  здесь означал бы чужую разметку на нашем домене.
+-->
+<style>
+  /* Палитра та же, что у концепта: вердигри — цвет штемпельной подушки.
+     Оговорка и отказ — отдельные смысловые цвета, они говорят о состоянии
+     знания, а не об оформлении. */
+  :root {
+    --ground:#EDEFEE; --surface:#F8F9F8; --sunk:#E3E7E5;
+    --ink:#131A19; --ink-2:#4C5A57; --ink-3:#77837F;
+    --hair:#CBD2D0; --hair-2:#DCE1DF;
+    --accent:#0E5E5A; --caution:#8A5A12; --refusal:#7A2E2E;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0E1413; --surface:#161E1D; --sunk:#121A19;
+      --ink:#E4E9E7; --ink-2:#A6B3AF; --ink-3:#7E8C88;
+      --hair:#29352F; --hair-2:#1E2926;
+      --accent:#58BDB1; --caution:#CFA043; --refusal:#D08A80;
+    }
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:0 1.4rem 5rem;
+    background:var(--ground); color:var(--ink);
+    font:17px/1.6 "PT Sans","Helvetica Neue",-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page { max-width:54rem; margin:0 auto; }
+
+  header { padding:3.2rem 0 1.8rem; border-bottom:2px solid var(--ink); }
+  .mark {
+    font-family:"PT Mono",ui-monospace,monospace; font-size:.7rem;
+    letter-spacing:.22em; text-transform:uppercase;
+    color:var(--accent); margin:0 0 1.1rem;
+  }
+  h1 {
+    font-family:"PT Serif",Georgia,serif; font-weight:700;
+    font-size:clamp(1.9rem,5.5vw,3rem); line-height:1.08;
+    letter-spacing:-.015em; margin:0 0 .9rem; text-wrap:balance;
+  }
+  .lead { color:var(--ink-2); max-width:44ch; margin:0; }
+
+  /* ── Спрос ─────────────────────────────────────────────────────────── */
+  form { margin:2rem 0 0; }
+  fieldset { border:0; padding:0; margin:0 0 1.1rem; }
+  legend {
+    font-family:"PT Mono",monospace; font-size:.68rem; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--ink-3); padding:0 0 .6rem;
+  }
+  .themes { display:flex; flex-wrap:wrap; gap:.6rem; }
+  .theme {
+    flex:1 1 14rem; text-align:left; cursor:pointer;
+    background:var(--surface); border:1px solid var(--hair);
+    padding:.85rem 1rem; font:inherit; color:var(--ink);
+  }
+  .theme b { display:block; font-weight:700; }
+  .theme span {
+    display:block; font-size:.83rem; color:var(--ink-3); margin-top:.2rem;
+  }
+  .theme[aria-pressed="true"] {
+    border-color:var(--accent); box-shadow:inset 3px 0 0 var(--accent);
+  }
+  .ask { display:flex; gap:.6rem; flex-wrap:wrap; }
+  #q {
+    flex:1 1 20rem; min-width:0; font:inherit; color:var(--ink);
+    background:var(--surface); border:1px solid var(--hair);
+    padding:.8rem .9rem;
+  }
+  #go {
+    font:inherit; font-weight:700; cursor:pointer; padding:.8rem 1.5rem;
+    background:var(--accent); color:var(--ground); border:1px solid var(--accent);
+  }
+  #go[disabled] { opacity:.55; cursor:default; }
+  .hint {
+    font-size:.83rem; color:var(--ink-3); margin:.7rem 0 0; max-width:56ch;
+  }
+
+  /* ── Ответ ─────────────────────────────────────────────────────────── */
+  #out { margin-top:2.4rem; }
+  .said {
+    background:var(--sunk); border-left:3px solid var(--accent);
+    padding:1rem 1.2rem; margin:0 0 1.4rem;
+  }
+  .said.bad { border-left-color:var(--refusal); }
+  .said p { margin:0; }
+  .said p + p { margin-top:.6rem; }
+
+  article.opt {
+    border:1px solid var(--hair); background:var(--surface);
+    padding:1.2rem 1.3rem; margin:0 0 1rem;
+  }
+  article.opt h2 {
+    font-family:"PT Serif",Georgia,serif; font-size:1.2rem; line-height:1.3;
+    margin:0 0 .5rem; text-wrap:balance;
+  }
+  article.opt .sum { margin:0 0 .9rem; color:var(--ink-2); font-size:.95rem; }
+  .phs { display:flex; gap:.5rem; flex-wrap:wrap; margin:0 0 .9rem; }
+  .phs figure { margin:0; width:9rem; }
+  .phs img {
+    width:100%; height:6rem; object-fit:cover; display:block;
+    background:var(--sunk); border:1px solid var(--hair-2);
+  }
+  .phs figcaption {
+    font-size:.7rem; line-height:1.35; color:var(--ink-3); margin-top:.25rem;
+  }
+  .src { margin:0 0 .8rem; font-size:.9rem; }
+  .src a { color:var(--accent); }
+  .noref { color:var(--ink-3); font-size:.9rem; margin:0 0 .8rem; }
+  .cav {
+    margin:.8rem 0 .3rem; font-size:.8rem; font-weight:700;
+    color:var(--caution); font-family:"PT Mono",monospace;
+    letter-spacing:.06em; text-transform:uppercase;
+  }
+  .opt ul { margin:0; padding-left:1.15rem; font-size:.9rem; color:var(--ink-2); }
+  .opt li { margin:.2rem 0; }
+  .paid {
+    display:inline-block; font-family:"PT Mono",monospace; font-size:.68rem;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--caution);
+    border:1px solid currentColor; padding:.12rem .45rem; margin-left:.5rem;
+  }
+
+  /* ── Кто что ответил ───────────────────────────────────────────────── */
+  .who { margin:1.8rem 0 0; border-top:1px solid var(--hair); padding-top:1rem; }
+  .who h3 {
+    font-family:"PT Mono",monospace; font-size:.68rem; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--ink-3); margin:0 0 .7rem;
+    font-weight:400;
+  }
+  .who dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:.35rem .9rem; }
+  .who dt { font-size:.85rem; font-weight:700; }
+  .who dd { margin:0; font-size:.85rem; color:var(--ink-2); }
+  .st { font-family:"PT Mono",monospace; font-size:.75rem; }
+  .st-ok { color:var(--accent); }
+  .st-none { color:var(--ink-3); }
+  .st-bad { color:var(--refusal); }
+
+  /* ── Приглашение войти ─────────────────────────────────────────────── */
+  .invite {
+    margin:2rem 0 0; border:1px solid var(--accent);
+    background:var(--surface); padding:1.3rem 1.4rem;
+  }
+  .invite h3 {
+    font-family:"PT Serif",Georgia,serif; font-size:1.15rem; margin:0 0 .6rem;
+  }
+  .invite p { margin:0 0 1rem; color:var(--ink-2); font-size:.95rem; }
+  .invite a {
+    display:inline-block; font-weight:700; text-decoration:none;
+    background:var(--accent); color:var(--ground);
+    padding:.7rem 1.4rem; border:1px solid var(--accent);
+  }
+
+  footer {
+    margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--hair);
+    font-family:"PT Mono",monospace; font-size:.73rem; line-height:1.7;
+    color:var(--ink-3); max-width:60ch;
+  }
+  footer a { color:var(--ink-3); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+<style>
+  /* Своё сверх общего: анкета в две колонки и карточка объекта. */
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));
+          gap:.7rem; }
+  .fld { display:flex; flex-direction:column; gap:.3rem; }
+  .fld label { font-size:.78rem; color:var(--ink-3); }
+  .fld input, .fld select {
+    font:inherit; color:var(--ink); background:var(--surface);
+    border:1px solid var(--hair); padding:.65rem .8rem; min-width:0;
+  }
+  .who { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;
+         margin:.4rem 0 0; }
+  .who b { font-size:1.05rem; }
+  .who span { color:var(--ink-3); font-size:.86rem; }
+  .price { font-family:"PT Mono",monospace; }
+  .price i { font-style:normal; color:var(--ink-3); }
+  .lead-ok { background:var(--sunk); border-left:3px solid var(--accent);
+             padding:1rem 1.2rem; margin:1.4rem 0 0; }
+  .key { font-family:"PT Mono",monospace; font-size:.9rem; word-break:break-all;
+         background:var(--surface); border:1px solid var(--hair);
+         padding:.5rem .6rem; display:block; margin:.5rem 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <p class="mark">ФиксАР · подбор</p>
+  <h1 id="h1">Подбор жилья</h1>
+  <p class="lead" id="intro">Расскажите, что ищете, и я покажу подходящее из
+    того, что у меня есть.</p>
+  <p class="hint" id="whocontact"></p>
+</header>
+
+<form id="f" novalidate>
+  <fieldset>
+    <legend>Что ищете</legend>
+    <div class="grid">
+      <div class="fld"><label for="city">Город или район</label>
+        <input id="city" autocomplete="off" placeholder="Москва"></div>
+      <div class="fld"><label for="rooms">Комнат</label>
+        <input id="rooms" autocomplete="off" placeholder="2"></div>
+      <div class="fld"><label for="budget">Бюджет, ₽</label>
+        <input id="budget" inputmode="numeric" autocomplete="off"
+               placeholder="6000000"></div>
+    </div>
+  </fieldset>
+  <div class="ask">
+    <button id="go" type="submit">Показать подходящее</button>
+  </div>
+  <p class="hint">Заполнять всё не обязательно: чем меньше сказано, тем шире
+    выдача. Свободный текст в отбор не идёт — по нему отбирать нечем, и
+    делать вид, что идёт, было бы обманом.</p>
+</form>
+
+<div id="out"></div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var API = "https://api.agrigate.pro";
+
+  /* КЛЮЧ СТРАНИЦЫ ЧИТАЕТСЯ ТОЛЬКО ИЗ #-ФРАГМЕНТА.
+     Фрагмент не уходит на сервер в строке запроса и не попадает в журналы
+     чужих посредников — в отличие от ?k=. Поддерживать оба способа значило бы
+     свести пользу к нулю: люди копировали бы тот, что короче. */
+  var КЛЮЧ_СТРАНИЦЫ = (location.hash || "").replace(/^#\/?/, "").trim();
+
+  /* Своё имя хранилища, и в нём КЛЮЧ СТРАНИЦЫ. У человека, зашедшего к двум
+     риелторам, это два разных разговора: общий субъект связал бы их в один. */
+  var ИМЯ_ХРАНИЛИЩА = "fixar.pick." + КЛЮЧ_СТРАНИЦЫ;
+
+  var занято = false;
+  var out = document.getElementById("out");
+  var форма = document.getElementById("f");
+  var кнопка = document.getElementById("go");
+
+  function узел(тег, класс, текст) {
+    var э = document.createElement(тег);
+    if (класс) э.className = класс;
+    if (текст != null) э.textContent = текст;
+    return э;
+  }
+
+  function сказать(текст, плохо) {
+    var d = узел("div", "said" + (плохо ? " bad" : ""));
+    String(текст).split("\n").forEach(function (абзац) {
+      d.appendChild(узел("p", "", абзац));
+    });
+    out.appendChild(d);
+  }
+
+  function токен() {
+    try { return localStorage.getItem(ИМЯ_ХРАНИЛИЩА) || ""; }
+    catch (e) { return ""; }
+  }
+
+  async function завестиТокен() {
+    var есть = токен();
+    if (есть) return есть;
+    /* Анонимный субъект нужен не ради учёта, а ради того, чтобы у двери был
+       кто спрашивает: предел частоты проверяется как «есть предел И есть
+       субъект», то есть без субъекта не срабатывает молча. */
+    /* КЛЮЧ СТРАНИЦЫ — В ЗАВЕДЕНИЕ: площадка записывает, КТО привёл человека
+       (схема долей 12.09.2026), и это ссылка, которую кабинет выдаёт практику
+       для визитки. До 13.09.2026 тело было пустым, и пришедший по визитке
+       записывался приведённым площадкой.
+
+       ГРАНИЦА ЧЕСТНАЯ: субъект этой страницы свой на каждый ключ (см. имя
+       хранилища выше) и с учёткой оболочки не связан. Запись ложится на него,
+       а не на ту учётку, которой человек потом будет платить. */
+    var r = await fetch(API + "/entry/anon", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label: "podbor", page_key: КЛЮЧ_СТРАНИЦЫ.slice(0, 64) })
+    });
+    if (!r.ok) throw new Error("вход не отвечает (" + r.status + ")");
+    var t = (await r.json()).token || "";
+    if (!t) throw new Error("вход не выдал токен");
+    try { localStorage.setItem(ИМЯ_ХРАНИЛИЩА, t); } catch (e) { /* приватный */ }
+    return t;
+  }
+
+  async function спросить(путь, тело) {
+    var t = await завестиТокен();
+    var r = await fetch(API + путь, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + t },
+      body: JSON.stringify(тело)
+    });
+    var д = null;
+    try { д = await r.json(); } catch (e) { д = null; }
+    if (!r.ok) {
+      var e = new Error((д && (д.detail || д.message)) || ("ошибка " + r.status));
+      e.status = r.status;
+      throw e;
+    }
+    return д;
+  }
+
+  // ── Кто хозяин страницы ─────────────────────────────────────────────
+  async function открыть() {
+    if (!КЛЮЧ_СТРАНИЦЫ) {
+      форма.hidden = true;
+      сказать("Ссылка неполная: в ней нет ключа страницы. Попросите её у "
+            + "специалиста ещё раз — целиком, вместе с частью после решётки.",
+              true);
+      return;
+    }
+    try {
+      var с = await спросить("/pick/page", { key: КЛЮЧ_СТРАНИЦЫ });
+      if (с.owner_title) {
+        document.getElementById("h1").textContent = "Подбор жилья · " + с.owner_title;
+        document.title = "Подбор жилья · " + с.owner_title;
+      }
+      if (с.intro) document.getElementById("intro").textContent = с.intro;
+      if (с.contact) {
+        document.getElementById("whocontact").textContent =
+          "Связаться напрямую: " + с.contact;
+      }
+    } catch (e) {
+      форма.hidden = true;
+      // Один и тот же текст на все причины — так же, как отвечает служба.
+      сказать("Страница не найдена или отозвана. Возможно, ссылка устарела: "
+            + "спросите у специалиста новую.", true);
+    }
+  }
+
+  // ── Карточка объекта ────────────────────────────────────────────────
+  function ценой(ц) {
+    if (!ц || !ц.length) return "цена по запросу";
+    return ц.map(function (p) {
+      var сумма = new Intl.NumberFormat("ru-RU").format(p.amount);
+      return сумма + " ₽" + (p.title ? " " + p.title : "");
+    }).join(" · ");
+  }
+
+  function карточка(о) {
+    var a = узел("article", "opt");
+    a.appendChild(узел("h3", "", о.title || "Объект"));
+    var строка = узел("div", "who");
+    var место = [о.city, о.region].filter(Boolean).join(", ");
+    if (место) строка.appendChild(узел("span", "", место));
+    var к = (о.props || {}).rooms;
+    if (к) строка.appendChild(узел("span", "", к + "-комн."));
+    var ц = узел("span", "price");
+    ц.appendChild(узел("i", "", ценой(о.prices)));
+    строка.appendChild(ц);
+    if (о.price_note) строка.appendChild(узел("span", "", о.price_note));
+    a.appendChild(строка);
+    if (о.description) {
+      a.appendChild(узел("p", "", String(о.description).slice(0, 600)));
+    }
+    return a;
+  }
+
+  // ── Заявка ──────────────────────────────────────────────────────────
+  var СОГЛАСИЕ = "";
+
+  function анкета() {
+    return {
+      city: document.getElementById("city").value.trim(),
+      rooms: document.getElementById("rooms").value.trim(),
+      budget: document.getElementById("budget").value.trim()
+    };
+  }
+
+  function форма_заявки(имя_хозяина) {
+    var box = узел("div", "said");
+    box.appendChild(узел("p", "",
+      "Не нашли подходящего или хотите, чтобы специалист сам связался? "
+      + "Оставьте контакт."));
+
+    var сетка = узел("div", "grid");
+    var поля = {};
+    [["nm", "Как к вам обращаться", "Мария"],
+     ["ct", "Телефон или почта", "+7 900 000-00-00"]].forEach(function (п) {
+      var f = узел("div", "fld");
+      var l = узел("label", "", п[1]); l.htmlFor = "lead_" + п[0];
+      var i = document.createElement("input");
+      i.id = "lead_" + п[0]; i.placeholder = п[2]; i.autocomplete = "off";
+      f.appendChild(l); f.appendChild(i); сетка.appendChild(f);
+      поля[п[0]] = i;
+    });
+    box.appendChild(сетка);
+
+    /* СОГЛАСИЕ ОДНИМ ПРЕДЛОЖЕНИЕМ И ПЕРЕД КНОПКОЙ. Оно уезжает в базу тем же
+       текстом, который человек здесь видит: через год «согласие было» ничего
+       не значит, если неизвестно, на что он соглашался, а текст на странице
+       к тому времени десять раз перепишут. */
+    СОГЛАСИЕ = "Я передаю своё имя и контакт специалисту "
+             + (имя_хозяина || "по этой странице")
+             + " и согласен, чтобы он связался со мной по поводу подбора жилья.";
+    var подпись = узел("label", "hint");
+    var чек = document.createElement("input");
+    чек.type = "checkbox"; чек.id = "lead_ok";
+    подпись.appendChild(чек);
+    подпись.appendChild(document.createTextNode(" " + СОГЛАСИЕ));
+    box.appendChild(подпись);
+
+    var кн = узел("button", "", "Оставить заявку");
+    кн.type = "button";
+    кн.style.marginTop = ".8rem";
+    кн.addEventListener("click", async function () {
+      if (!чек.checked) {
+        сказать("Без согласия контакт не сохраняю — это не формальность: "
+              + "иначе непонятно, на каком основании вам позвонят.", true);
+        return;
+      }
+      var контакт = поля.ct.value.trim();
+      if (контакт.length < 3) {
+        сказать("Оставьте телефон или почту — иначе связаться не с чем.", true);
+        return;
+      }
+      кн.disabled = true;
+      try {
+        var з = await спросить("/pick/lead", {
+          key: КЛЮЧ_СТРАНИЦЫ, answers: анкета(),
+          display_name: поля.nm.value.trim(), contact: контакт,
+          contact_kind: контакт.indexOf("@") >= 0 ? "email" : "phone",
+          consent_text: СОГЛАСИЕ
+        });
+        готово(з);
+      } catch (e) {
+        кн.disabled = false;
+        сказать("Заявка не ушла: " + e.message, true);
+      }
+    });
+    box.appendChild(кн);
+    return box;
+  }
+
+  function готово(з) {
+    var b = узел("div", "lead-ok");
+    b.appendChild(узел("p", "", "Заявка ушла. Специалист свяжется с вами."));
+    b.appendChild(узел("p", "",
+      "Если передумаете — вот ключ отзыва. По нему можно посмотреть, что мы "
+      + "храним, и забрать заявку обратно. Он показывается ОДИН раз:"));
+    b.appendChild(узел("code", "key", з.withdraw_token));
+    var кн = узел("button", "", "Забрать заявку обратно");
+    кн.type = "button";
+    кн.addEventListener("click", async function () {
+      кн.disabled = true;
+      try {
+        await спросить("/pick/withdraw", { withdraw_token: з.withdraw_token });
+        сказать("Заявка отозвана: контакт и ответы стёрты. У специалиста "
+              + "останется только отметка, что заявка была и отозвана.");
+      } catch (e) {
+        кн.disabled = false;
+        сказать("Отозвать не вышло: " + e.message, true);
+      }
+    });
+    b.appendChild(кн);
+    out.appendChild(b);
+  }
+
+  // ── Спрос ───────────────────────────────────────────────────────────
+  форма.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (занято) return;
+    занято = true;
+    кнопка.disabled = true;
+    out.textContent = "";
+    try {
+      var р = await спросить("/pick/search",
+                             { key: КЛЮЧ_СТРАНИЦЫ, answers: анкета() });
+      var н = р.options || [];
+      if (!н.length) {
+        /* ЧЕМ ОТБИРАЛИ — СЛОВАМИ. Пустая выдача без этого читается как
+           «ничего нет», хотя на деле «по вашему городу ничего нет». */
+        var по = (р.matched_by || []).map(function (к) {
+          return { city: "городу", budget: "бюджету", rooms: "числу комнат" }[к];
+        }).filter(Boolean);
+        сказать(по.length
+          ? "По " + по.join(", ") + " подходящего сейчас нет. Попробуйте шире "
+            + "или оставьте заявку — специалист поищет сам."
+          : "Сейчас на витрине пусто.");
+      } else {
+        сказать("Подходит: " + н.length + ".");
+        н.forEach(function (о) { out.appendChild(карточка(о)); });
+      }
+      if (р.disclaimer) {
+        out.appendChild(узел("p", "hint", р.disclaimer));
+      }
+      out.appendChild(форма_заявки(
+        (document.getElementById("h1").textContent.split("·")[1] || "").trim()));
+    } catch (e) {
+      сказать(e.status === 429
+        ? "Слишком часто. Подождите минуту."
+        : "Не вышло: " + e.message, true);
+    } finally {
+      занято = false;
+      кнопка.disabled = false;
+    }
+  });
+
+  открыть();
+})();
+</script>
+</body>
+</html>

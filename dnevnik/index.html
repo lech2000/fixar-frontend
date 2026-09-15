@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Вход в школьный дневник — Домашкин</title>
+<link rel="icon" href="/favicon.svg">
+<style>
+  :root {
+    color-scheme: light dark;
+    --фон: #f6f7f9; --бумага: #fff; --текст: #16181d; --тихий: #5b6170;
+    --кант: #e2e5ea; --знак: #2f6feb; --тревога: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --фон: #14161a; --бумага: #1c1f25; --текст: #eef0f4; --тихий: #a0a6b4;
+            --кант: #2b2f37; --знак: #6ea0ff; --тревога: #ff8a80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--фон); color: var(--текст);
+         font: 16px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 14px 16px; border-bottom: 1px solid var(--кант); }
+  h1 { margin: 0; font-size: 17px; }
+  .тихо { color: var(--тихий); font-size: 13px; margin-top: 4px; }
+  main { padding: 16px; max-width: 480px; margin: 0 auto; }
+  .карта { background: var(--бумага); border: 1px solid var(--кант);
+           border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+  button { font: inherit; padding: 11px 14px; border-radius: 10px;
+           border: 1px solid var(--кант); background: var(--бумага);
+           color: var(--текст); cursor: pointer; }
+  button.главная { background: var(--знак); border-color: var(--знак); color: #fff; }
+  button[disabled] { opacity: .5; cursor: default; }
+  .ряд { display: flex; gap: 8px; flex-wrap: wrap; }
+  #окно { width: 100%; border-radius: 12px; border: 1px solid var(--кант);
+          display: block; touch-action: manipulation; }
+  #набор { width: 100%; padding: 11px; border-radius: 10px;
+           border: 1px solid var(--кант); background: var(--бумага);
+           color: var(--текст); font: inherit; }
+  .строка { margin-top: 10px; }
+  .беда { color: var(--тревога); }
+  code { font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Вход в школьный дневник</h1>
+  <div class="тихо">Дневник откроется в браузере площадки. Ключи останутся у нас
+    в зашифрованном виде, вам не придётся входить каждый раз.</div>
+</header>
+
+<main>
+  <div class="карта" id="начало">
+    <p id="весть">Проверяем, вошли ли вы в Фиксар…</p>
+    <div class="ряд">
+      <button class="главная" id="открыть" disabled>Открыть окно входа</button>
+    </div>
+    <p class="тихо">Пароль Госуслуг вы наберёте в нашем браузере: он нигде не
+      сохраняется и не пишется в журналы, но проходит через площадку. Если это
+      не подходит — дневник можно подключить с компьютера, там ключи остаются
+      у вас.</p>
+  </div>
+
+  <div class="карта" id="рабочее" hidden>
+    <img id="окно" alt="Окно входа в дневник">
+    <div class="строка">
+      <input id="набор" type="text" autocomplete="off" autocapitalize="none"
+             autocorrect="off" spellcheck="false"
+             placeholder="Наберите здесь и нажмите «Ввести»">
+    </div>
+    <div class="строка ряд">
+      <button id="ввести">Ввести</button>
+      <button id="энтер">Enter</button>
+      <button id="назад">Назад</button>
+    </div>
+    <div class="строка ряд">
+      <button class="главная" id="готово">Я вошёл — забрать ключи</button>
+      <button id="закрыть">Закрыть окно</button>
+    </div>
+    <p class="тихо" id="состояние">Тапайте прямо по картинке — это живая страница.</p>
+  </div>
+
+  <div class="карта" id="итог" hidden></div>
+</main>
+
+<script src="dnevnik.js"></script>
+</body>
+</html>

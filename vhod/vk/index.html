@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ФиксАР — страница для ваших клиентов</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/vhod/vhod.css">
+</head>
+<!--
+  ═══ ПЯТАЯ ДВЕРЬ: ИЗ ВКОНТАКТЕ, ЗА СТРАНИЦЕЙ ═══
+
+  Четыре прежние двери приводят человека С ЗАДАЧЕЙ («проверьте договор»,
+  «мне передают вещь»). Эта приводит ПРАКТИКА, и вопрос у него другой:
+  «сделайте мне страницу, чтобы клиенты писали не в личку».
+
+  ПОЧЕМУ ОТДЕЛЬНАЯ, А НЕ ПИЛЮЛЯ НА ОБЩЕЙ. Метка входа пишется один раз и
+  навсегда (`channel_bindings.label`), и по ней считается воронка: сколько
+  пришло из ВК и сколько из них дошло до кабинета. Свести их в одну дверь
+  значит потерять ответ на вопрос, ради которого ссылку и вешают.
+
+  ЧТО ЗДЕСЬ ОБЕЩАНО — ТО И РАБОТАЕТ. Конструктор существует: практик
+  заполняет поля, страницу собираем мы (services/site_service/builder.py),
+  адрес выдаётся на своём имени, заявки с формы приходят в кабинет. Порядок
+  шагов назван честно, включая вход: без подтверждённого входа служба имени
+  не выдаст (min_assurance=2 у POST /practice/sites), и умолчать об этом
+  значило бы привести человека к отказу, о котором он узнает последним.
+
+  ЧЕГО ЗДЕСЬ НЕТ. Ни одного поля страницы: их семь, и заполнять их посреди
+  двери — это анкета вместо входа. Дверь доводит до конструктора, а не
+  подменяет его.
+-->
+<body>
+<header class="top">
+  <div class="brand">ФИКС<b>АР</b></div>
+  <a class="enter" href="/#from=vk">уже были здесь? — войти</a>
+</header>
+
+<main class="stage"><div class="col">
+  <div class="badge mono">страница клиенту</div>
+  <h1>Соберу вам страницу за минуту</h1>
+  <p class="sub">Вы заполняете поля — заголовок, о себе, форму согласия;
+    страницу собираю я. Свой адрес, форма заявки, никакой вёрстки.
+    Заявки приходят вам сюда же, в кабинет.</p>
+
+  <div class="zone">
+    <div class="ask">
+      <button class="go wide" id="go">Сделать страницу</button>
+    </div>
+    <div class="micro" id="micro">Три шага: вход · кабинет · семь полей.</div>
+  </div>
+
+  <div class="pills" id="pills"></div>
+</div></main>
+
+<footer class="foot"><div class="note">
+  Вход нужен: страница выдаётся на ваше имя, и без подтверждённого входа
+  служба его не отдаст. Минута через Google, Яндекс или Телеграм.
+</div></footer>
+
+<script src="/vhod/vhod.js"></script>
+<script>
+(function () {
+  "use strict";
+  var Д = window.ДВЕРЬ, эл = Д.эл;
+
+  /* ОТСЮДА НИЧЕГО НЕ ОТПРАВЛЯЕТСЯ И НИЧЕГО НЕ ЗАВОДИТСЯ — как и у трёх
+     соседних дверей. Вход заводит /start/, и метка `vhod:vk` уезжает туда
+     фрагментом; на сервер фрагмент не идёт и гасится сразу после чтения. */
+  function дальше() {
+    location.href = "/#from=vk";
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    эл("go").addEventListener("click", дальше);
+
+    /* ПИЛЮЛИ ЗДЕСЬ — НЕ ВОПРОСЫ, А УЗНАВАНИЕ СЕБЯ. Человек из ВК не искал
+       площадку: он увидел ссылку и должен за секунду понять, про него ли
+       это. Кем он себя назвал, дверь НЕ передаёт: направление кабинета
+       выбирается в самом кабинете, из списка службы, и второй список тут
+       разошёлся бы с ним молча. */
+    [["Риелтору", "показать объекты и собрать заявки"],
+     ["Юристу", "приём вопросов и запись"],
+     ["Психологу", "запись на консультацию"],
+     ["Мастеру", "услуги и цены"]].forEach(function (п) {
+      var b = document.createElement("button");
+      b.className = "pill";
+      b.textContent = п[0];
+      b.title = п[1];
+      b.addEventListener("click", дальше);
+      эл("pills").appendChild(b);
+    });
+  });
+})();
+</script>
+</body>
+</html>

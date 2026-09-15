@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ФиксАР — вам передают вещь</title>
+<!-- ФРАГМЕНТ — ЭТО КЛЮЧ, А НЕ УКРАШЕНИЕ ССЫЛКИ. Страница с ключом не
+     должна попадать в выдачу, а её адрес — в Referer чужих запросов. -->
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/vhod/vhod.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">ФИКС<b>АР</b></div>
+  <a class="enter" href="/">уже были здесь? — войти</a>
+</header>
+
+<main class="stage"><div class="col">
+  <div class="badge mono" id="badge">вам передают вещь</div>
+  <h1 id="title">Принять вещь?</h1>
+  <p class="sub" id="sub">Минуту — смотрю, что предлагают.</p>
+  <div class="micro" id="micro"></div>
+
+  <div class="offer" id="offer" hidden>
+    <div class="row"><span class="k">Записка от отдающего</span>
+      <span class="v" id="ofnote"></span></div>
+    <div class="row"><span class="k">Внутри</span>
+      <span class="v" id="ofinside"></span></div>
+    <div class="row" id="ofdetachrow" hidden><span class="k">Не переедет</span>
+      <span class="v warn" id="ofdetach"></span></div>
+    <p class="ofhint">Название и поля откроются после того, как вы примете.
+      До этого видно только то, что отдающий решил сообщить сам.</p>
+    <div class="ofbtns">
+      <button class="send" id="oftake">Принять</button>
+      <button class="pill" id="ofdrop">Отказаться</button>
+    </div>
+  </div>
+
+  <div class="done" id="done" hidden>
+    <div class="big" id="donebig">Вещь ваша</div>
+    <div class="why" id="donewhy">Она встала на вашу карту вместе со всем,
+      что было внутри.</div>
+    <a class="onward" id="onward" href="/">Посмотреть вещь на карте</a>
+  </div>
+</div></main>
+
+<footer class="foot"><div class="note" id="note">Учётная запись заведётся, только если вы примете.</div></footer>
+
+<script src="/vhod/vhod.js"></script>
+<script>
+(function () {
+  "use strict";
+  var Д = window.ДВЕРЬ, эл = Д.эл, api = Д.api, сказать = Д.сказать;
+  var КОД = Д.фрагмент();
+
+  function склон(n, формы) {
+    var a = n % 100, b = n % 10;
+    if (a > 10 && a < 20) return формы[2];
+    if (b === 1) return формы[0];
+    if (b >= 2 && b <= 4) return формы[1];
+    return формы[2];
+  }
+
+  function отвал(текст, подпись) {
+    эл("title").textContent = текст;
+    эл("sub").textContent = подпись;
+    эл("offer").hidden = true;
+  }
+
+  async function ответить(согласен) {
+    эл("oftake").disabled = true;
+    эл("ofdrop").disabled = true;
+    try {
+      /* ВХОД НУЖЕН ТОЛЬКО ЗДЕСЬ. До согласия человек ничего о себе не
+         сообщает; учётная запись заводится в тот миг, когда ему есть что на
+         неё положить. */
+      if (!Д.state.token) await Д.вход("vhod:peredacha");
+      var итог = await api("/transfers/" + encodeURIComponent(КОД) + "/answer",
+                           { accept: !!согласен });
+      эл("offer").hidden = true;
+      if (!согласен) {
+        эл("title").textContent = "Вы отказались";
+        эл("sub").textContent = "Отдающий увидит, что предложение закрыто.";
+        return;
+      }
+      /* ВЕТКА ЭТОГО СЦЕНАРИЯ ВЕДЁТ НА САМУ ВЕЩЬ, а не в общий разговор.
+         Человек только что принял квартиру — показать ему пустое поле для
+         вопросов значит потерять то единственное, ради чего он пришёл.
+         Служба отдаёт `entity_id` именно для этого. */
+      if (итог && итог.entity_id) {
+        эл("onward").setAttribute("href",
+          "/#вещь=" + encodeURIComponent(итог.entity_id));
+      }
+      эл("title").textContent = "Готово";
+      эл("sub").textContent = "";
+      эл("done").hidden = false;
+    } catch (e) {
+      эл("oftake").disabled = false;
+      эл("ofdrop").disabled = false;
+      сказать((согласен ? "Не вышло принять: " : "Не вышло отказаться: ") + e.message, true);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", async function () {
+    /* ПРИМЕЧАНИЕ ВНИЗУ — СВОЁ. Здесь не спрашивают, а предлагают: общее
+       «один вопрос — не анкета» говорило бы про разговор, которого нет. */
+    if (!КОД) { отвал("Кода нет", "Эта страница открывается по ссылке с кодом передачи."); return; }
+
+    var что;
+    try {
+      /* ПОКАЗЫВАЕМ ДО ВХОДА: ручка анонимна намеренно. Решать, заводить ли
+         учётную запись ради этого, человек должен, уже зная, что предлагают. */
+      var r = await fetch(Д.API + "/transfers/" + encodeURIComponent(КОД));
+      if (!r.ok) {
+        /* ТРИ РАЗНЫХ ОТКАЗА — ТРИ РАЗНЫХ СЛОВА. «Срок вышел» и «уже приняли»
+           человек исправит по-разному: за первым идут к отдающему за новым
+           кодом, за вторым — выяснять, кто принял. */
+        отвал("Предложение не открылось",
+          r.status === 410 ? "Срок этого предложения вышел. Попросите отдающего прислать новый код."
+          : r.status === 409 ? "Это предложение уже закрыто — вещь принята или отозвана."
+          : "Такого предложения нет. Проверьте ссылку целиком: код мог обрезаться при пересылке.");
+        return;
+      }
+      что = await r.json();
+    } catch (e) {
+      отвал("Не удалось прочитать предложение", "Попробуйте открыть ссылку ещё раз.");
+      return;
+    }
+
+    эл("sub").textContent = "Вам предлагают вещь на ФиксАРе. Посмотрите, что " +
+      "именно переедет, и решите.";
+    /* НАЗВАНИЯ ВЕЩИ ЗДЕСЬ НЕТ, И ЭТО НЕ НЕДОДЕЛКА. Оно бывает «Квартира на
+       Ленина, 4-88» и «Кардиостимулятор», а код ходит по мессенджерам дальше,
+       чем предполагал отправитель. Объём раскрытия выбирает владелец вещи. */
+    эл("ofnote").textContent = что.note || "— отдающий ничего не написал";
+    var внутри = что.inside || 0;
+    эл("ofinside").textContent = внутри
+      ? внутри + " " + склон(внутри, ["предмет", "предмета", "предметов"])
+      : "ничего — вещь сама по себе";
+
+    var d = что.will_detach || {};
+    if (d.cases || d.proofs) {
+      эл("ofdetachrow").hidden = false;
+      var части = [];
+      if (d.cases) части.push("связи с делами — " + d.cases);
+      if (d.proofs) части.push("проверки права — " + d.proofs);
+      эл("ofdetach").textContent = части.join(", ") + ". Они будут стёрты у отдающего.";
+    }
+    эл("offer").hidden = false;
+
+    эл("oftake").addEventListener("click", function () { ответить(true); });
+    эл("ofdrop").addEventListener("click", function () { ответить(false); });
+  });
+})();
+</script>
+</body>
+</html>

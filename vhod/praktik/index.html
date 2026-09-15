@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ФиксАР — вопрос специалисту</title>
+<!-- ФРАГМЕНТ — ЭТО КЛЮЧ, А НЕ УКРАШЕНИЕ ССЫЛКИ. Страница с ключом не
+     должна попадать в выдачу, а её адрес — в Referer чужих запросов.
+     Тот же набор мер, что у /podbor/. -->
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/vhod/vhod.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">ФИКС<b>АР</b></div>
+  <a class="enter" href="/">уже были здесь? — войти</a>
+</header>
+
+<main class="stage"><div class="col">
+  <div class="badge mono" id="badge">вы по личной ссылке</div>
+  <div class="who" id="who" hidden>
+    <div class="ava" id="ava"></div>
+    <div><div class="nm" id="whonm"></div><div class="rl" id="whorl"></div></div>
+  </div>
+  <h1 id="title">Чем могу помочь?</h1>
+  <p class="sub" id="sub">Минуту — смотрю, к кому вы пришли.</p>
+
+  <div class="zone" id="zone" hidden>
+    <div class="ask">
+      <input id="q" autocomplete="off"
+             placeholder="Например: продлить страховку, проверить договор, подобрать квартиру">
+      <button class="go" id="go" aria-label="Дальше">&rarr;</button>
+    </div>
+    <div class="micro" id="micro"></div>
+  </div>
+
+  <div class="step2" id="step2" hidden>
+    <input type="text" id="ct" autocomplete="off"
+           placeholder="Телефон или @телеграм — куда ответить">
+    <label class="consent"><input type="checkbox" id="ok">
+      <span id="constext"></span></label>
+    <button class="send" id="send">Передать вопрос</button>
+  </div>
+
+  <div class="done" id="done" hidden>
+    <div class="big">Вопрос ушёл.</div>
+    <div class="why">Сохраните ключ отзыва — по нему можно передумать: забрать
+      заявку обратно и посмотреть, что о вас хранится. Показывается один раз.</div>
+    <div class="key mono" id="wkey"></div>
+    <a class="onward" href="/">Продолжить — ваше место на ФиксАРе</a>
+  </div>
+
+  <div class="pills" id="pills"></div>
+</div></main>
+
+<footer class="foot"><div class="note" id="note">Один вопрос — не анкета. Без регистрации.</div></footer>
+
+<script src="/vhod/vhod.js"></script>
+<script>
+(function () {
+  "use strict";
+  var Д = window.ДВЕРЬ, эл = Д.эл, api = Д.api, сказать = Д.сказать;
+  var КЛЮЧ = Д.фрагмент();
+
+  function пилюли(список) {
+    var узел = эл("pills");
+    узел.innerHTML = "";
+    список.forEach(function (п) {
+      var b = document.createElement("button");
+      b.className = "pill";
+      b.textContent = п.текст;
+      b.addEventListener("click", п.ход);
+      узел.appendChild(b);
+    });
+  }
+
+  /* КЛЮЧА НЕТ ИЛИ ОН НЕ ОТКРЫЛСЯ — УХОДИМ НА СОВЕТ, а не показываем отказ.
+     Чужой, отозванный и несуществующий ключ обязаны выглядеть одинаково: по
+     лицу двери нельзя перебирать ключи. И человеку эта страница без ключа
+     бесполезна — вести его некуда, кроме общего входа. */
+  function мимо() { location.replace("/vhod/sovet/"); }
+
+  function открыть(стр, имена) {
+    var имя = стр.owner_title || "специалист";
+    эл("who").hidden = false;
+    эл("ava").textContent = имя.trim().split(/\s+/).slice(0, 2)
+      .map(function (с) { return (с[0] || "").toUpperCase(); }).join("");
+    эл("whonm").textContent = имя;
+    эл("whorl").textContent = имена[стр.domain] || стр.domain || "";
+
+    var недвижимость = стр.domain === "realty";
+    /* Имя НЕ СКЛОНЯЕТСЯ намеренно: фразы построены так, чтобы падеж не
+       требовался. Машинное склонение имён калечит их чаще, чем помогает. */
+    эл("title").textContent = недвижимость
+      ? "Расскажите, что ищете" : "Расскажите, с чем пришли";
+    эл("sub").textContent = стр.intro ||
+      ("Ваш вопрос увидит " + имя + " — и работа начнётся, не дожидаясь звонка.");
+    эл("q").placeholder = недвижимость
+      ? "Например: двушка у метро, до 12 млн, можно без ремонта"
+      : "Расскажите своими словами";
+    эл("zone").hidden = false;
+
+    /* СОГЛАСИЕ УЕЗЖАЕТ В БАЗУ ТЕМ ТЕКСТОМ, который человек видел. Через год
+       «согласие было» ничего не значит, если неизвестно, на что он соглашался,
+       а текст на странице к тому времени десять раз перепишут. */
+    var СОГЛАСИЕ = "Я передаю свой вопрос и контакт специалисту — " + имя +
+                   " — и согласен, чтобы со мной связались по этому вопросу.";
+    эл("constext").textContent = СОГЛАСИЕ;
+
+    эл("go").addEventListener("click", function () {
+      if (!эл("q").value.trim()) { эл("q").focus(); return; }
+      эл("step2").hidden = false;
+      эл("pills").hidden = true;
+      сказать("");
+      эл("ct").focus();
+    });
+
+    эл("send").addEventListener("click", async function () {
+      if (!эл("ok").checked) {
+        сказать("Без согласия контакт не сохраняю — иначе непонятно, " +
+                "на каком основании вам ответят.", true);
+        return;
+      }
+      var контакт = эл("ct").value.trim();
+      if (контакт.length < 3) {
+        сказать("Оставьте телефон или @телеграм — иначе ответить не с чем.", true);
+        return;
+      }
+      эл("send").disabled = true;
+      try {
+        var з = await api("/pick/lead", {
+          key: КЛЮЧ,
+          answers: { question: эл("q").value.trim() },
+          contact: контакт,
+          contact_kind: контакт.indexOf("@") >= 0 ? "telegram" : "phone",
+          consent_text: СОГЛАСИЕ
+        });
+        эл("zone").hidden = true;
+        эл("step2").hidden = true;
+        эл("wkey").textContent = з.withdraw_token || "";
+        эл("done").hidden = false;
+        сказать("");
+      } catch (e) {
+        эл("send").disabled = false;
+        сказать("Вопрос не ушёл: " + e.message, true);
+      }
+    });
+
+    var список = недвижимость ? [
+      { текст: "Подобрать квартиру",
+        ход: function () { эл("q").value = "Хочу подобрать квартиру"; эл("q").focus(); } },
+      { текст: "Продать и купить новую",
+        ход: function () { эл("q").value = "Хочу продать свою и купить новую"; эл("q").focus(); } }
+    ] : [];
+    список.push({ текст: "Просто посмотреть площадку",
+                  ход: function () { location.href = "/start/"; } });
+    пилюли(список);
+  }
+
+  document.addEventListener("DOMContentLoaded", async function () {
+    if (!КЛЮЧ) { мимо(); return; }
+    try { await Д.вход("vhod:praktik", КЛЮЧ); } catch (e) { /* страница работает и без входа */ }
+    try {
+      var стр = await api("/pick/page", { key: КЛЮЧ });
+      открыть(стр, await Д.пакеты());
+    } catch (e) { мимо(); }
+  });
+})();
+</script>
+</body>
+</html>

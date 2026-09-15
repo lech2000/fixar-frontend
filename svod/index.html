@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Свод направления — ФиксАР</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+
+<!--
+  СТОЛ КУРАТОРА: очередь предложений в отраслевой свод.
+
+  ЗАЧЕМ ОН ПОЯВИЛСЯ. Обходы направления наполняют свод сами, и с 05.09.2026
+  делают это каждую неделю. Ложится всё ПРЕДЛОЖЕНИЕМ и не читается никем,
+  пока куратор не принял, — это и есть страховка от всего, что отбор не
+  поймал. Но принимать было нечем: у площадки была ручка `POST /decide` и ни
+  одного места, где её нажимают. Двадцать шесть записей ждали решения, и
+  увидеть их куратор не мог.
+
+  ОТДЕЛЬНАЯ СТРАНИЦА, А НЕ ЭКРАН В ОБОЛОЧКЕ — по той же причине, что подбор и
+  справочная: у оболочки свой разбор адреса, и маршрут внутри неё лёг бы
+  поперёк. Правка её главного файла вдобавок роняет чужие проверки, которые
+  вырезают функции поимённо.
+
+  ПОЧЕМУ НЕ КНОПКАМИ В TELEGRAM, где уже принимаются решения реестра. Тот стол
+  сделан для редких решений поштучно: допуск издателя, одобрение версии. Здесь
+  двадцать в неделю однородных карточек, и разбирать их в переписке — значит
+  не разобрать. Списком видно сразу всё и видно, что похоже на что.
+
+  ЧЕГО ЭТА СТРАНИЦА НЕ ДЕЛАЕТ, И ЭТО РЕШЕНИЯ, А НЕ ПРОБЕЛЫ.
+
+  Не правит текст записи. Куратор принимает или отклоняет ТО, ЧТО ПРЕДЛОЖЕНО;
+  дай ему переписать — и `proposed_by` станет неправдой, а «предложил обход,
+  принял человек» превратится в «написал человек, подписался обходом».
+
+  Не принимает пачкой. Кнопка «принять всё» — это не курирование, а штемпель:
+  двадцать записей, одобренных одним нажатием, никто не читал. Отклонять
+  пачкой не даём по той же причине, хотя соблазн больше.
+
+  Не строит разметку строками. На страницу приезжают чужие заголовки, чужие
+  описания и чужие адреса — весь вывод через createElement/textContent, а у
+  ссылки проверяется схема: `javascript:` в поле адреса ждёт именно такой
+  страницы.
+
+  Не показывает чужие направления. Список приходит из `/corpus/mine`, и он
+  пуст у того, кто не куратор нигде.
+-->
+<style>
+  /* Палитра подбора: вердигри — цвет штемпельной подушки. Здесь как раз
+     штемпель и ставят. Принято/отклонено — отдельные смысловые цвета: они
+     говорят о состоянии решения, а не об оформлении. */
+  :root {
+    --ground:#EDEFEE; --surface:#F8F9F8; --sunk:#E3E7E5;
+    --ink:#131A19; --ink-2:#4C5A57; --ink-3:#77837F;
+    --hair:#CBD2D0; --hair-2:#DCE1DF;
+    --accent:#0E5E5A; --caution:#8A5A12; --refusal:#7A2E2E;
+    /* РАМКА КАРТОЧКИ ОТДЕЛЬНЫМ ЦВЕТОМ, а не общей `--hair`. Здесь список
+       однородных записей, и граница между ними несёт смысл: где кончилась
+       одна и началась следующая. Фон карточки от фона страницы отличается на
+       1.09:1 — то есть не отличается вовсе, и всю работу делает рамка.
+       Замер 06.09.2026: `--hair` давала 1.33:1 при норме 3.0 для не-текста. */
+    --card-edge:#77837F;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0E1413; --surface:#161E1D; --sunk:#121A19;
+      --ink:#E4E9E7; --ink-2:#A6B3AF; --ink-3:#7E8C88;
+      --hair:#29352F; --hair-2:#1E2926;
+      --accent:#58BDB1; --caution:#CFA043; --refusal:#D08A80;
+      --card-edge:#5E6E68;
+    }
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:0 1.4rem 5rem;
+    background:var(--ground); color:var(--ink);
+    font:17px/1.6 "PT Sans","Helvetica Neue",-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page { max-width:52rem; margin:0 auto; }
+  header { padding:2.6rem 0 1.2rem; border-bottom:2px solid var(--accent); }
+  h1 { margin:0 0 .4rem; font-size:1.7rem; line-height:1.2; }
+  .sub { margin:0; color:var(--ink-2); }
+
+  .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+  .spacer { flex:1 1 auto; }
+
+  button {
+    font:inherit; cursor:pointer; border-radius:3px;
+    border:1px solid var(--hair); background:var(--surface); color:var(--ink);
+    padding:.42rem .8rem;
+  }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:default; }
+  button.take { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  button.drop { border-color:var(--refusal); color:var(--refusal); }
+  button.pick { background:var(--sunk); }
+  button.pick[aria-pressed="true"] { background:var(--accent); color:var(--surface); border-color:var(--accent); }
+
+  .msg { margin:1.2rem 0; padding:.8rem 1rem; border-radius:3px;
+         border:1px solid var(--hair); background:var(--surface); }
+  .msg.bad { border-color:var(--refusal); color:var(--refusal); }
+  .msg.ok  { border-color:var(--accent); }
+
+  .doms { margin:1.4rem 0 0; display:flex; gap:.5rem; flex-wrap:wrap; }
+  /* ЧИСЛО «ЖДЁТ» — самое важное на этой странице, и оно обязано читаться на
+     ОБОИХ фонах чипа. Замерено 06.09.2026: серый `--ink-3` на выбранном
+     (тёмно-зелёном) чипе давал контраст 1.93 при норме 4.5 — то есть ровно
+     то число, ради которого сюда заходят, тонуло. Невыбранный чип светлый,
+     там серый уместен; выбранный наследует свой цвет текста. */
+  .cnt { font-variant-numeric:tabular-nums; color:var(--ink-3); }
+  button.pick[aria-pressed="true"] .cnt { color:inherit; opacity:.85; }
+
+  .card {
+    margin:1rem 0 0; padding:1rem 1.1rem;
+    background:var(--surface); border:1px solid var(--card-edge); border-radius:3px;
+  }
+  .card h2 { margin:0 0 .3rem; font-size:1.06rem; line-height:1.35; }
+  /* Мета мелкая, но это обычный текст: 4.5, а не 3.0. Было 3.73 на
+     `--ink-3`. */
+  .meta { margin:0 0 .5rem; font-size:.85rem; color:var(--ink-2); }
+  .meta span { margin-right:.9rem; white-space:nowrap; }
+  .body {
+    margin:.5rem 0 .8rem; padding:.6rem .8rem; white-space:pre-wrap;
+    background:var(--sunk); border-radius:3px; font-size:.94rem;
+  }
+  .noaddr { color:var(--caution); font-size:.85rem; }
+  .why { margin:.6rem 0 0; display:none; }
+  .why.on { display:block; }
+  .why input { font:inherit; width:100%; padding:.42rem .6rem;
+               border:1px solid var(--hair); border-radius:3px;
+               background:var(--ground); color:var(--ink); }
+  .why p { margin:.35rem 0 .5rem; font-size:.85rem; color:var(--ink-3); }
+  .card.done { opacity:.55; }
+  .verdict { font-size:.9rem; font-weight:600; }
+  .verdict.took { color:var(--accent); }
+  .verdict.dropped { color:var(--refusal); }
+  .empty { margin:1.6rem 0; color:var(--ink-2); }
+  /* Сноска объясняет ПОСЛЕДСТВИЕ решения — что станет видно людям. Такое не
+     дописывают бледным: было 3.41. */
+  .foot { margin:2.4rem 0 0; padding-top:1rem; border-top:1px solid var(--hair-2);
+          font-size:.85rem; color:var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>Свод направления</h1>
+    <p class="sub">Что предложено в отраслевое знание и ждёт вашего решения.</p>
+  </header>
+
+  <div id="msg" class="msg" hidden></div>
+  <div id="doms" class="doms"></div>
+  <div id="queue"></div>
+
+  <p class="foot">
+    Принятое становится видно агентам направления и попадает в ответы людям.
+    Отклонённое не удаляется — остаётся с вашей причиной.
+  </p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var API = "https://api.agrigate.pro";
+  var KEY = "fixar.token";          // тот же ключ, что у оболочки
+
+  var состояние = { токен: "", направление: "", записи: [], осталось: 0 };
+
+  // ── мелочи вывода ────────────────────────────────────────────────────
+
+  function узел(имя, класс, текст) {
+    var э = document.createElement(имя);
+    if (класс) э.className = класс;
+    if (текст !== undefined && текст !== null) э.textContent = String(текст);
+    return э;
+  }
+
+  function очистить(э) { while (э.firstChild) э.removeChild(э.firstChild); }
+
+  function сказать(текст, род) {
+    var м = document.getElementById("msg");
+    м.className = "msg" + (род ? " " + род : "");
+    м.textContent = текст;
+    м.hidden = !текст;
+  }
+
+  /* АДРЕС ПРИЕХАЛ СНАРУЖИ. Ссылкой делаем только http(s): `javascript:` в
+     поле адреса ждёт ровно такой страницы, а `data:` открыл бы чужую
+     разметку с нашего домена. Непонятную схему показываем текстом — прятать
+     нельзя, куратор должен видеть, что источник назвал. */
+  function ссылка(адрес, подпись) {
+    var годен = /^https?:\/\//i.test(String(адрес || ""));
+    if (!годен) {
+      var т = узел("span", "noaddr", адрес ? "адрес не открывается: " + адрес
+                                           : "адреса нет");
+      return т;
+    }
+    var a = узел("a", null, подпись || адрес);
+    a.href = адрес;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer nofollow";
+    return a;
+  }
+
+  function когда(iso) {
+    if (!iso) return "";
+    var д = new Date(iso);
+    if (isNaN(д.getTime())) return "";
+    return д.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  }
+
+  // ── дверь ────────────────────────────────────────────────────────────
+
+  async function зов(метод, путь, тело) {
+    var opts = { method: метод, headers: { "Content-Type": "application/json" } };
+    if (состояние.токен) opts.headers["Authorization"] = "Bearer " + состояние.токен;
+    if (тело !== undefined) opts.body = JSON.stringify(тело);
+    var о;
+    try {
+      о = await fetch(API + путь, opts);
+    } catch (e) {
+      throw new Error("связь оборвалась");
+    }
+    var текст = await о.text();
+    var данные = null;
+    try { данные = текст ? JSON.parse(текст) : null; } catch (e) { данные = null; }
+    if (!о.ok) {
+      /* Служба говорит человеку через `detail.message`; на прочем 5xx у неё
+         слов нет, и придумывать их за неё мы не будем. */
+      var д = данные && данные.detail;
+      var слова = (д && typeof д === "object" && д.message) ? д.message
+                : (typeof д === "string" ? д : "служба ответила " + о.status);
+      var беда = new Error(слова);
+      беда.status = о.status;
+      throw беда;
+    }
+    return данные;
+  }
+
+  // ── направления ──────────────────────────────────────────────────────
+
+  async function направления() {
+    var ответ = await зов("GET", "/corpus/mine");
+    var список = (ответ && ответ.domains) || [];
+    var короб = document.getElementById("doms");
+    очистить(короб);
+    if (!список.length) {
+      короб.appendChild(узел("p", "empty",
+        "Вы не куратор ни одного направления. Куратора назначает площадка."));
+      return;
+    }
+    список.forEach(function (н) {
+      var b = узел("button", "pick");
+      b.appendChild(узел("span", null, н.title));
+      b.appendChild(document.createTextNode(" "));
+      b.appendChild(узел("span", "cnt", "· ждёт " + н.waiting));
+      b.setAttribute("aria-pressed", "false");
+      b.onclick = function () { выбрать(н.domain); };
+      b.dataset.domain = н.domain;
+      короб.appendChild(b);
+    });
+    // Одно направление — открываем сразу: лишнее нажатие ничего не решает.
+    if (список.length === 1) выбрать(список[0].domain);
+  }
+
+  function отметить(direction) {
+    var кнопки = document.getElementById("doms").querySelectorAll("button.pick");
+    Array.prototype.forEach.call(кнопки, function (b) {
+      b.setAttribute("aria-pressed", b.dataset.domain === direction ? "true" : "false");
+    });
+  }
+
+  async function выбрать(direction) {
+    состояние.направление = direction;
+    отметить(direction);
+    сказать("");
+    var короб = document.getElementById("queue");
+    очистить(короб);
+    короб.appendChild(узел("p", "empty", "читаю очередь…"));
+    try {
+      var ответ = await зов(
+        "GET", "/corpus/" + encodeURIComponent(direction) + "?state=proposed&limit=200");
+      состояние.записи = (ответ && ответ.entries) || [];
+      нарисовать(ответ);
+    } catch (беда) {
+      очистить(короб);
+      сказать(беда.message, "bad");
+    }
+  }
+
+  // ── очередь ──────────────────────────────────────────────────────────
+
+  function нарисовать(ответ) {
+    var короб = document.getElementById("queue");
+    очистить(короб);
+    if (!состояние.записи.length) {
+      короб.appendChild(узел("p", "empty",
+        "Очередь пуста. Принято в своде: " + (ответ.approved || 0) + "."));
+      return;
+    }
+    /* СЧЁТЧИК ЖИВОЙ. Куратор разбирает двадцать карточек подряд, и заголовок
+       «ждёт 26», не меняющийся от его работы, — это не украшение, а неправда:
+       по нему не видно, сколько ещё осталось. */
+    состояние.осталось = состояние.записи.length;
+    var шапка = узел("p", "sub");
+    шапка.id = "tally";
+    короб.appendChild(шапка);
+    состояние.принято = ответ.approved || 0;
+    состояние.отклонено = ответ.declined || 0;
+    пересчитать();
+    состояние.записи.forEach(function (з) { короб.appendChild(карточка(з)); });
+  }
+
+  function пересчитать() {
+    var шапка = document.getElementById("tally");
+    if (шапка) {
+      шапка.textContent = "Ждёт решения: " + состояние.осталось
+        + " · принято: " + состояние.принято
+        + " · отклонено: " + состояние.отклонено;
+    }
+    var чип = document.getElementById("doms")
+      .querySelector('button.pick[aria-pressed="true"] .cnt');
+    if (чип) чип.textContent = "· ждёт " + состояние.осталось;
+  }
+
+
+  function карточка(з) {
+    var к = узел("div", "card");
+    к.appendChild(узел("h2", null, з.title));
+
+    var мета = узел("p", "meta");
+    мета.appendChild(узел("span", null, з.kind || "справка"));
+    if (з.proposed_at) мета.appendChild(узел("span", null, когда(з.proposed_at)));
+    if (з.proposed_by) мета.appendChild(узел("span", null, "от " + з.proposed_by));
+    к.appendChild(мета);
+
+    var где = узел("p", "meta");
+    где.appendChild(ссылка(з.source_url, з.source_name || з.source_url));
+    к.appendChild(где);
+
+    /* Тело показываем ЦЕЛИКОМ. Обрезать нельзя: куратор одобряет текст,
+       который потом читают агенты, и одобрить половину значит одобрить
+       вслепую. */
+    if (з.body) к.appendChild(узел("div", "body", з.body));
+
+    var ряд = узел("div", "row");
+    var принять = узел("button", "take", "Принять");
+    var отклонить = узел("button", "drop", "Отклонить");
+    ряд.appendChild(принять);
+    ряд.appendChild(отклонить);
+    ряд.appendChild(узел("span", "spacer"));
+    к.appendChild(ряд);
+
+    var почему = узел("div", "why");
+    почему.appendChild(узел("p", null,
+      "Причина обязательна: молча выброшенная запись — это исчезновение, а не отказ."));
+    var поле = document.createElement("input");
+    поле.type = "text";
+    поле.maxLength = 300;
+    поле.placeholder = "почему не годится";
+    почему.appendChild(поле);
+    var ряд2 = узел("div", "row");
+    ряд2.style.marginTop = ".5rem";
+    var подтвердить = узел("button", "drop", "Отклонить");
+    var отмена = узел("button", null, "Отмена");
+    ряд2.appendChild(подтвердить);
+    ряд2.appendChild(отмена);
+    почему.appendChild(ряд2);
+    к.appendChild(почему);
+
+    function запереть() { принять.disabled = отклонить.disabled = true; }
+
+    function решено(принято, причина) {
+      к.classList.add("done");
+      очистить(ряд);
+      var в = узел("span", "verdict " + (принято ? "took" : "dropped"),
+                   принято ? "принято" : "отклонено");
+      ряд.appendChild(в);
+      if (!принято && причина) ряд.appendChild(узел("span", "meta", "— " + причина));
+      /* Поле причины УБИРАЕМ ИЗ РАЗМЕТКИ, а не прячем стилем: скрытое
+         остаётся живым полем ввода для чтения с экрана и для перехода
+         табуляцией, а по решённой записи вводить уже нечего. */
+      if (почему.parentNode) почему.parentNode.removeChild(почему);
+      состояние.осталось = Math.max(0, состояние.осталось - 1);
+      if (принято) состояние.принято += 1; else состояние.отклонено += 1;
+      пересчитать();
+    }
+
+    принять.onclick = async function () {
+      запереть();
+      try {
+        await зов("POST", "/corpus/" + encodeURIComponent(з.id) + "/decide",
+                  { approve: true, note: "" });
+        решено(true, "");
+      } catch (беда) {
+        принять.disabled = отклонить.disabled = false;
+        /* 409 — по записи уже решено, чаще всего вторым куратором. Это не
+           наша ошибка и не повод прятать карточку: показываем как есть. */
+        сказать(беда.status === 409
+          ? "По этой записи уже решено — обновите страницу."
+          : беда.message, "bad");
+      }
+    };
+
+    отклонить.onclick = function () {
+      почему.classList.add("on");
+      поле.focus();
+    };
+    отмена.onclick = function () { почему.classList.remove("on"); };
+
+    подтвердить.onclick = async function () {
+      var причина = поле.value.trim();
+      if (причина.length < 3) {
+        сказать("Напишите причину — по ней потом видно, почему запись не годилась.", "bad");
+        поле.focus();
+        return;
+      }
+      подтвердить.disabled = true;
+      запереть();
+      try {
+        await зов("POST", "/corpus/" + encodeURIComponent(з.id) + "/decide",
+                  { approve: false, note: причина });
+        решено(false, причина);
+        сказать("");
+      } catch (беда) {
+        подтвердить.disabled = false;
+        принять.disabled = отклонить.disabled = false;
+        сказать(беда.status === 409
+          ? "По этой записи уже решено — обновите страницу."
+          : беда.message, "bad");
+      }
+    };
+
+    return к;
+  }
+
+  // ── вход ─────────────────────────────────────────────────────────────
+
+  async function начать() {
+    try { состояние.токен = localStorage.getItem(KEY) || ""; }
+    catch (e) { состояние.токен = ""; }     // приватный режим
+
+    if (!состояние.токен) {
+      сказать("Войдите в ФиксАР — очередь куратора видна только вошедшему.", "bad");
+      var a = узел("a", null, "Войти");
+      a.href = "/vhod/";
+      document.getElementById("msg").appendChild(document.createTextNode(" "));
+      document.getElementById("msg").appendChild(a);
+      return;
+    }
+    try {
+      await направления();
+    } catch (беда) {
+      сказать(беда.status === 401
+        ? "Вход кончился, пока страница была открыта. Войдите заново."
+        : беда.message, "bad");
+    }
+  }
+
+  начать();
+})();
+</script>
+</body>
+</html>

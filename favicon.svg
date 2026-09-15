@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="ФиксАР">
+  <title>ФиксАР</title>
+  <!-- Значок вкладки — это знак из шапки, УМЕНЬШЕННЫЙ ДО ЧИТАЕМОГО, а не
+       сжатый целиком. «Fi✕AR» на 16 пикселях не читается ничем; читается
+       крест из двух балок штангенциркуля — он и есть подпись знака.
+
+       Тон переключается сам: значок стоит на вкладке браузера, а не на нашей
+       странице, и переменных нашей темы там нет. Светлый — умолчание,
+       тёмный — по системной настройке. -->
+  <style>
+    .ground { fill: #EFEBE3 }
+    .beam   { fill: #23262C }
+    .accent { fill: #9A6D14 }
+    @media (prefers-color-scheme: dark) {
+      .ground { fill: #0C0F16 }
+      .beam   { fill: #E6EAF2 }
+      .accent { fill: #D9A441 }
+    }
+  </style>
+  <rect class="ground" width="100" height="100" rx="18"/>
+  <g transform="translate(50 50) scale(1.18)">
+    <!-- Та же геометрия, что в шапке: двутавр с полками, повёрнутый на ±30°.
+         Латунная балка второй, поверх — как «инверсия с акцентом» в макете. -->
+    <path class="beam"   d="M-13,-32 h26 v6 h-6 V26 h6 v6 h-26 v-6 h6 V-26 h-6 Z" transform="rotate(-30)"/>
+    <path class="accent" d="M-13,-32 h26 v6 h-6 V26 h6 v6 h-26 v-6 h6 V-26 h-6 Z" transform="rotate(30)"/>
+  </g>
+</svg>

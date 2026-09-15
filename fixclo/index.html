@@ -1,0 +1,3085 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>ФиксАРик — личный помощник</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/sborka/sborka.css">
+</head>
+<body>
+<header class="top">
+  <span class="brand">ФИКС<b>АР</b></span>
+  <a class="back" href="/">на первый экран</a>
+</header>
+
+<div class="wrap">
+  <h1>ФиксАРик</h1>
+  <!-- ПРИВЕТСТВИЕ — просьба владельца 14.09.2026: «фиксарик тоже должен быть
+       нормально представлен», в духе страницы Домашкина. Каждое обещание
+       сверено с кодом, а не с описаниями:
+       — что он делает: работает только с присланным текстом, без инструментов
+         и поиска (to_agent_spec: tools=[], sources=[], web_search=False);
+       — «в MAX или Telegram»: конструктор закрепляет его за чатом любого из
+         двух (`загрузитьКаналы`);
+       — «ничего не стоит»: сохранение и закрепление ничего не списывают;
+       — ежедневные статьи — «скоро»: на 14.09 их не шлёт ничто (ни
+         расписания, ни очереди рассылки). Когда построят — меняется одно слово.
+       У Домашкина приветствие своё: `подготовитьЛестницу` его перезаписывает. -->
+  <p class="lead" id="pageLead"><strong>Здравствуйте! Здесь вы создаёте
+     ФиксАРика</strong> — своего личного ИИ-помощника в MAX или Telegram. Мы рады,
+     что вы с нами.<br><br>ФиксАРик помогает с повседневными делами: составит
+     план, перепишет сообщение, сравнит варианты или объяснит сложное простыми
+     словами. Он работает с тем, что вы ему пишете, и соблюдает ваши
+     правила.<br><br>ФиксАРик — один из сервисов платформы
+     <a href="/">ФиксАР</a>. Скоро он начнёт каждый день присылать короткие
+     статьи и обзоры возможностей, чтобы вы постепенно освоили всю
+     платформу.<br><br>Настройка займёт пару минут и ничего не стоит.</p>
+  <div class="module-note" id="presetNote" hidden></div>
+
+
+  <section class="pilot-staircase" id="pilotStaircase" hidden
+           aria-label="Настройка Домашкина по шагам">
+    <nav class="pilot-ladder" aria-label="Этапы настройки">
+      <p class="pilot-ladder-kicker">Шаги подключения</p>
+      <ol id="pilotStepList">
+        <li><button type="button" data-pilot-step="agent">
+          <span class="pilot-step-mark" aria-hidden="true">1</span>
+          <span><b>Домашкин</b><small>Проверить настройки</small></span>
+        </button></li>
+        <li><button type="button" data-pilot-step="identity">
+          <span class="pilot-step-mark" aria-hidden="true">2</span>
+          <span><b>Вход</b><small>Подтвердить, что это вы</small></span>
+        </button></li>
+        <li><button type="button" data-pilot-step="learning_profile">
+          <span class="pilot-step-mark" aria-hidden="true">3</span>
+          <span><b>Ребёнок</b><small>Класс и программа</small></span>
+        </button></li>
+        <li><button type="button" data-pilot-step="textbooks">
+          <span class="pilot-step-mark" aria-hidden="true">4</span>
+          <span><b>Учебники</b><small>Выбрать нужные</small></span>
+        </button></li>
+        <li><button type="button" data-pilot-step="pedu">
+          <span class="pilot-step-mark" aria-hidden="true">5</span>
+          <span><b>Дневник</b><small>Можно пропустить</small></span>
+        </button></li>
+        <li><button type="button" data-pilot-step="channel">
+          <span class="pilot-step-mark" aria-hidden="true">6</span>
+          <span><b>Включение</b><small>В MAX или Telegram</small></span>
+        </button></li>
+        <li><button type="button" data-pilot-step="done">
+          <span class="pilot-step-mark" aria-hidden="true">7</span>
+          <span><b>Готово</b><small>Вернуться в чат</small></span>
+        </button></li>
+      </ol>
+    </nav>
+
+    <div class="pilot-stage-shell">
+      <header class="pilot-stage-head" id="pilotStageHead" tabindex="-1">
+        <p class="pilot-stage-counter" id="pilotStageCounter"></p>
+        <h2 id="pilotStageTitle">Подключение Домашкина</h2>
+        <p id="pilotStageDescription"></p>
+        <p class="pilot-stage-state" id="pilotStageState" role="status"
+           aria-live="polite"></p>
+      </header>
+
+      <section class="pilot-stage-panel" id="pilotPanelAgent"
+               data-pilot-panel="agent" aria-labelledby="pilotStageTitle"></section>
+      <section class="pilot-stage-panel" id="pilotPanelIdentity"
+               data-pilot-panel="identity" aria-labelledby="pilotStageTitle" hidden></section>
+      <section class="pilot-stage-panel" id="pilotPanelProfile"
+               data-pilot-panel="learning_profile" aria-labelledby="pilotStageTitle" hidden></section>
+      <section class="pilot-stage-panel" id="pilotPanelTextbooks"
+               data-pilot-panel="textbooks" aria-labelledby="pilotStageTitle" hidden>
+        <div class="verdict" id="textbookVerdict" role="status"
+             aria-live="polite"></div>
+      </section>
+      <section class="pilot-stage-panel" id="pilotPanelPedu"
+               data-pilot-panel="pedu" aria-labelledby="pilotStageTitle" hidden>
+        <div class="module-note pilot-pedu-note">
+          <h3>Подключить Петербургский дневник</h3>
+          <!-- СИНХРОНИЗАЦИЮ ЗАПУСКАЕТ ТОЛЬКО КНОПКА С ЦЕНОЙ. «Готово» сохраняет
+               вход (POST /browser/portal-sessions), но выгрузку заданий заводит
+               enable_school_sync — через POST /browser/school-sync. До 14.09.2026
+               эту ручку не звал никто: разрыв руками замыкала сессия Codex, её
+               убрали, и шаг честно писал «задания сами не подтянутся». Теперь
+               после сохранённого входа шаг показывает цену и включает выгрузку
+               по нажатию (peduSyncPlan ниже). Само «Готово» не включает ничего. -->
+          <p>Можно заранее сохранить вход в «Петербургское образование». Вход
+            откроется в отдельной защищённой вкладке браузера.</p>
+          <ol>
+            <li>Нажмите «Подключить дневник».</li>
+            <li>Войдите через Госуслуги, как обычно.</li>
+            <li>Вернитесь сюда и нажмите «Готово».</li>
+          </ol>
+          <!-- ГЛАВНАЯ КНОПКА — НА НАШЕ ОКНО ВХОДА, А НЕ НА САЙТ ДНЕВНИКА.
+               До 13.09.2026 она вела на dnevnik2.petersburgedu.ru, и вход там
+               оставался в браузере родителя: «к нам ключи от него не попадают»
+               (так и говорит проверка ниже). Подхватывала этот вход вручную
+               сопровождающая сессия Codex. Её убрали — и прямая ссылка
+               перестала подключать что-либо вовсе. /dnevnik/ забирает ключи
+               сам, проверка «Готово» спрашивает площадку, как и прежде. -->
+          <a class="btn" id="peduConnect"
+             href="/dnevnik/"
+             target="_blank" rel="noopener noreferrer">Подключить дневник</a>
+          <p class="hint" id="peduConnectStatus" role="status" aria-live="polite">
+            Вход ещё не начат.
+          </p>
+          <!-- ВЫГРУЗКА ЗАДАНИЙ — ОТДЕЛЬНОЕ РЕШЕНИЕ С ЦЕНОЙ. Сохранённый вход сам
+               по себе заданий не приносит: их приносит синхронизация
+               (POST /browser/school-sync, дом ключей «площадка»), а она платная
+               по проверкам. Поэтому до кнопки человек видит частоту, цену
+               одной проверки (GET /browser/school-sync/quote — из тарифа, не из
+               страницы) и потолок за срок. Без нажатия ничего не включается. -->
+          <div class="pedu-sync-plan" id="peduSyncPlan" hidden></div>
+        </div>
+      </section>
+      <section class="pilot-stage-panel" id="pilotPanelChannel"
+               data-pilot-panel="channel" aria-labelledby="pilotStageTitle" hidden></section>
+      <section class="pilot-stage-panel pilot-done" id="pilotPanelDone"
+               data-pilot-panel="done" aria-labelledby="pilotStageTitle" hidden>
+        <div class="module-note">
+          <h3>Домашкин подключён ✓</h3>
+          <p>Возвращайтесь в чат с Домашкиным и присылайте ему задания — он поможет
+            разобраться, опираясь на ваши учебники.</p>
+          <!-- ПРО ФОТО — ТАК, КАК ДЕЛАЕТ КОД. 13.09.2026 проверка снимков была
+               выключена, и этот абзац честно говорил «ещё подключаем». С тех пор
+               photo_preflight (services/identity_service/domashkin_max_homework.py)
+               пускает снимок к ГОТОВОМУ заданию: без готового разбора отвечает
+               «сначала отправьте условие текстом». Приветствие бота
+               (domashkin_enrollment.WELCOME_TEXT) переписано тем же днём
+               (14.09.2026) — страница и бот говорят одно. -->
+          <p>Когда разбор задания готов, пришлите в чат фото выполненной работы —
+            Домашкин посмотрит, что сделано верно и что стоит перепроверить.</p>
+          <button class="btn" id="returnToDomashkin" type="button">
+            Вернуться в чат
+          </button>
+          <p class="hint" id="returnToDomashkinHint" hidden>
+            Если окно не закрылось, закройте его вручную и вернитесь в чат с Домашкиным.
+          </p>
+        </div>
+      </section>
+
+      <div class="pilot-stage-actions">
+        <button class="btn ghost" id="pilotBack" type="button">Назад</button>
+        <button class="btn" id="pilotNext" type="button">Продолжить</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <div>
+      <div class="step" id="starterStep">
+        <h2>С чего начать</h2>
+        <p class="hint">Выберите готовую роль — она заполнит поля ниже. Потом
+          любое слово можно поменять.</p>
+        <div class="chips" id="starterRoles"></div>
+        <div class="module-note" id="starterRoleNote" hidden></div>
+      </div>
+
+      <div class="module-note" id="identityGate" role="status" aria-live="polite">
+        <b id="identityGateTitle">Проверяю вход…</b>
+        <span id="identityGateText"> Настройки уже можно изучать и менять.</span>
+        <div class="bar">
+          <a class="btn ghost" id="confirmIdentityGeneral" href="/start/"
+             target="_blank" rel="noopener" hidden
+             aria-controls="pilotIdentityChoices"
+             aria-expanded="false">Подтвердить вход</a>
+        </div>
+        <div id="pilotIdentityChoices" hidden>
+          <p class="hint">Выберите способ, которым подтверждаете свою учётную
+            запись. Домашкин не получает пароль или код поставщика. Если этим
+            способом вы уже входили, мы переведём вас в ту самую запись, а
+            начатое здесь перенесём следом.</p>
+          <div class="bar" id="pilotIdentityButtons"></div>
+          <p class="hint" id="pilotIdentityStatus" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <div class="step" id="agentNameStep">
+        <h2><span class="num">1</span>Как его зовут?</h2>
+        <p class="hint">Так он будет называться в чате.</p>
+        <input id="title" value="Помощник" maxlength="80">
+      </div>
+
+      <div class="step" id="agentPurposeStep">
+        <h2><span class="num">2</span>Чем он будет помогать?</h2>
+        <p class="hint">Напишите своими словами и обращайтесь к нему на «ты» —
+          как объяснили бы задачу живому помощнику.</p>
+        <textarea id="purpose">Разбираешь присланный текст, выделяешь главное и помогаешь превратить его в понятный следующий шаг. Если данных не хватает — задаёшь вопрос или говоришь об этом прямо, а не придумываешь.</textarea>
+      </div>
+
+      <details class="advanced-settings" id="advancedSettings">
+        <summary>Дополнительные настройки — необязательно</summary>
+      <div class="step">
+        <h2>Чего он не должен делать?</h2>
+        <!-- «Не сможет никогда» — не обещание экрана: to_agent_spec
+             (shared/schemas/personal_agent.py) литералом ставит ЛИЧНЫЕ_ГРАНИЦЫ
+             перед правилами человека, tools=[] и web_search=False. -->
+        <p class="hint">Напишите хотя бы одно правило. Запреты из списка «Не
+          сможет никогда» действуют всегда — их писать не нужно.</p>
+        <div class="rows" id="nevers"></div>
+        <button class="add" id="addNever" type="button">+ ещё правило</button>
+      </div>
+
+      <div class="step">
+        <h2>Что ему можно о вас знать?</h2>
+        <p class="hint">Отметьте сами. Чего не отметите — он не увидит.</p>
+        <div class="chips" id="sens"></div>
+      </div>
+
+      <div class="step">
+        <h2>Подключить дополнительный навык?</h2>
+        <p class="hint">Сейчас есть один — помощь с домашними заданиями.
+           Подключить его можно и позже, в этих же настройках.</p>
+        <div class="chips" id="mods"></div>
+        <!-- ПРО РУКОПИСНУЮ РАБОТУ ЗДЕСЬ БОЛЬШЕ НЕ ГОВОРИМ. Прежний текст обещал,
+             что помощник «сможет разбирать рукописную работу», а приём фото
+             выключен: photo_preflight (services/identity_service/
+             domashkin_max_homework.py) на каждом пути отвечает allowed=False.
+             Что остаётся правдой и зачем эта заметка вообще — назвать данные,
+             ради которых навык сам включает «мои данные» и «вести поручение». -->
+        <div class="module-note" id="homeworkNote" hidden>
+          Для этого помощнику понадобятся имя ребёнка и учебники, поэтому сами
+          включатся «мои данные» и «вести поручение». Он помогает разобраться,
+          но не делает задания вместо ребёнка.
+        </div>
+      </div>
+
+      <div class="step">
+        <h2>Что он умеет?</h2>
+        <p class="hint">Разговаривать — всегда. Вести поручение до конца — если разрешите.</p>
+        <div class="chips" id="caps"></div>
+      </div>
+
+      <!-- «ХОДОВ НА ПОРУЧЕНИЕ» ЧЕЛОВЕКУ БОЛЬШЕ НЕ ПОКАЗЫВАЕМ — ни здесь, ни у
+           Домашкина (`#callsStep` скрыт в sborka.css). Проверено по коду
+           14.09.2026: `max_calls` сохраняется и доходит до AgentSpec, но ни
+           один исполнитель его не читает — число обращений к модели считает
+           `shared/permit_budget` по виду шага. Поле, которое ничего не
+           ограничивает, объяснять человеку значит обещать то, чего нет.
+           Узел остаётся: `поля()` отправляет значение, а у сохранённого
+           помощника оно возвращается и не должно сбрасываться на 12. -->
+      <div class="step" id="callsStep">
+        <h2>Ходов на одно поручение</h2>
+        <input id="calls" type="number" min="1" max="60" value="12">
+      </div>
+      </details>
+
+      <div class="step" id="channelStep">
+        <h2><span class="num">3</span>В каком чате он будет отвечать?</h2>
+        <p class="hint">Выберите чат. После сохранения ФиксАРик напишет туда
+           короткое приветствие и расскажет, как давать ему поручения. Если в
+           этом чате уже отвечает другой помощник, его место займёт этот.</p>
+        <div class="chips" id="channels"></div>
+        <div class="module-note" id="channelNote">
+          Проверяю подключённые мессенджеры…
+        </div>
+      </div>
+    </div>
+
+    <div class="out" id="agentSummary">
+      <div class="card">
+        <h3 id="pTitle">Помощник</h3>
+        <p class="who">Ваш личный помощник. Отвечает только вам, другим он не виден.</p>
+        <div class="say" id="pPurpose"></div>
+
+        <div class="lab">Ваши правила</div>
+        <ul id="pNever"></ul>
+
+        <div class="lab">Что знает о вас</div>
+        <ul id="pSens"></ul>
+
+        <div class="lab">Навыки</div>
+        <ul id="pModules"></ul>
+
+        <div class="lab">Умеет</div>
+        <ul id="pCaps"></ul>
+
+        <div class="locked">
+          <div class="lab">Не сможет никогда — даже если попросите</div>
+          <ul>
+            <li>отправить сообщение или письмо от вашего имени</li>
+            <li>заплатить, заказать или что-то подписать</li>
+            <li>искать в интернете</li>
+            <li>выдавать себя за вас</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="money">
+        <div class="lab" style="margin-top:0">Сколько стоит</div>
+        <!-- ЧТО ЗДЕСЬ ПРАВДА ПО КОДУ, 14.09.2026.
+             «Настройка бесплатна»: сохранение помощника и закрепление за чатом
+             ничего не списывают (personal.py, channel_agents.py).
+             «Дарим кредиты один раз»: GIFT_MAX_PER_PRINCIPAL = 1 — решение
+             владельца от 13.09; начисляет gift_if_empty при первом платном шаге,
+             когда остатка не хватает, поэтому пополнять заранее не нужно.
+             «300 ₽» — плановый ориентир: в коде расчёта этой цифры нет, ту же
+             говорит бот (fixarik_content.py) и тоже как ориентир. -->
+        <p class="hint">Настройка бесплатна. Для начала мы один раз дарим
+          кредиты, так что пополнять счёт до первой пробы не нужно. Дальше —
+          средний ориентир около 300 ₽ в месяц при обычном использовании. Это
+          оценка, а не абонплата: сумма зависит от того, сколько поручений вы
+          даёте.</p>
+        <label for="tasks" style="display:block;color:var(--ink-3);font-size:.9rem;margin:6px 0 6px">
+          Сколько поручений в месяц вы ему дадите?</label>
+        <input id="tasks" type="number" min="0" max="1000" value="20">
+        <div id="calc" class="calc"></div>
+      </div>
+
+      <!-- «ТОЛЬКО ПРОВЕРИТЬ» И «ЧТО УЙДЁТ» УБРАНЫ 14.09.2026 — просьба владельца
+           представить ФиксАРика нормально. Вторая кнопка вываливала человеку
+           сырой JSON, первая дублировала сохранение: сохранение само идёт через
+           площадку и показывает её же список замечаний (`подробность.problems`).
+           Ручка /personal-agents/validate на площадке осталась. -->
+      <div class="bar">
+        <button class="btn" id="make" type="button">Сохранить ФиксАРика</button>
+      </div>
+      <div class="verdict" id="verdict" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <section class="learning" id="learningSetup" hidden>
+    <h2 id="learningTitle">Учебная программа и учебники</h2>
+    <p class="hint" id="learningIntro">Учебники выбирать не нужно: Домашкин
+      узнает их сам — по номерам упражнений в первых заданиях, которые вы ему
+      пришлёте. Выбрать вручную можно ниже. Имя ребёнка, ваш выбор и
+      загруженные файлы остаются приватными.</p>
+    <div class="learning-gate" id="learningGate">
+      Сначала сохраните ФиксАРика с навыком «домашние задания».
+    </div>
+    <div class="learning-grid" id="learningProfileFields">
+      <label>Программа обучения
+        <input id="learningProgram" maxlength="500" list="officialPrograms"
+          placeholder="Например, Школа России, 5 класс">
+        <datalist id="officialPrograms"></datalist>
+      </label>
+      <label>Как называть ребёнка
+        <input id="childName" maxlength="40" placeholder="Можно псевдоним">
+      </label>
+      <label>Класс
+        <input id="childGrade" type="number" min="1" max="12" value="5">
+      </label>
+    </div>
+    <div class="bar" id="learningProfileActions">
+      <button class="btn" id="saveLearner" type="button">Сохранить учебный профиль</button>
+      <a class="btn ghost" id="confirmIdentity" href="/start/" target="_blank"
+         rel="noopener" aria-controls="pilotIdentityChoices"
+         aria-expanded="false">Выбрать способ подтверждения</a>
+    </div>
+    <div class="verdict" id="learningVerdict" role="status" aria-live="polite"></div>
+
+    <div class="catalog-panel" id="catalogPanel" hidden>
+      <div class="catalog-heading">
+        <div>
+          <h3>Выбрать вручную — по желанию</h3>
+          <p>Здесь учебники из действующего федерального перечня. Если знаете
+            свой, нажмите на него, — Домашкин возьмёт его сразу, не дожидаясь
+            заданий. Полный текст для разбора есть
+            только у тех, на которые у нас есть лицензия.</p>
+        </div>
+        <span class="catalog-count">1 026 карточек</span>
+      </div>
+      <div class="catalog-search">
+        <label>Название, автор, издатель или номер в перечне
+          <input id="catalogQuery" maxlength="500"
+            placeholder="Например, Моро или 1.1.2.1.1">
+        </label>
+        <button class="btn" id="searchCatalog" type="button">Найти</button>
+      </div>
+      <div class="catalog-status" id="catalogStatus" role="status" aria-live="polite"></div>
+      <div class="catalog-results" id="catalogResults"></div>
+      <div class="catalog-selected" id="catalogSelected"></div>
+    </div>
+
+    <div class="private-fallback" id="privateFallback" hidden>
+      <h3>Загрузить найденный учебник</h3>
+      <p>Если у учебника нет текста, нажмите «Найти электронную версию», скачайте
+        доступный вам файл и выберите его здесь. Загрузка и разбор начнутся
+        сразу; файл останется в вашем личном хранилище и в общий каталог не
+        попадёт.</p>
+    <div class="book-form" id="bookForm">
+      <label>Предмет
+        <input id="bookSubject" maxlength="80" placeholder="Математика">
+      </label>
+      <label>Файлы учебников — загрузка начнётся сразу
+        <input id="bookFiles" type="file" multiple
+          accept=".pdf,.docx,.txt,.md,.rtf,.png,.jpg,.jpeg,.webp,.tiff">
+      </label>
+      <button class="btn" id="uploadBooks" type="button">Повторить загрузку</button>
+    </div>
+    </div>
+    <div class="upload-log" id="uploadLog" aria-live="polite"></div>
+    <div class="subject-groups" id="subjectGroups"></div>
+
+    <div class="module-note" id="domashkinActivation" hidden>
+      <h3>Включить Домашкина</h3>
+      <p>Домашкин заработает в выбранном чате с ним — в MAX или Telegram. Другие чаты это не затронет.</p>
+      <!-- ЦЕНА — ОДНОЙ СТРОКОЙ И ИМЕННО ЗДЕСЬ. Владелец просил убрать «непонятные
+           объяснения про ходы и расчёт стоимости»; калькулятор и таблица
+           потолков скрыты. Но галочка ниже — согласие про ДАННЫЕ, не про деньги,
+           и без этой строки до платной кнопки не осталось бы ни слова о том,
+           что сервис стоит денег. Цифры те же, что говорит родителю сам бот
+           Домашкина (services/identity_service/domashkin_content.py:
+           PLANNED_MONTHLY_RUBLES = 300, ASSIGNMENTS_PER_MONTH = 20), а подарок
+           — тот же, что обещала страница и раньше. -->
+      <!-- «Ориентировочно» и «до любого списания» — слова самого бота
+           (domashkin_content.py): он подаёт 300 ₽ как плановую оценку, «ориентир,
+           а не абонентская плата». Прежний текст страницы тоже говорил
+           «планируем ориентир»; твёрдое «сколько стоит» было бы неправдой. -->
+      <p class="hint pilot-price">Сколько стоит: ориентировочно около 300 ₽ в месяц,
+        если разбирать примерно 20 заданий. Это плановая оценка, а не абонплата —
+        точные условия покажем до любого списания. Первые задания — за счёт
+        подарка от нас, пополнять счёт заранее не нужно.</p>
+      <label>
+        <input id="domashkinConsent" type="checkbox">
+        <!-- Смысл согласия прежний, слово в слово по сути: разбор заданий для
+             профиля ребёнка и хранение фото работ в личном закрытом хранилище
+             (Vault). Поменяны только слова — поэтому версия согласия
+             domashkin-max-homework-v1 на странице и в службе не поднимается. -->
+        Я разрешаю Домашкину разбирать задания моего ребёнка и понимаю, что фото
+        выполненных работ будут храниться в моём личном закрытом хранилище.
+      </label>
+      <div class="bar">
+        <button class="btn" id="activateDomashkin" type="button">
+          Включить Домашкина
+        </button>
+        <button class="btn ghost" id="disableDomashkin" type="button" hidden>
+          Выключить Домашкина
+        </button>
+      </div>
+      <p class="hint" id="domashkinActivationStatus" role="status"
+         aria-live="polite"></p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var API = "https://api.agrigate.pro";
+
+  // Роды сведений — закрытый перечень площадки, человеческими словами.
+  // Род называет ЧЕЛОВЕК: помощник видит только то, что ему назвали.
+  var РОДЫ = [
+    ["normal",    "обычное"],
+    ["pii",       "мои данные"],
+    ["financial", "деньги"],
+    ["medical",   "здоровье"],
+    ["legal",     "суд и договоры"],
+    ["biometric", "биометрия"]
+  ];
+  var родаВыбрано = ["normal"];
+
+  // Способности — закрытый перечень для личного помощника.
+  var УМЕНИЯ = [
+    ["dialog",     "разговаривать"],
+    ["case_patch", "вести поручение"]
+  ];
+  var уменияВыбрано = ["dialog", "case_patch"];
+
+  // Модуль — предметный workflow, а не новая способность агента.
+  var МОДУЛИ = [
+    ["homework", "домашние задания"]
+  ];
+  var модулиВыбрано = [];
+  var СТАРТОВЫЕ_РОЛИ = [
+    {
+      code: "planner",
+      title: "Планировщик",
+      label: "Планировщик · план из цели",
+      purpose: "Превращаешь мою цель или присланный текст в ясный план: " +
+        "выделяешь шаги, приоритеты, зависимости и вопросы, которые нужно уточнить. " +
+        "Работаешь только с тем, что я прислал, и прямо отмечаешь нехватку данных.",
+      never: ["не придумываешь факты и сроки",
+              "не обещаешь выполнить действие вне чата"]
+    },
+    {
+      code: "editor",
+      title: "Редактор",
+      label: "Редактор · улучшить текст",
+      purpose: "Улучшаешь присланный текст: делаешь его яснее и короче, " +
+        "сохраняешь смысл и предлагаешь варианты под нужный тон и адресата.",
+      never: ["не добавляешь факты, которых нет в исходнике",
+              "не меняешь смысл без моего явного согласия"]
+    },
+    {
+      code: "comparator",
+      title: "Сравниватель",
+      label: "Сравниватель · выбрать вариант",
+      purpose: "Сравниваешь варианты по заданным мной критериям, показываешь " +
+        "плюсы, минусы и различия в понятной структуре. Если сведений мало — " +
+        "перечисляешь, что нужно уточнить.",
+      never: ["не выдаёшь предположение за проверенный факт",
+              "не выбираешь за меня без объяснения критериев"]
+    },
+    {
+      code: "explainer",
+      title: "Объяснятор",
+      label: "Объяснятор · понять сложное",
+      purpose: "Объясняешь присланную тему простыми словами, приводишь короткий " +
+        "пример и помогаешь проверить понимание вопросами или чек-листом.",
+      never: ["не маскируешь неуверенность уверенным ответом",
+              "не усложняешь объяснение без необходимости"]
+    }
+  ];
+  var ПАРАМЕТРЫ = new URLSearchParams(window.location.search);
+  var ПРЕСЕТ = ПАРАМЕТРЫ.get("preset") || "";
+  var ЖЕЛАЕМЫЙ_КАНАЛ = ПАРАМЕТРЫ.get("channel") || "";
+  /* С 14.09.2026 Домашкин включается и без MAX — в Telegram (решение
+     владельца «чтобы включался без Макса»). Мессенджер для слов на экране —
+     выбранного чата, а пока чат не выбран — из адреса (channel=tg|max). */
+  function имяМессенджераДомашкина(){
+    var выбранный = КАНАЛЫ.filter(function(к){ return к.binding_id === ВЫБРАННЫЙ_КАНАЛ; })[0];
+    var канал = выбранный ? выбранный.channel : ЖЕЛАЕМЫЙ_КАНАЛ;
+    return канал === "tg" ? "Telegram" : "MAX";
+  }
+  var ПИЛОТ = ПАРАМЕТРЫ.get("pilot") === "domashkin";
+  if (ПИЛОТ && !ПРЕСЕТ) ПРЕСЕТ = "education.domashkin";
+  var РЕДАКТИРУЕМ = ПАРАМЕТРЫ.get("agent") || "";
+  var ВЕРСИЯ = 0;
+  var КАНАЛЫ = [];
+  var ВЫБРАННЫЙ_КАНАЛ = "";
+  var ТЕКУЩИЙ_АГЕНТ = "";
+  var ОБЕЩАНИЕ_ТОКЕНА = null;
+  var УРОВЕНЬ_ВХОДА = 0;
+  var УЧЕБНЫЙ_ПРОФИЛЬ = "";
+  var ПОДСКАЗКА_ПРОФИЛЯ = "";
+  var ВЫБРАННЫЕ_КАТАЛОГА = Object.create(null);
+  var КАНАЛ_ЗАКРЕПЛЁН = false;
+  var ДОМАШКИН_АКТИВЕН = false;
+  var УЧЕБНЫЙ_ШАГ_ГОТОВ = false;
+  var УЧЕБНИК_ГОТОВ = false;
+  var КАТАЛОГ_ВЫБРАН = false;
+  var КАТАЛОГ_ГОТОВ = false;
+  var ЛИЧНЫЙ_УЧЕБНИК_ГОТОВ = false;
+  var ЗАВЕРШЕНИЕ_ОТПРАВЛЕНО = false;
+  var ЗАВЕРШЕНИЕ_ОТПРАВЛЯЕТСЯ = false;
+  /* СОПРОВОЖДЕНИЕ CODEX УБРАНО 13.09.2026 — решение владельца: «убери вообще это
+     окно». Окно «Codex сопровождает настройку» показывало родителю внутреннее
+     имя инструмента разработки, а его строка «токены и коды входа ему не
+     передаются» пугала сильнее, чем объясняла.
+
+     Флаг оставлен ложным навсегда, а не вырезан вместе с восемнадцатью
+     вызовами `отметитьШаг`: те вызовы стоят в самой форме, и выкорчёвывать их
+     ради неработающей ветки значит трогать то, что уже проверено. При ложном
+     флаге `отметитьШаг` возвращается до всякого запроса — на службу не уходит
+     ничего, в том числе имя ребёнка. */
+  var GUIDE_ACTIVE = false;
+  var АДРЕС_OAUTH_ВОЗВРАТА = "https://agrigate.pro/auth/callback";
+  var КЛЮЧ_ПРИВЯЗКИ = "fixar.link.state";
+  var КЛЮЧ_ТОКЕНА_ПРИВЯЗКИ = "fixar.link.token";
+  var КЛЮЧ_ВОЗВРАТА_ПРИВЯЗКИ = "fixar.link.back";
+  var КЛЮЧ_ВОЗВРАТА_ПИЛОТА = "fixar.domashkin.resume.v1";
+  var ПИЛОТ_ВОЗВРАТ = "/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin";
+  //: Возврат семьи из Telegram — на ту же настройку с channel=tg: иначе после
+  //: подтверждения входа страница заговорила бы про MAX и не выбрала бы её чат.
+  var ПИЛОТ_ВОЗВРАТ_ТГ = "/fixclo/?preset=education.domashkin&channel=tg&pilot=domashkin";
+  function адресВозвратаПилота(){
+    return имяМессенджераДомашкина() === "Telegram" ? ПИЛОТ_ВОЗВРАТ_ТГ : ПИЛОТ_ВОЗВРАТ;
+  }
+  var ИМЕНА_OAUTH = {google: "Google", yandex: "Яндекс", vk: "VK ID"};
+  var СТУПЕНИ_ПИЛОТА = [
+    {code: "agent", title: "Проверьте Домашкина",
+      description: "Мы уже всё заполнили — менять ничего не нужно."},
+    {code: "identity", title: "Подтвердите, что это вы",
+      description: "Чтобы добавить данные ребёнка, войдите ещё одним способом: через Google, Яндекс или VK ID."},
+    {code: "learning_profile", title: "Расскажите о ребёнке",
+      description: "Класс, школьная программа и имя — можно домашнее или придуманное."},
+    {code: "textbooks", title: "Учебники",
+      description: "Выбирать ничего не нужно: Домашкин узнает учебник сам — по номерам упражнений в первых заданиях. Выбрать вручную можно ниже."},
+    {code: "pedu", title: "Электронный дневник",
+      description: "Необязательный шаг. Подключите дневник и включите выгрузку — Домашкин сам увидит задания. Проверка дневника платная, цену покажем до включения."},
+    {code: "channel", title: "Включите Домашкина",
+      description: "Отметьте согласие и нажмите «Включить»."},
+    {code: "done", title: "Готово",
+      description: "Всё сохранено."}
+  ];
+  var ТЕКУЩАЯ_СТУПЕНЬ = "agent";
+  var ЛЕСТНИЦА_ГОТОВА = false;
+  var ПЕДУ_ПРОСМОТРЕН = false;
+  var ПЕДУ_ВХОД_НАЧАТ = false;
+  //: Проверено ли подключение дневника у площадки, а не со слов человека.
+  var ПЕДУ_ПОДКЛЮЧЁН = false;
+  var ПРОВАЙДЕРЫ_ЗАГРУЖЕНЫ = false;
+  var ПРОВАЙДЕРЫ_ЗАГРУЖАЮТСЯ = false;
+  // Ступень агента открывается только после GET/успешного POST, а не по
+  // локально переключённой chip. Отпечаток заодно видит несохранённые
+  // правки и возвращает человека к кнопке «Сохранить».
+  var ОТПЕЧАТОК_СОХРАНЁННОГО_АГЕНТА = "";
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  function метаСтупени(code){
+    return СТУПЕНИ_ПИЛОТА.filter(function(x){ return x.code === code; })[0] ||
+      СТУПЕНИ_ПИЛОТА[0];
+  }
+
+  function номерСтупени(code){
+    for (var i = 0; i < СТУПЕНИ_ПИЛОТА.length; i++){
+      if (СТУПЕНИ_ПИЛОТА[i].code === code) return i;
+    }
+    return 0;
+  }
+
+  function валидныйКлючАгента(value){
+    return /^[a-z0-9]{8,32}$/.test(String(value || ""));
+  }
+
+  function валидныйПрофиль(value){
+    return /^child_[a-f0-9]{16}$/.test(String(value || ""));
+  }
+
+  function прочитатьВозвратПилота(){
+    if (!ПИЛОТ) return {};
+    try{
+      var raw = JSON.parse(localStorage.getItem(КЛЮЧ_ВОЗВРАТА_ПИЛОТА) || "{}");
+      if (!raw || raw.version !== 1) return {};
+      var stage = String(raw.stage || "");
+      var stageKnown = СТУПЕНИ_ПИЛОТА.some(function(x){ return x.code === stage; });
+      return {
+        agent_key: валидныйКлючАгента(raw.agent_key) ? raw.agent_key : "",
+        child_id: валидныйПрофиль(raw.child_id) ? raw.child_id : "",
+        stage: stageKnown ? stage : "",
+        pedu_seen: raw.pedu_seen === true
+      };
+    } catch(e){ return {}; }
+  }
+
+  function запомнитьВозвратПилота(){
+    if (!ПИЛОТ) return;
+    var запись = {
+      version: 1,
+      agent_key: валидныйКлючАгента(РЕДАКТИРУЕМ) ? РЕДАКТИРУЕМ : "",
+      child_id: валидныйПрофиль(УЧЕБНЫЙ_ПРОФИЛЬ) ? УЧЕБНЫЙ_ПРОФИЛЬ
+        : валидныйПрофиль(ПОДСКАЗКА_ПРОФИЛЯ) ? ПОДСКАЗКА_ПРОФИЛЯ : "",
+      stage: метаСтупени(ТЕКУЩАЯ_СТУПЕНЬ).code,
+      pedu_seen: ПЕДУ_ПРОСМОТРЕН === true
+    };
+    try{ localStorage.setItem(КЛЮЧ_ВОЗВРАТА_ПИЛОТА, JSON.stringify(запись)); }
+    catch(e){ /* шаг восстановится по серверному состоянию */ }
+  }
+
+  function очиститьВозвратПилота(){
+    try{ localStorage.removeItem(КЛЮЧ_ВОЗВРАТА_ПИЛОТА); }
+    catch(e){ /* приватный режим */ }
+    // Resume мог остаться в том же WebView после смены MAX-владельца.
+    // Сбрасываем и оперативную копию до owner-scoped гидратации.
+    ПЕДУ_ПРОСМОТРЕН = false;
+    ПОДСКАЗКА_ПРОФИЛЯ = "";
+  }
+
+  function перенестиНаСтупень(code, ids){
+    var panel = document.querySelector('[data-pilot-panel="' + code + '"]');
+    if (!panel) return;
+    ids.forEach(function(id){ var node = $(id); if (node) panel.appendChild(node); });
+  }
+
+  /* ОБЩИЕ ПОЛЯ ФОРМЫ — ПОД ДОМАШКИНА.
+
+     Эти узлы — общие с обычным конструктором ФиксАРика: `подготовитьЛестницу`
+     переносит их в шаги мастера, а не копирует. С 14.09.2026 и сам
+     конструктор говорит на «вы» и без жаргона, поэтому здесь остаётся только
+     то, что у Домашкина звучит иначе: его имя и уже заполненные поля.
+     Прячется — стилем, в `sborka.css`, по классу `pilot-onboarding`. */
+  function переодетьОбщееПодДомашкина(){
+    function текст(узел, слова){ if (узел) узел.textContent = слова; }
+    function шаг(поле){
+      var у = $(поле); while (у && !(у.classList && у.classList.contains("step"))) у = у.parentNode;
+      return у;
+    }
+    var имя = $("agentNameStep");
+    if (имя){
+      текст(имя.querySelector("h2"), "Как зовут помощника");
+      текст(имя.querySelector(".hint"), "Так он будет называться в чате.");
+    }
+    var задача = $("agentPurposeStep");
+    if (задача){
+      текст(задача.querySelector("h2"), "Чем он помогает");
+      текст(задача.querySelector(".hint"), "Уже заполнено. Можно оставить как есть.");
+    }
+    var границы = шаг("nevers");
+    if (границы){
+      текст(границы.querySelector("h2"), "Чего Домашкину делать нельзя");
+      текст(границы.querySelector(".hint"), "Уже заполнено. Можно добавить своё.");
+    }
+    var знает = шаг("sens");
+    if (знает){
+      текст(знает.querySelector("h2"), "Что Домашкину можно знать");
+      текст(знает.querySelector(".hint"), "Что не отмечено, он не увидит.");
+    }
+    var модули = шаг("mods");
+    if (модули){
+      текст(модули.querySelector("h2"), "Что включено");
+      текст(модули.querySelector(".hint"), "Разбор домашних заданий.");
+    }
+    текст($("homeworkNote"), "Домашкин объясняет и проверяет, но не делает задания за ребёнка.");
+    var умеет = шаг("caps");
+    if (умеет){
+      текст(умеет.querySelector("h2"), "Что он умеет");
+      текст(умеет.querySelector(".hint"), "Разговаривать и помогать с заданиями.");
+    }
+    var чат = $("channelStep");
+    if (чат){
+      текст(чат.querySelector("h2"), "В каком чате он будет отвечать");
+      текст(чат.querySelector(".hint"), "Выберите чат с Домашкиным — в MAX или Telegram.");
+    }
+    текст($("make"), "Сохранить");
+    текст($("saveLearner"), "Сохранить");
+
+    var каталог = $("catalogPanel");
+    if (каталог){
+      текст(каталог.querySelector("h3"), "Каталог учебников");
+      текст(каталог.querySelector("h3 + p"),
+        "Здесь школьные учебники из официального перечня. Найдите свой и " +
+        "нажмите на него — этого достаточно, чтобы продолжить.");
+      var счёт = каталог.querySelector(".catalog-count");
+      if (счёт) счёт.textContent = счёт.textContent.replace("карточек", "учебников");
+      var поиск = $("catalogQuery");
+      if (поиск){
+        поиск.placeholder = "Например, Моро";
+        var подпись = поиск.parentNode;
+        if (подпись && подпись.firstChild && подпись.firstChild.nodeType === 3)
+          подпись.firstChild.textContent = "Название или автор учебника ";
+      }
+    }
+    var свой = $("privateFallback");
+    if (свой){
+      текст(свой.querySelector("h3"), "Загрузить свой учебник");
+      текст(свой.querySelector("h3 + p"),
+        "Файл будет виден только вам.");
+    }
+  }
+
+  function подготовитьЛестницу(){
+    if (!ПИЛОТ || ЛЕСТНИЦА_ГОТОВА) return;
+    document.body.classList.add("pilot-onboarding");
+    document.title = "Домашкин — подключение";
+    document.querySelector(".wrap > h1").textContent = "Домашкин";
+    /* ПРИВЕТСТВИЕ — решение владельца 13.09.2026: простыми словами сказать, куда
+       человек пришёл, что ему рады и где знакомиться с платформой.
+
+       ЕЖЕДНЕВНЫЕ СТАТЬИ — В БУДУЩЕМ ВРЕМЕНИ, И ЭТО НЕ ОГОВОРКА РАДИ ОГОВОРКИ.
+       Владелец просил написать, что Фиксарик «помогает через ежедневные статьи
+       и обзоры возможностей». На 13.09 этого нет нигде: ни рассылки, ни ленты,
+       ни расписания, ни обходчика (проверено по коду). В настоящем времени это
+       обещание родителю, которое не придёт. Что Фиксарик расскажет о
+       возможностях в разговоре — правда уже сейчас; ежедневная рассылка —
+       «скоро». Когда её построят, здесь меняется одно слово.
+
+       Ссылка — на первый экран, а не на бота: у бота Фиксарика в MAX нет
+       постоянного адреса в коде (имя берётся у MAX при запуске), а @FixAR_bot
+       в Телеграме — бот привязки, не собеседник. */
+    $("pageLead").innerHTML =
+      "<strong>Здравствуйте! Вы подключаете Домашкина</strong> — онлайн-помощника " +
+      "с домашними заданиями. Это один из многих сервисов платформы ФиксАР." +
+      "<br><br>Мы рады, что вы с нами. Познакомиться со всей платформой поможет " +
+      "Фиксарик — <a href=\"https://agrigate.pro/\">откройте его</a>, он расскажет, " +
+      "что здесь есть и с чего начать. Скоро Фиксарик начнёт каждый день " +
+      "присылать короткие статьи и обзоры возможностей, чтобы вы постепенно " +
+      "освоили всё." +
+      "<br><br>А чтобы Домашкин начал помогать вашему ребёнку, пройдите несколько " +
+      "простых шагов ниже.";
+    перенестиНаСтупень("agent", ["presetNote", "agentNameStep", "agentPurposeStep",
+      "advancedSettings", "agentSummary"]);
+    /* ОПИСАНИЕ И РАСЧЁТ СТОИМОСТИ СКРЫТЫ ЦЕЛИКОМ — просьба владельца убрать
+       «непонятные объяснения про ходы и расчёт стоимости». Карточка, калькулятор
+       и таблица тарифных потолков прячутся стилем (`.pilot-onboarding`), а не
+       вырезаются: они общие с обычным конструктором, и `посчитать()` читает их
+       поля при каждой загрузке. Цена родителю при этом НЕ пропадает: одна
+       простая строка стоит на шаге включения — прямо перед платной кнопкой. */
+    переодетьОбщееПодДомашкина();
+    перенестиНаСтупень("identity", ["identityGate"]);
+    перенестиНаСтупень("learning_profile", ["learningGate", "learningProfileFields",
+      "learningProfileActions", "learningVerdict"]);
+    перенестиНаСтупень("textbooks", ["catalogPanel", "privateFallback", "uploadLog",
+      "subjectGroups"]);
+    перенестиНаСтупень("channel", ["channelStep", "domashkinActivation"]);
+    $("pilotStaircase").hidden = false;
+    $("make").disabled = true;
+    ЛЕСТНИЦА_ГОТОВА = true;
+
+    $("pilotStepList").querySelectorAll("button[data-pilot-step]").forEach(function(button){
+      button.addEventListener("click", function(){
+        показатьСтупень(button.getAttribute("data-pilot-step"), true);
+      });
+    });
+    $("pilotBack").addEventListener("click", function(){
+      var index = Math.max(0, номерСтупени(ТЕКУЩАЯ_СТУПЕНЬ) - 1);
+      показатьСтупень(СТУПЕНИ_ПИЛОТА[index].code, true);
+    });
+    $("pilotNext").addEventListener("click", async function(){
+      if (ТЕКУЩАЯ_СТУПЕНЬ === "pedu"){
+        /* «Готово» ПРОВЕРЯЕТСЯ, А НЕ ВЕРИТСЯ НА СЛОВО. Прежде кнопка звалась
+           «Сейчас без дневника» и просто пропускала шаг; человек нажимал её
+           после входа в дневник и уходил в уверенности, что подключил его. */
+        var проверено = await проверитьДневник();
+        ПЕДУ_ПРОСМОТРЕН = true;
+        запомнитьВозвратПилота();
+        обновитьЛестницу();
+        if (!проверено) return;
+      }
+      if (!ступеньЗавершена(ТЕКУЩАЯ_СТУПЕНЬ)) return;
+      var index = Math.min(СТУПЕНИ_ПИЛОТА.length - 1,
+        номерСтупени(ТЕКУЩАЯ_СТУПЕНЬ) + 1);
+      показатьСтупень(СТУПЕНИ_ПИЛОТА[index].code, true);
+    });
+    async function проверитьДневник(){
+      /* Спрашиваем ПЛОЩАДКУ, а не человека: включена ли у него синхронизация
+         дневника и лежат ли ключи. Три исхода, и у каждого свой следующий шаг. */
+      var статус = $("peduConnectStatus");
+      статус.textContent = "Проверяю подключение…";
+      var t = await завестиТокен();
+      async function спросить(путь){
+        try{
+          var r = await fetch(API + путь, {headers: сЗаголовком(t)});
+          if (!r.ok) return null;
+          return await r.json();
+        } catch(e){ return null; }
+      }
+      var синхронизации = await спросить("/browser/school-sync");
+      var живая = Array.isArray(синхронизации) && синхронизации.some(function(с){
+        return с.state === "active" || с.state === "waiting_user";
+      });
+      if (живая){
+        ПЕДУ_ПОДКЛЮЧЁН = true;
+        статус.textContent = "Дневник подключён — Домашкин будет видеть задания.";
+        return true;
+      }
+      var ключи = await спросить("/browser/portal-sessions");
+      var есть_ключи = Array.isArray(ключи) && ключи.some(function(к){ return !к.revoked; });
+      if (есть_ключи){
+        /* Вход есть, выгрузки нет (или прежняя остановилась). Дальше НЕ
+           пропускаем молча: иначе человек уйдёт с уверенностью, что дневник
+           подключён, а задания так и не придут. Решает он — кнопкой с ценой
+           или явным «продолжить без выгрузки». */
+        await показатьПланВыгрузки(t, Array.isArray(синхронизации) ? синхронизации : []);
+        return false;
+      }
+      статус.innerHTML = "Дневник пока не подключён. " +
+        "Подключить можно <a href='/dnevnik/' target='_blank' rel='noopener'>" +
+        "через наше окно входа</a> — или " +
+        "<a href='#' id='peduSkip'>продолжить без дневника</a>.";
+      var пропустить = $("peduSkip");
+      if (пропустить){
+        пропустить.addEventListener("click", function(ev){
+          ev.preventDefault();
+          ПЕДУ_ПРОСМОТРЕН = true;
+          запомнитьВозвратПилота();
+          обновитьЛестницу();
+          var index = Math.min(СТУПЕНИ_ПИЛОТА.length - 1,
+            номерСтупени("pedu") + 1);
+          показатьСтупень(СТУПЕНИ_ПИЛОТА[index].code, true);
+        });
+      }
+      return false;
+    }
+
+    function дальшеПослеДневника(){
+      ПЕДУ_ПРОСМОТРЕН = true;
+      запомнитьВозвратПилота();
+      обновитьЛестницу();
+      var index = Math.min(СТУПЕНИ_ПИЛОТА.length - 1, номерСтупени("pedu") + 1);
+      показатьСтупень(СТУПЕНИ_ПИЛОТА[index].code, true);
+    }
+
+    function профильДневника(синхронизации){
+      /* Одна синхронизация на профиль. Профиль ребёнка берём прежний, если
+         выгрузка у него уже была (в том числе остановившаяся), иначе заводим
+         и запоминаем свой: второй профиль на того же ребёнка значил бы две
+         платные петли на один дневник. */
+      var прежняя = синхронизации.filter(function(с){
+        return с.child_id === УЧЕБНЫЙ_ПРОФИЛЬ && /^bprof_[a-f0-9]{16}$/.test(с.profile_id || "");
+      })[0];
+      if (прежняя) return прежняя.profile_id;
+      var ключ = "fixar.domashkin.pedu.profile." + УЧЕБНЫЙ_ПРОФИЛЬ;
+      var сохранён = "";
+      try{ сохранён = localStorage.getItem(ключ) || ""; } catch(e){}
+      if (/^bprof_[a-f0-9]{16}$/.test(сохранён)) return сохранён;
+      var байты = new Uint8Array(8);
+      crypto.getRandomValues(байты);
+      var новый = "bprof_" + Array.prototype.map.call(байты, function(b){
+        return b.toString(16).padStart(2, "0");
+      }).join("");
+      try{ localStorage.setItem(ключ, новый); } catch(e){}
+      return новый;
+    }
+
+    //: Частоты, из которых выбирает человек. Дневник меняется за день, а не за
+    //: час: чаще трёх часов — это деньги без новых заданий.
+    var ЧАСТОТЫ_ДНЕВНИКА = [
+      {минут: 720, слова: "2 раза в день"},
+      {минут: 360, слова: "4 раза в день"},
+      {минут: 180, слова: "раз в 3 часа"}
+    ];
+
+    function рублей(кредитов, копеекЗаКредит){
+      var рубли = кредитов * копеекЗаКредит / 100;
+      return (Math.round(рубли * 100) / 100).toLocaleString("ru-RU") + " ₽";
+    }
+
+    async function показатьПланВыгрузки(t, синхронизации){
+      var статус = $("peduConnectStatus");
+      var план = $("peduSyncPlan");
+      план.innerHTML = "";
+      план.hidden = false;
+      var остановилась = синхронизации.some(function(с){
+        return с.child_id === УЧЕБНЫЙ_ПРОФИЛЬ;
+      });
+      статус.textContent = остановилась
+        ? "Вход в дневник сохранён, но прежняя выгрузка заданий остановилась: " +
+          "закончился срок или потолок денег. Её можно включить заново."
+        : "Вход в дневник сохранён. Осталось включить выгрузку заданий — " +
+          "тогда Домашкин сам увидит, что задали.";
+      if (!УЧЕБНЫЙ_ПРОФИЛЬ){
+        var нетРебёнка = document.createElement("p");
+        нетРебёнка.className = "hint";
+        нетРебёнка.textContent = "Сначала сохраните профиль ребёнка на шаге «Расскажите о ребёнке».";
+        план.appendChild(нетРебёнка);
+        return;
+      }
+      var цена = null;
+      try{
+        var r = await fetch(API + "/browser/school-sync/quote", {headers: сЗаголовком(t)});
+        if (r.ok) цена = await r.json();
+      } catch(e){ цена = null; }
+      var заПроверку = цена ? parseInt(цена.price_per_check_credits, 10) || 0 : 0;
+      if (!заПроверку){
+        var безЦены = document.createElement("p");
+        безЦены.className = "hint";
+        безЦены.textContent = "Цена проверки дневника сейчас не объявлена, поэтому выгрузку " +
+          "включить нельзя. Присылайте задания в чат — Домашкин разберёт их так же.";
+        план.appendChild(безЦены);
+      } else {
+        var копеек = parseInt(цена.kopecks_per_credit, 10) || 10;
+        var дней = parseInt(цена.max_days, 10) || 31;
+        var подпись = document.createElement("label");
+        подпись.textContent = "Как часто проверять дневник ";
+        var выбор = document.createElement("select");
+        выбор.id = "peduSyncEvery";
+        ЧАСТОТЫ_ДНЕВНИКА.forEach(function(ч){
+          var o = document.createElement("option");
+          o.value = String(ч.минут);
+          o.textContent = ч.слова;
+          выбор.appendChild(o);
+        });
+        подпись.appendChild(выбор);
+        var расчёт = document.createElement("p");
+        расчёт.className = "hint";
+        расчёт.id = "peduSyncPrice";
+        function пересчитать(){
+          var минут = parseInt(выбор.value, 10);
+          var проверок = Math.ceil(дней * 24 * 60 / минут);
+          var потолок = проверок * заПроверку;
+          расчёт.textContent = "Одна проверка — " + заПроверку + " кр. (" +
+            рублей(заПроверку, копеек) + "). За " + дней + " дн. — до " + проверок +
+            " проверок, потолок " + потолок + " кр. (" + рублей(потолок, копеек) +
+            "): больше этого выгрузка не потратит.";
+          return {минут: минут, потолок: потолок};
+        }
+        выбор.addEventListener("change", пересчитать);
+        пересчитать();
+        var включить = document.createElement("button");
+        включить.type = "button";
+        включить.className = "btn";
+        включить.id = "peduSyncEnable";
+        включить.textContent = "Включить выгрузку заданий";
+        включить.addEventListener("click", async function(){
+          var расчётСейчас = пересчитать();
+          включить.disabled = true;
+          статус.textContent = "Включаю выгрузку…";
+          try{
+            var tt = await завестиТокен();
+            var ответ = await fetch(API + "/browser/school-sync", {
+              method: "POST", headers: сЗаголовком(tt),
+              body: JSON.stringify({
+                session_home: "platform",
+                profile_id: профильДневника(синхронизации),
+                child_id: УЧЕБНЫЙ_ПРОФИЛЬ,
+                every_minutes: расчётСейчас.минут,
+                days: дней,
+                budget_credits: расчётСейчас.потолок
+              })
+            });
+            var д = await jsonОтвет(ответ);
+            if (!ответ.ok) throw new Error(причинаОтвета(д, "ответ " + ответ.status));
+            ПЕДУ_ПОДКЛЮЧЁН = true;
+            план.hidden = true;
+            статус.textContent = "Выгрузка включена — первая проверка дневника начнётся " +
+              "в ближайшие минуты, и Домашкин сам увидит задания.";
+            дальшеПослеДневника();
+          } catch(e){
+            включить.disabled = false;
+            статус.textContent = "Выгрузка не включилась: " + (e.message || "нет связи") + ".";
+          }
+        });
+        план.appendChild(подпись);
+        план.appendChild(расчёт);
+        план.appendChild(включить);
+      }
+      var без = document.createElement("button");
+      без.type = "button";
+      без.className = "btn ghost";
+      без.id = "peduSyncSkip";
+      без.textContent = "Продолжить без выгрузки";
+      без.addEventListener("click", function(){
+        план.hidden = true;
+        статус.textContent = "Вход в дневник сохранён, выгрузка не включена — присылайте задания в чат.";
+        дальшеПослеДневника();
+      });
+      план.appendChild(без);
+    }
+
+    $("peduConnect").addEventListener("click", function(){
+      ПЕДУ_ВХОД_НАЧАТ = true;
+      $("peduConnectStatus").textContent =
+        "Окно входа открыто в новой вкладке. Войдите через Госуслуги, вернитесь сюда и нажмите «Готово».";
+      обновитьЛестницу();
+    });
+    $("returnToDomashkin").addEventListener("click", function(){
+      window.close();
+      $("returnToDomashkinHint").hidden = false;
+    });
+    показатьСтупень("agent", false);
+  }
+
+  function ступеньЗавершена(code){
+    if (ДОМАШКИН_АКТИВЕН && code !== "done" && code !== "pedu") return true;
+    if (code === "agent") return !!ТЕКУЩИЙ_АГЕНТ &&
+      модулиВыбрано.indexOf("homework") >= 0 &&
+      ОТПЕЧАТОК_СОХРАНЁННОГО_АГЕНТА === отпечатокАгента();
+    if (code === "identity") return УРОВЕНЬ_ВХОДА >= 2;
+    if (code === "learning_profile") return !!УЧЕБНЫЙ_ПРОФИЛЬ;
+    if (code === "textbooks") return УЧЕБНЫЙ_ШАГ_ГОТОВ === true;
+    if (code === "pedu") return ПЕДУ_ПРОСМОТРЕН === true;
+    if (code === "channel" || code === "done") {
+      return ДОМАШКИН_АКТИВЕН === true && КАНАЛ_ЗАКРЕПЛЁН === true;
+    }
+    return false;
+  }
+
+  function перваяНезавершённаяСтупень(){
+    if (ДОМАШКИН_АКТИВЕН && КАНАЛ_ЗАКРЕПЛЁН) return "done";
+    for (var i = 0; i < СТУПЕНИ_ПИЛОТА.length - 1; i++){
+      if (!ступеньЗавершена(СТУПЕНИ_ПИЛОТА[i].code)) return СТУПЕНИ_ПИЛОТА[i].code;
+    }
+    return "channel";
+  }
+
+  function состояниеСтупени(code){
+    if (code === "pedu" && ПЕДУ_ПРОСМОТРЕН) {
+      return "Дневник пропущен — его можно подключить позже.";
+    }
+    if (code === "pedu" && ПЕДУ_ВХОД_НАЧАТ) {
+      return "Окно входа открыто. После входа вернитесь сюда и нажмите «Готово».";
+    }
+    if (code === "textbooks" && УЧЕБНЫЙ_ШАГ_ГОТОВ && !КАТАЛОГ_ВЫБРАН && !УЧЕБНИК_ГОТОВ) {
+      return "Учебники Домашкин подберёт сам по первым заданиям — можно продолжать.";
+    }
+    if (code === "textbooks" && УЧЕБНЫЙ_ШАГ_ГОТОВ && !УЧЕБНИК_ГОТОВ) {
+      return "Учебники выбраны — можно продолжать.";
+    }
+    if (ступеньЗавершена(code)){
+      return code === "done" ? "Всё готово!"
+        : "Готово ✓";
+    }
+    if (code === "agent") return "Нажмите «Сохранить», чтобы перейти дальше.";
+    if (code === "identity") return "Выберите ниже, как подтвердить, что это вы.";
+    if (code === "learning_profile") return "Заполните поля и нажмите «Сохранить».";
+    if (code === "textbooks") return "Выберите хотя бы один учебник.";
+    if (code === "pedu") return "Этот шаг можно пропустить.";
+    if (code === "channel") return "Отметьте согласие и включите Домашкина.";
+    return "Сначала пройдите предыдущие шаги.";
+  }
+
+  function обновитьЛестницу(){
+    if (!ПИЛОТ || !ЛЕСТНИЦА_ГОТОВА) return;
+    var currentIndex = номерСтупени(ТЕКУЩАЯ_СТУПЕНЬ);
+    var frontier = номерСтупени(перваяНезавершённаяСтупень());
+    $("pilotStepList").querySelectorAll("button[data-pilot-step]").forEach(function(button){
+      var code = button.getAttribute("data-pilot-step");
+      var index = номерСтупени(code);
+      var complete = ступеньЗавершена(code);
+      var skipped = code === "pedu" && ПЕДУ_ПРОСМОТРЕН === true;
+      button.setAttribute("data-skipped", skipped ? "true" : "false");
+      button.setAttribute("data-complete", complete && !skipped ? "true" : "false");
+      button.disabled = index > frontier && !complete;
+      if (index === currentIndex) button.setAttribute("aria-current", "step");
+      else button.removeAttribute("aria-current");
+    });
+    var current = метаСтупени(ТЕКУЩАЯ_СТУПЕНЬ);
+    $("pilotStageCounter").textContent = "Шаг " + (currentIndex + 1) + " из " +
+      СТУПЕНИ_ПИЛОТА.length;
+    $("pilotStageTitle").textContent = current.title;
+    $("pilotStageDescription").textContent = current.description;
+    $("pilotStageState").textContent = состояниеСтупени(current.code);
+    $("pilotBack").disabled = currentIndex === 0;
+    $("pilotNext").hidden = current.code === "done";
+    $("pilotNext").disabled = current.code !== "pedu" && !ступеньЗавершена(current.code);
+    $("pilotNext").textContent = current.code === "pedu"
+      ? "Готово"
+      : "Продолжить";
+    запомнитьВозвратПилота();
+  }
+
+  function показатьСтупень(code, перенестиФокус){
+    if (!ПИЛОТ || !ЛЕСТНИЦА_ГОТОВА) return;
+    var targetIndex = номерСтупени(code);
+    var frontier = номерСтупени(перваяНезавершённаяСтупень());
+    if (targetIndex > frontier && !ступеньЗавершена(code)) return;
+    ТЕКУЩАЯ_СТУПЕНЬ = метаСтупени(code).code;
+    document.querySelectorAll("[data-pilot-panel]").forEach(function(panel){
+      panel.hidden = panel.getAttribute("data-pilot-panel") !== ТЕКУЩАЯ_СТУПЕНЬ;
+    });
+    обновитьЛестницу();
+    if (ТЕКУЩАЯ_СТУПЕНЬ === "identity" && УРОВЕНЬ_ВХОДА < 2){
+      открытьПодтверждение(null);
+    }
+    if (перенестиФокус){
+      $("pilotStageHead").focus({preventScroll: true});
+      var smooth = !(window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      try{ $("pilotStaircase").scrollIntoView({behavior: smooth ? "smooth" : "auto"}); }
+      catch(e){ $("pilotStaircase").scrollIntoView(); }
+    }
+  }
+
+  function перейтиКПервойНезавершённой(){
+    if (!ПИЛОТ || !ЛЕСТНИЦА_ГОТОВА) return;
+    показатьСтупень(перваяНезавершённаяСтупень(), true);
+  }
+
+  function синхронизироватьГотовностьУчебников(){
+    УЧЕБНИК_ГОТОВ = КАТАЛОГ_ГОТОВ || ЛИЧНЫЙ_УЧЕБНИК_ГОТОВ;
+    /* УЧЕБНИК НЕ ДЕРЖИТ ОНБОРДИНГ. Шаг просил найти книгу среди 1026 карточек
+       перечня, и живой человек на нём останавливался (14.09.2026, Андроид):
+       автора учебника он не знает, а «дальше» без выбора не было. Теперь
+       учебник узнаёт сам Домашкин — по номерам упражнений в первых заданиях
+       (homework_service/textbook_recognition.py). Поэтому шаг засчитан, как
+       только есть профиль ребёнка; ручной выбор остаётся по желанию. */
+    УЧЕБНЫЙ_ШАГ_ГОТОВ = КАТАЛОГ_ВЫБРАН || УЧЕБНИК_ГОТОВ || !!УЧЕБНЫЙ_ПРОФИЛЬ;
+    обновитьАктивациюДомашкина();
+    обновитьЛестницу();
+  }
+
+  function html(значение){
+    return String(значение == null ? "" : значение).replace(/[<>&]/g,
+      function(c){ return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c]; });
+  }
+
+  function поля(){
+    var нев = [];
+    $("nevers").querySelectorAll("input").forEach(function(i){
+      if (i.value.trim()) нев.push(i.value.trim());
+    });
+    return {
+      title: $("title").value.trim(),
+      purpose: $("purpose").value.trim(),
+      never: нев,
+      capabilities: уменияВыбрано.slice(),
+      modules: модулиВыбрано.slice(),
+      sensitivity_clearance: родаВыбрано.slice(),
+      max_calls: Math.max(1, Math.min(60, parseInt($("calls").value, 10) || 12))
+    };
+  }
+
+  function отпечатокАгента(){
+    return JSON.stringify(поля());
+  }
+
+  function словами(перечень, коды){
+    var карта = {};
+    перечень.forEach(function(п){ карта[п[0]] = п[1]; });
+    return коды.map(function(к){ return карта[к] || к; });
+  }
+
+  function перерисовать(){
+    var п = поля();
+    $("pTitle").textContent = п.title || "Без имени";
+    $("pPurpose").textContent = п.purpose || "…опишите, чем он помогает";
+    var сп = function(узел, список){
+      узел.innerHTML = "";
+      (список.length ? список : ["—"]).forEach(function(с){
+        var li = document.createElement("li"); li.textContent = с; узел.appendChild(li);
+      });
+    };
+    сп($("pNever"), п.never);
+    сп($("pSens"), словами(РОДЫ, п.sensitivity_clearance));
+    сп($("pModules"), словами(МОДУЛИ, п.modules));
+    сп($("pCaps"), словами(УМЕНИЯ, п.capabilities));
+    $("verdict").className = "verdict";
+    обновитьЛестницу();
+  }
+
+  function состояниеКнопок(узел, выбрано){
+    $(узел).querySelectorAll("button[data-code]").forEach(function(b){
+      b.setAttribute("aria-pressed",
+        выбрано.indexOf(b.getAttribute("data-code")) >= 0 ? "true" : "false");
+    });
+  }
+
+  function добавитьЕслиНет(список, значение){
+    if (список.indexOf(значение) < 0) список.push(значение);
+  }
+
+  function требованияМодуля(){
+    var учебный = модулиВыбрано.indexOf("homework") >= 0;
+    if (учебный){
+      // Это не скрытые права: зависимость названа рядом с кнопкой и видна
+      // теми же выбранными таблетками, которые человек уже проверяет.
+      добавитьЕслиНет(родаВыбрано, "pii");
+      добавитьЕслиНет(уменияВыбрано, "case_patch");
+    }
+    if (!учебный){
+      // Готовность относится к включённому workflow, а не к когда-то
+      // сохранённым данным. Отключение модуля не удаляет Vault, но не должно
+      // позволить старым флагам завершить onboarding как Домашкина.
+      УЧЕБНЫЙ_ПРОФИЛЬ = "";
+      УЧЕБНЫЙ_ШАГ_ГОТОВ = false;
+      УЧЕБНИК_ГОТОВ = false;
+      КАТАЛОГ_ВЫБРАН = false;
+      КАТАЛОГ_ГОТОВ = false;
+      ЛИЧНЫЙ_УЧЕБНИК_ГОТОВ = false;
+      ВЫБРАННЫЕ_КАТАЛОГА = Object.create(null);
+    }
+    $("homeworkNote").hidden = !учебный;
+    // У Домашкина модуль заданий включён всегда, и настройки раскрывались у
+    // каждого родителя сразу — вместе с вопросом про «ходы». Им они не нужны.
+    if (учебный && !ПИЛОТ) $("advancedSettings").open = true;
+    состояниеКнопок("sens", родаВыбрано);
+    состояниеКнопок("caps", уменияВыбрано);
+    обновитьУчебныйШаг();
+  }
+
+  function кнопки(узел, перечень, выбрано, минимум, после){
+    перечень.forEach(function(пара){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = пара[1];
+      b.setAttribute("data-code", пара[0]);
+      b.setAttribute("aria-pressed", выбрано.indexOf(пара[0]) >= 0 ? "true" : "false");
+      b.addEventListener("click", function(){
+        var i = выбрано.indexOf(пара[0]);
+        if (i >= 0){ if (выбрано.length > минимум) выбрано.splice(i, 1); }
+        else выбрано.push(пара[0]);
+        if (после) после();
+        состояниеКнопок(узел, выбрано);
+        перерисовать();
+      });
+      $(узел).appendChild(b);
+    });
+  }
+  кнопки("sens", РОДЫ, родаВыбрано, 1, требованияМодуля);
+  кнопки("caps", УМЕНИЯ, уменияВыбрано, 1, требованияМодуля);
+  кнопки("mods", МОДУЛИ, модулиВыбрано, 0, требованияМодуля);
+  $("mods").addEventListener("click", function(){
+    var on = модулиВыбрано.indexOf("homework") >= 0;
+    отметитьШаг("module_selected", "agent", on ? "success" : "skipped",
+      on ? ["homework_module"] : []);
+  });
+
+  function строкаГраницы(текст){
+    var d = document.createElement("div"); d.className = "row";
+    var i = document.createElement("input");
+    i.value = текст || ""; i.maxLength = 200;
+    i.setAttribute("aria-label", "граница");
+    i.addEventListener("input", перерисовать);
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = "×"; b.title = "убрать";
+    b.addEventListener("click", function(){ d.remove(); перерисовать(); });
+    d.appendChild(i); d.appendChild(b);
+    $("nevers").appendChild(d);
+  }
+  // Примеры правил под задачу по умолчанию («разбираешь присланный текст»).
+  // Прежние — «не пишешь мне ночью» и «не решаешь, с кем встречаться» — к ней
+  // не относились и читались как чужая заготовка.
+  ["не придумываешь факты, которых нет в моём сообщении",
+   "не принимаешь решений за меня — предлагаешь варианты"].forEach(строкаГраницы);
+  $("addNever").addEventListener("click", function(){ строкаГраницы(""); });
+
+  function известные(перечень, значения){
+    var можно = перечень.map(function(п){ return п[0]; });
+    return (значения || []).filter(function(к){ return можно.indexOf(к) >= 0; });
+  }
+
+  function применитьНастройки(к, запасноеИмя){
+    $("title").value = к.title || запасноеИмя || "Помощник";
+    $("purpose").value = к.purpose || "";
+    $("calls").value = Math.max(1, Math.min(60,
+      parseInt(к.max_calls || к["ходов_на_поручение"], 10) || 12));
+    родаВыбрано = известные(РОДЫ,
+      к.sensitivity_clearance || к["видит_роды"]);
+    уменияВыбрано = известные(УМЕНИЯ, к.capabilities);
+    модулиВыбрано = известные(МОДУЛИ, к.modules);
+    $("nevers").innerHTML = "";
+    (к.never || к["мои_границы"] || []).slice(0, 20).forEach(строкаГраницы);
+    требованияМодуля();
+    состояниеКнопок("sens", родаВыбрано);
+    состояниеКнопок("caps", уменияВыбрано);
+    состояниеКнопок("mods", модулиВыбрано);
+    перерисовать();
+    посчитать();
+  }
+
+  function применитьСтартовуюРоль(роль){
+    $("title").value = роль.title;
+    $("purpose").value = роль.purpose;
+    $("nevers").innerHTML = "";
+    роль.never.forEach(строкаГраницы);
+    var заметка = $("starterRoleNote");
+    заметка.hidden = false;
+    заметка.textContent = "Роль «" + роль.title +
+      "» выбрана. Проверьте поля ниже и поправьте под себя.";
+    перерисовать();
+    посчитать();
+  }
+
+  СТАРТОВЫЕ_РОЛИ.forEach(function(роль){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = роль.label;
+    b.setAttribute("data-role", роль.code);
+    b.addEventListener("click", function(){ применитьСтартовуюРоль(роль); });
+    $("starterRoles").appendChild(b);
+  });
+
+  async function загрузитьПресет(){
+    if (!ПРЕСЕТ) return;
+    var заметка = $("presetNote");
+    заметка.hidden = false;
+    заметка.textContent = "Загружаю готового помощника…";
+    try{
+      /* Один источник правды: и карточка направления, и конструктор читают
+         тот же versioned preset из `/packs`. Держать копию Домашкина в этой
+         странице значило бы однажды показать одно, а создать другое. */
+      var r = await fetch(API + "/packs");
+      if (!r.ok) throw new Error("направления не отвечают");
+      var д = await r.json();
+      var найден = null;
+      ((д && д.packs) || []).some(function(п){
+        return ((п && п.personal_agent_presets) || []).some(function(x){
+          if (x.id === ПРЕСЕТ){ найден = x; return true; }
+          return false;
+        });
+      });
+      if (!найден || !найден.config) throw new Error("такого шаблона нет");
+      var к = найден.config;
+      применитьНастройки(к, найден.title);
+      $("make").disabled = false;
+      /* У Домашкина заметка после загрузки прячется: описание шага уже сказало
+         «мы всё заполнили», строка состояния — «нажмите «Сохранить»». Третий
+         раз ту же мысль родитель читал бы подряд. Пока грузится — видна. */
+      заметка.textContent = "Шаблон «" + (найден.title || ПРЕСЕТ) +
+        "» заполнен. Проверьте настройки — всё можно изменить до создания.";
+      if (ПИЛОТ) заметка.hidden = true;
+      await отметитьШаг("preset_loaded", "assistant", "success",
+        модулиВыбрано.indexOf("homework") >= 0 ? ["homework_module"] : []);
+    } catch(e){
+      заметка.textContent = "Готовый шаблон не загрузился. Можно настроить помощника вручную.";
+      $("make").disabled = false;
+      посчитать();
+    }
+  }
+
+  // ── свой токен: у двери должен быть кто спрашивает ────────────────────
+  var КЛЮЧ_ОБОЛОЧКИ = "fixar.token";
+  var КЛЮЧ_ПЕРВОГО_ЭКРАНА = "fixar.start.token";
+  var КЛЮЧ_НАСЛЕДНЫЙ = "aios_token";
+  var КЛЮЧ_РОТАЦИИ = "fixar.session.rotation";
+  function изХранилища(ключ){
+    try { return localStorage.getItem(ключ) || ""; } catch(e){ return ""; }
+  }
+  function заменитьСессию(старый, новый){
+    [КЛЮЧ_ОБОЛОЧКИ, КЛЮЧ_ПЕРВОГО_ЭКРАНА, КЛЮЧ_НАСЛЕДНЫЙ].forEach(function(ключ){
+      try{
+        if (localStorage.getItem(ключ) === старый) localStorage.setItem(ключ, новый);
+      } catch(e){ /* приватный режим */ }
+    });
+  }
+  function новыйСессионныйТокен(){
+    if (typeof crypto === "undefined" || !crypto.getRandomValues) return "";
+    var bytes = new Uint8Array(32), token = "";
+    crypto.getRandomValues(bytes);
+    for (var i=0; i<bytes.length; i++) token += bytes[i].toString(16).padStart(2,"0");
+    return token;
+  }
+  function ожидающаяРотация(старый){
+    try{
+      var row = JSON.parse(localStorage.getItem(КЛЮЧ_РОТАЦИИ) || "null");
+      return row && row.old === старый && row.replacement ? row : null;
+    } catch(e){ return null; }
+  }
+  function сохранитьРотацию(row){
+    try{ localStorage.setItem(КЛЮЧ_РОТАЦИИ, JSON.stringify(row)); }
+    catch(e){ /* без записи не рискуем единственным анонимным ключом */ }
+    return ожидающаяРотация(row.old);
+  }
+  function закончитьРотацию(старый, новый){
+    заменитьСессию(старый, новый);
+    try{
+      var row = ожидающаяРотация(старый);
+      if (row && row.replacement === новый) localStorage.removeItem(КЛЮЧ_РОТАЦИИ);
+    } catch(e){ /* новый токен уже сохранён */ }
+  }
+  function обновитьПорогЛичного(){
+    var заголовок = $("identityGateTitle");
+    var текст = $("identityGateText");
+    var кнопка = $("confirmIdentityGeneral");
+    if (!заголовок || !текст || !кнопка) return;
+    if (УРОВЕНЬ_ВХОДА >= 2){
+      заголовок.textContent = "Вход подтверждён.";
+      текст.textContent = ПИЛОТ
+        ? " Можно переходить к следующему шагу."
+        : " Выберите чат и сохраните — ФиксАРик начнёт отвечать вам там.";
+      кнопка.hidden = true;
+      $("pilotIdentityChoices").hidden = true;
+      обновитьЛестницу();
+      return;
+    }
+    if (ПИЛОТ){
+      заголовок.textContent = УРОВЕНЬ_ВХОДА === 1 && ТЕКУЩИЙ_АГЕНТ
+        ? "Осталось подтвердить, что это вы."
+        : УРОВЕНЬ_ВХОДА === 1 ? "Вы вошли через " + имяМессенджераДомашкина() + "."
+          : "Настройку можно сохранить сейчас.";
+      текст.textContent = УРОВЕНЬ_ВХОДА === 1 && ТЕКУЩИЙ_АГЕНТ
+        ? " Это нужно, чтобы добавить данные ребёнка и учебники. Выберите способ ниже."
+        : УРОВЕНЬ_ВХОДА === 1
+          ? " Сначала сохраните Домашкина на первом шаге. Подтвердить вход " +
+            "понадобится чуть позже — перед данными ребёнка."
+          : " Чтобы Домашкин отвечал вам, войдите — и откройте его в MAX или " +
+            "Telegram по кнопке на шаге выбора чата.";
+      // В минимальном MAX-only пути OAuth не должен выглядеть обязательным.
+      // Отдельная кнопка остаётся у защищённого учебного шага ниже.
+      кнопка.hidden = true;
+      $("pilotIdentityChoices").hidden = !ЛЕСТНИЦА_ГОТОВА ||
+        ТЕКУЩАЯ_СТУПЕНЬ !== "identity";
+      обновитьЛестницу();
+      return;
+    }
+    /* ОТВЕЧАТЬ В ЧАТЕ ОН НАЧНЁТ ТОЛЬКО ПОСЛЕ ПОДТВЕРЖДЁННОГО ВХОДА — и это не
+       осторожность текста, а проверка на каждом ходе: `допуск()`
+       (services/identity_service/channel_agents.py) сравнивает уровень входа с
+       ТРЕБУЕМОЕ_ДОВЕРИЕ = 2. Вход через мессенджер даёт первый: помощник
+       сохраняется, но молчит. Сказать это заранее — честнее, чем дать человеку
+       ждать ответа. */
+    if (УРОВЕНЬ_ВХОДА === 1){
+      заголовок.textContent = ЖЕЛАЕМЫЙ_КАНАЛ === "max"
+        ? "Вы вошли через MAX." : "Вы вошли через мессенджер.";
+      текст.textContent =
+        " Настроить и сохранить помощника можно уже сейчас. " +
+        "Отвечать вам в чате он начнёт, когда вы подтвердите вход: " +
+        "на первом экране нажмите своё имя и добавьте Google, Яндекс или VK ID.";
+    } else {
+      заголовок.textContent = "Посмотреть и настроить можно без входа.";
+      текст.textContent =
+        " Чтобы ФиксАРик отвечал вам в чате, войдите и подтвердите вход " +
+        "на первом экране.";
+    }
+    кнопка.hidden = false;
+    обновитьЛестницу();
+  }
+  async function спроситьСессию(t){
+    var r = await fetch(API + "/entry/whoami", {
+      headers: {"Authorization": "Bearer " + t}
+    });
+    if (!r.ok) return null;
+    var д = await r.json();
+    УРОВЕНЬ_ВХОДА = Math.max(0, parseInt(д.assurance, 10) || 0);
+    обновитьПорогЛичного();
+    return д && д.principal_id ? д : null;
+  }
+  async function живой(t, ожидаемыйСубъект){
+    if (!t) return "";
+    try{
+      var pending = ожидающаяРотация(t);
+      if (pending) {
+        var recovered = await спроситьСессию(pending.replacement);
+        if (recovered && recovered.principal_id === pending.principal_id) {
+          закончитьРотацию(t, pending.replacement);
+          return pending.replacement;
+        }
+      }
+      var д = await спроситьСессию(t);
+      if (!д) return "";
+      if (ожидаемыйСубъект && д.principal_id !== ожидаемыйСубъект) return "";
+      if (д.session_rotation_required) {
+        pending = pending || сохранитьРотацию({
+          old: t,
+          replacement: новыйСессионныйТокен(),
+          principal_id: д.principal_id
+        });
+        if (!pending || !pending.replacement) return t;
+        var rr = null;
+        try{
+          rr = await fetch(API + "/entry/session/rotate", {
+            method: "POST",
+            headers: {
+              "Authorization": "Bearer " + t,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({replacement_token: pending.replacement})
+          });
+        } catch(e){ /* проверяем новый токен ниже */ }
+        if (rr && rr.ok) {
+          var новая = await rr.json();
+          if (!новая.rotated) return "";
+          закончитьРотацию(t, pending.replacement);
+          t = pending.replacement;
+        } else {
+          var completed = await спроситьСессию(pending.replacement);
+          if (completed && completed.principal_id === д.principal_id) {
+            закончитьРотацию(t, pending.replacement);
+            return pending.replacement;
+          }
+        }
+        if (rr && rr.status === 404) {
+          /* Ротацию уже могла завершить соседняя вкладка. Проверяем только
+             значения из тех же ячеек, не создаём из-за гонки нового гостя. */
+          var ключи = [КЛЮЧ_ОБОЛОЧКИ, КЛЮЧ_ПЕРВОГО_ЭКРАНА, КЛЮЧ_НАСЛЕДНЫЙ];
+          for (var i = 0; i < ключи.length; i++) {
+            var сосед = изХранилища(ключи[i]);
+            if (сосед && сосед !== t) {
+              var найден = await живой(сосед, д.principal_id);
+              if (найден) return найден;
+            }
+          }
+          return "";
+        }
+        if (rr && rr.status === 409) {
+          try{ localStorage.removeItem(КЛЮЧ_РОТАЦИИ); } catch(e){ /* позже */ }
+        }
+      }
+      return t;
+    } catch(e){ return ""; }
+  }
+  function запомнить(t){
+    try{
+      localStorage.setItem(КЛЮЧ_ПЕРВОГО_ЭКРАНА, t);
+      if (!изХранилища(КЛЮЧ_ОБОЛОЧКИ)) {
+        localStorage.setItem(КЛЮЧ_ОБОЛОЧКИ, t);
+      }
+    } catch(e){ /* приватный режим */ }
+  }
+  async function завестиТокен(){
+    if (ОБЕЩАНИЕ_ТОКЕНА) return ОБЕЩАНИЕ_ТОКЕНА;
+    ОБЕЩАНИЕ_ТОКЕНА = (async function(){
+      var ключи = [КЛЮЧ_ОБОЛОЧКИ, КЛЮЧ_ПЕРВОГО_ЭКРАНА, КЛЮЧ_НАСЛЕДНЫЙ];
+      for (var i = 0; i < ключи.length; i++){
+        var есть = изХранилища(ключи[i]);
+        var проверен = await живой(есть);
+        if (проверен) { запомнить(проверен); return проверен; }
+      }
+      var r = await fetch(API + "/entry/anon", {
+        method: "POST", headers: {"content-type": "application/json"},
+        body: JSON.stringify({label: "fixclo"}) });
+      if (!r.ok) throw new Error("вход не отвечает (" + r.status + ")");
+      var д = await r.json(); var t = д.token || "";
+      if (!t) throw new Error("вход не выдал токен");
+      УРОВЕНЬ_ВХОДА = Math.max(0, parseInt(д.assurance, 10) || 0);
+      обновитьПорогЛичного();
+      запомнить(t);
+      return t;
+    })();
+    try {
+      return await ОБЕЩАНИЕ_ТОКЕНА;
+    } catch(e) {
+      ОБЕЩАНИЕ_ТОКЕНА = null;
+      throw e;
+    }
+  }
+  function сЗаголовком(t){
+    return {"content-type": "application/json", "authorization": "Bearer " + t};
+  }
+
+  async function начатьПодтверждение(provider, button){
+    var прежний = button.textContent;
+    button.disabled = true;
+    button.textContent = "Открываю…";
+    try{
+      var t = await завестиТокен();
+      var r = await fetch(API + "/auth/link/start", {
+        method: "POST", headers: сЗаголовком(t),
+        body: JSON.stringify({
+          provider: provider, redirect_uri: АДРЕС_OAUTH_ВОЗВРАТА
+        })
+      });
+      var data = await jsonОтвет(r);
+      if (!r.ok) throw new Error(причинаОтвета(data, "подтверждение не началось"));
+      if (!data.state || !(data.authorize_url || data.url)) {
+        throw new Error("площадка не вернула безопасный адрес входа");
+      }
+      ТЕКУЩАЯ_СТУПЕНЬ = "identity";
+      запомнитьВозвратПилота();
+      try{
+        localStorage.setItem(КЛЮЧ_ПРИВЯЗКИ, data.state);
+        localStorage.setItem(КЛЮЧ_ТОКЕНА_ПРИВЯЗКИ, t);
+        localStorage.setItem(КЛЮЧ_ВОЗВРАТА_ПРИВЯЗКИ, адресВозвратаПилота());
+      } catch(e){
+        throw new Error("браузер не разрешил запомнить безопасный возврат");
+      }
+      location.href = data.authorize_url || data.url;
+    } catch(e){
+      button.disabled = false;
+      button.textContent = прежний;
+      $("pilotIdentityStatus").textContent = e.message || "не удалось начать вход";
+    }
+  }
+
+  async function открытьПодтверждение(event){
+    if (!ПИЛОТ || УРОВЕНЬ_ВХОДА >= 2) return;
+    if (event) event.preventDefault();
+    var источник = event && event.currentTarget;
+    var panel = $("pilotIdentityChoices");
+    var buttons = $("pilotIdentityButtons");
+    var status = $("pilotIdentityStatus");
+    if (источник) источник.setAttribute("aria-expanded", "true");
+    // В лестнице подтверждение — самостоятельный экран. Если защитная кнопка
+    // была нажата из профиля, сначала показываем именно его, а не переносим
+    // единственную панель в скрытый блок длинной формы.
+    if (ЛЕСТНИЦА_ГОТОВА && ТЕКУЩАЯ_СТУПЕНЬ !== "identity"){
+      показатьСтупень("identity", true);
+      return;
+    }
+    panel.hidden = false;
+    if (ПРОВАЙДЕРЫ_ЗАГРУЖЕНЫ){
+      var готовая = buttons.querySelector("button");
+      if (готовая && источник) готовая.focus({preventScroll:true});
+      return;
+    }
+    if (ПРОВАЙДЕРЫ_ЗАГРУЖАЮТСЯ) return;
+    ПРОВАЙДЕРЫ_ЗАГРУЖАЮТСЯ = true;
+    buttons.innerHTML = "";
+    status.textContent = "Проверяю доступные способы…";
+    // Телеметрия сопровождения не управляет OAuth UX: даже если она
+    // зависла, провайдеры должны появиться сразу.
+    отметитьШаг("assurance_required", "identity", "needs_attention", []);
+    try{
+      var r = await fetch(API + "/auth/providers");
+      var data = await jsonОтвет(r);
+      if (!r.ok) throw new Error(причинаОтвета(data, "способы входа недоступны"));
+      var oauth = (data && data.oauth) || {};
+      var providers = Object.keys(ИМЕНА_OAUTH).filter(function(provider){
+        return oauth[provider] === true;
+      });
+      if (!providers.length) throw new Error("на сервере пока нет доступного подтверждения");
+      providers.forEach(function(provider){
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn ghost";
+        button.textContent = "Продолжить через " + ИМЕНА_OAUTH[provider];
+        button.addEventListener("click", function(){
+          начатьПодтверждение(provider, button);
+        });
+        buttons.appendChild(button);
+      });
+      ПРОВАЙДЕРЫ_ЗАГРУЖЕНЫ = true;
+      status.textContent = "После подтверждения вернёмся ровно к этому шагу.";
+      var первая = buttons.querySelector("button");
+      if (первая) первая.focus({preventScroll:true});
+    } catch(e){
+      status.textContent = e.message || "не удалось получить способы входа";
+    } finally { ПРОВАЙДЕРЫ_ЗАГРУЖАЮТСЯ = false; }
+  }
+
+  [$("confirmIdentityGeneral"), $("confirmIdentity")].forEach(function(button){
+    button.addEventListener("click", function(event){
+      if (ПИЛОТ && УРОВЕНЬ_ВХОДА < 2) открытьПодтверждение(event);
+    });
+  });
+
+  function новыйНомер(префикс){
+    var хвост = "";
+    try { хвост = crypto.randomUUID().replace(/-/g, ""); }
+    catch(e){ хвост = Date.now().toString(16) + Math.random().toString(16).slice(2); }
+    return префикс + хвост.slice(0, 24);
+  }
+
+  async function jsonОтвет(r){
+    var raw = await r.text();
+    try { return raw ? JSON.parse(raw) : {}; }
+    catch(e){ return {detail: raw || ("HTTP " + r.status)}; }
+  }
+
+  function причинаОтвета(д, запасная){
+    var п = д && д.detail != null ? д.detail : д;
+    if (typeof п === "string") return п || запасная;
+    return (п && (п.message || п.reason)) || запасная;
+  }
+
+  async function отметитьШаг(kind, step, outcome, fields, stableEventId){
+    if (!GUIDE_ACTIVE) return false;
+    try{
+      var t = await завестиТокен();
+      var r = await fetch(API + "/onboarding/domashkin/events", {
+        method: "POST", headers: сЗаголовком(t),
+        body: JSON.stringify({
+          client_event_id: stableEventId || новыйНомер("evt_"), kind: kind, step: step,
+          outcome: outcome, fields_complete: (fields || []).slice(0, 12)
+        })
+      });
+      if (!r.ok) throw new Error("onboarding_event_" + r.status);
+      return true;
+    } catch(e){ return false; /* сопровождение не должно ломать основную форму */ }
+  }
+
+  async function отметитьЗавершениеЕслиГотово(){
+    // Отметка завершения нужна была только сопровождению. Без него
+    // `отметитьШаг` отвечает «не принято», и ниже ставился повтор каждые
+    // восемь секунд — навсегда. Выходим сразу.
+    if (!GUIDE_ACTIVE) return;
+    if (ЗАВЕРШЕНИЕ_ОТПРАВЛЕНО || ЗАВЕРШЕНИЕ_ОТПРАВЛЯЕТСЯ ||
+        модулиВыбрано.indexOf("homework") < 0 ||
+        !ТЕКУЩИЙ_АГЕНТ || !УЧЕБНЫЙ_ПРОФИЛЬ ||
+        !КАНАЛ_ЗАКРЕПЛЁН || !УЧЕБНЫЙ_ШАГ_ГОТОВ) return;
+    ЗАВЕРШЕНИЕ_ОТПРАВЛЯЕТСЯ = true;
+    var key = "fixar.domashkin.completed." + ТЕКУЩИЙ_АГЕНТ + "." + УЧЕБНЫЙ_ПРОФИЛЬ;
+    var eventId = localStorage.getItem(key) || новыйНомер("done_");
+    localStorage.setItem(key, eventId);
+    var accepted = await отметитьШаг("completed", "done", "success", [
+      "homework_module", "channel", "learning_program", "child_alias",
+      "grade", "textbook"
+    ], eventId);
+    ЗАВЕРШЕНИЕ_ОТПРАВЛЯЕТСЯ = false;
+    if (accepted) ЗАВЕРШЕНИЕ_ОТПРАВЛЕНО = true;
+    else setTimeout(отметитьЗавершениеЕслиГотово, 8000);
+  }
+
+
+  function имяКанала(к){
+    if (к.channel === "tg") return "Telegram";
+    if (к.channel === "max") return "MAX";
+    return к.channel || "мессенджер";
+  }
+
+  function выбратьТекущийКанал(){
+    if (!ТЕКУЩИЙ_АГЕНТ || ВЫБРАННЫЙ_КАНАЛ) return;
+    КАНАЛЫ.some(function(к){
+      if (к.agent_id === ТЕКУЩИЙ_АГЕНТ){
+        ВЫБРАННЫЙ_КАНАЛ = к.binding_id;
+        КАНАЛ_ЗАКРЕПЛЁН = к["отвечает"] === true;
+        return true;
+      }
+      return false;
+    });
+  }
+
+  function выбратьКаналИзСсылки(){
+    if (ВЫБРАННЫЙ_КАНАЛ || !ЖЕЛАЕМЫЙ_КАНАЛ) return;
+    КАНАЛЫ.some(function(к){
+      if (к.channel === ЖЕЛАЕМЫЙ_КАНАЛ){
+        ВЫБРАННЫЙ_КАНАЛ = к.binding_id;
+        return true;
+      }
+      return false;
+    });
+  }
+
+  function перерисоватьКаналы(){
+    var узел = $("channels");
+    var заметка = $("channelNote");
+    узел.innerHTML = "";
+    if (!КАНАЛЫ.length){
+      if (ПИЛОТ){
+        // У Домашкина чат — только MAX. Прежде здесь был тупик: «откройте эту
+        // страницу по кнопке из чата с Домашкиным» — а у родителя, пришедшего
+        // через Яндекс, такого чата ещё нет (замер 14.09.2026, Андроид).
+        показатьПривязкуЧата(заметка);
+        return;
+      }
+      заметка.innerHTML =
+        "Мессенджер ещё не подключён. Помощника можно сохранить уже сейчас, " +
+        "а потом на <a href=\"/\">первом экране</a> нажать своё имя, " +
+        "привязать MAX или Telegram и вернуться сюда.";
+      return;
+    }
+    выбратьТекущийКанал();
+    выбратьКаналИзСсылки();
+    КАНАЛЫ.forEach(function(к){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.setAttribute("data-binding", к.binding_id);
+      b.setAttribute("aria-pressed",
+        к.binding_id === ВЫБРАННЫЙ_КАНАЛ ? "true" : "false");
+      var занят = !ПИЛОТ && к.agent_id && к.agent_id !== ТЕКУЩИЙ_АГЕНТ;
+      b.textContent = имяКанала(к) + " · " + (к.label || "мой чат") +
+        (занят ? " · сейчас там другой помощник" : "");
+      b.addEventListener("click", function(){
+        КАНАЛ_ЗАКРЕПЛЁН = false;
+        if (ПИЛОТ) ДОМАШКИН_АКТИВЕН = false;
+        ВЫБРАННЫЙ_КАНАЛ =
+          ВЫБРАННЫЙ_КАНАЛ === к.binding_id ? "" : к.binding_id;
+        перерисоватьКаналы();
+        обновитьЛестницу();
+        отметитьШаг("channel_bound", "channel", "started", ["channel"]);
+      });
+      узел.appendChild(b);
+    });
+    заметка.textContent = ПИЛОТ
+      ? (ВЫБРАННЫЙ_КАНАЛ
+          ? "Выбран ваш чат с Домашкиным."
+          : "Выберите ваш чат с Домашкиным.")
+      : ВЫБРАННЫЙ_КАНАЛ
+        ? "После сохранения ФиксАРик пришлёт в этот чат одно приветствие. " +
+          "Сохранять повторно можно — второго не будет."
+        : "Чат не выбран. Сохранить можно и так, но отвечать помощнику будет негде.";
+    обновитьАктивациюДомашкина();
+  }
+
+  /* ── Чат с Домашкиным прямо из онбординга: MAX или Telegram ─────────────
+     Ссылка ведёт в ЧАТ ДОМАШКИНА с одноразовым кодом (POST /link/max/start,
+     bot: "domashkin", messenger: max|tg). Нажатие «Начать» доказывает
+     владение чатом и вход из бота Домашкина, но не записью: решает человек
+     здесь, на странице, где он уже вошёл. Иначе чужой код, присланный в
+     мессенджер, приклеил бы чужой профиль к этой записи.
+     С 14.09.2026 — и Telegram: решение владельца «чтобы включался без Макса». */
+  var ОЖИДАНИЕ_ЧАТА = null;
+  var ИМЯ_МЕССЕНДЖЕРА = {max: "MAX", tg: "Telegram"};
+
+  function блокПривязкиЧата(заметка, пояснениеТекстом, мессенджеры){
+    var прежний = $("linkChatBlock");
+    if (прежний && прежний.parentNode) прежний.parentNode.removeChild(прежний);
+    var блок = document.createElement("div");
+    блок.id = "linkChatBlock";
+    var пояснение = document.createElement("p");
+    пояснение.textContent = пояснениеТекстом;
+    блок.appendChild(пояснение);
+    var ряд = document.createElement("div");
+    ряд.className = "bar";
+    мессенджеры.forEach(function(мессенджер, номер){
+      var кнопка = document.createElement("button");
+      кнопка.type = "button";
+      кнопка.className = номер === 0 ? "btn" : "btn ghost";
+      кнопка.setAttribute("data-link-messenger", мессенджер);
+      кнопка.textContent = "Открыть Домашкина в " + ИМЯ_МЕССЕНДЖЕРА[мессенджер];
+      кнопка.addEventListener("click", function(){ начатьПривязкуЧата(мессенджер); });
+      ряд.appendChild(кнопка);
+    });
+    блок.appendChild(ряд);
+    var статус = document.createElement("p");
+    статус.className = "hint";
+    статус.id = "linkChatStatus";
+    статус.setAttribute("role", "status");
+    статус.setAttribute("aria-live", "polite");
+    блок.appendChild(статус);
+    var решение = document.createElement("div");
+    решение.className = "bar";
+    решение.id = "linkChatDecision";
+    решение.hidden = true;
+    блок.appendChild(решение);
+    заметка.appendChild(блок);
+  }
+
+  function показатьПривязкуЧата(заметка){
+    заметка.innerHTML = "";
+    блокПривязкиЧата(заметка,
+      "Домашкин отвечает в Telegram и в MAX, а чата с ним у этой учётной записи ещё нет. " +
+      "Откройте его там, где вам удобнее, — нажмите «Начать» и вернитесь сюда.",
+      ЖЕЛАЕМЫЙ_КАНАЛ === "max" ? ["max", "tg"] : ["tg", "max"]);
+  }
+
+  function показатьДоказательствоЧата(заметка, канал){
+    блокПривязкиЧата(заметка,
+      "Домашкин ещё не открывался в этом чате. Нажмите кнопку, затем «Начать» " +
+      "в чате — и вернитесь сюда.",
+      [канал === "tg" ? "tg" : "max"]);
+  }
+
+  function кнопкиПривязки(доступны){
+    Array.prototype.forEach.call(document.querySelectorAll("[data-link-messenger]"),
+      function(b){ b.disabled = !доступны; });
+  }
+
+  async function начатьПривязкуЧата(мессенджер){
+    var статус = $("linkChatStatus");
+    var имя = ИМЯ_МЕССЕНДЖЕРА[мессенджер];
+    кнопкиПривязки(false);
+    статус.textContent = "Готовлю ссылку…";
+    // Окно открывается СИНХРОННО в нажатии: после ожидания ответа браузер
+    // счёл бы его навязанным и заблокировал.
+    var окно = null;
+    try{ окно = window.open("", "_blank"); } catch(e){ окно = null; }
+    try{
+      var t = await завестиТокен();
+      var r = await fetch(API + "/link/max/start", {
+        method: "POST", headers: сЗаголовком(t),
+        body: JSON.stringify({bot: "domashkin", messenger: мессенджер})
+      });
+      var д = await jsonОтвет(r);
+      if (!r.ok || !д.deep_link) throw new Error(причинаОтвета(д, "ссылка не выдана"));
+      if (окно) окно.location.href = д.deep_link; else window.location.href = д.deep_link;
+      статус.textContent = "Нажмите «Начать» в чате с Домашкиным в " + имя +
+        " и вернитесь сюда — я подожду.";
+      ждатьПрофильЧата(t, д.request_id, мессенджер, д.expires_at);
+    } catch(e){
+      if (окно) окно.close();
+      кнопкиПривязки(true);
+      статус.textContent = "Ссылка не открылась: " + (e.message || "нет связи") + ".";
+    }
+  }
+
+  async function ждатьПрофильЧата(t, номерЗаявки, мессенджер, истекает){
+    if (ОЖИДАНИЕ_ЧАТА) clearTimeout(ОЖИДАНИЕ_ЧАТА);
+    var кто = await спроситьСессию(t);
+    if (!кто) return;
+    var конец = Date.parse(истекает) || (Date.now() + 10 * 60 * 1000);
+    async function круг(){
+      var статус = $("linkChatStatus");
+      if (!статус) return;
+      if (Date.now() > конец){
+        статус.textContent = "Ссылка устарела. Нажмите «Открыть Домашкина» ещё раз.";
+        кнопкиПривязки(true);
+        return;
+      }
+      try{
+        var r = await fetch(API + "/link/max/pending/" + encodeURIComponent(кто.principal_id),
+          {headers: сЗаголовком(t)});
+        var д = await jsonОтвет(r);
+        var своя = r.ok && (д.requests || []).filter(function(з){
+          return з.request_id === номерЗаявки;
+        })[0];
+        if (своя && своя.state === "active"){
+          // Код открыт в чате, уже привязанном к этой записи: доказательство
+          // записано сервером, привязывать нечего.
+          ЖЕЛАЕМЫЙ_КАНАЛ = мессенджер;
+          статус.textContent = "Чат подтверждён — продолжаем.";
+          await загрузитьКаналы();
+          return;
+        }
+        var ждёт = r.ok && (д.pending || []).filter(function(з){
+          return з.request_id === номерЗаявки;
+        })[0];
+        if (ждёт){
+          показатьПодтверждениеЧата(t, ждёт, мессенджер);
+          return;
+        }
+      } catch(e){ /* сеть мигнула — следующий круг */ }
+      ОЖИДАНИЕ_ЧАТА = setTimeout(круг, 3000);
+    }
+    круг();
+  }
+
+  function показатьПодтверждениеЧата(t, заявка, мессенджер){
+    var статус = $("linkChatStatus"), решение = $("linkChatDecision");
+    var имя = ИМЯ_МЕССЕНДЖЕРА[мессенджер];
+    статус.textContent = "В " + имя + " нашёлся " +
+      (мессенджер === "tg" ? "аккаунт" : "профиль") + " «" + (заявка.chat || "без имени") +
+      "». Это вы?";
+    решение.innerHTML = "";
+    решение.hidden = false;
+    function кнопка(слова, согласие, призрак){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = призрак ? "btn ghost" : "btn";
+      b.textContent = слова;
+      b.addEventListener("click", async function(){
+        Array.prototype.forEach.call(решение.querySelectorAll("button"),
+          function(x){ x.disabled = true; });
+        try{
+          var r = await fetch(API + "/link/max/decide", {
+            method: "POST", headers: сЗаголовком(t),
+            body: JSON.stringify({request_id: заявка.request_id, agree: согласие})
+          });
+          var д = await jsonОтвет(r);
+          if (!r.ok) throw new Error(причинаОтвета(д, "ответ " + r.status));
+          решение.hidden = true;
+          if (согласие){
+            ЖЕЛАЕМЫЙ_КАНАЛ = мессенджер;
+            статус.textContent = имя + " подключён — выбираю ваш чат с Домашкиным.";
+            await загрузитьКаналы();
+          } else {
+            статус.textContent = "Отклонено. Если это были не вы, откройте ссылку ещё раз.";
+            кнопкиПривязки(true);
+          }
+        } catch(e){
+          var слова = e.message || "нет связи";
+          // Самый частый отказ — тот же мессенджер уже у ДРУГОЙ записи этого
+          // человека (завёл вторую через Яндекс). Сливать записи молча нельзя:
+          // во второй уже есть помощник и ребёнок. Говорим, куда идти.
+          if (/другой записи/.test(слова)){
+            слова = "этот " + (мессенджер === "tg" ? "аккаунт Telegram" : "профиль MAX") +
+              " уже подключён к другой вашей учётной записи. Откройте Домашкина в " + имя +
+              " и настройте его по кнопке оттуда — там вы войдёте в ту запись";
+          }
+          статус.textContent = "Не подключилось: " + слова + ".";
+          решение.hidden = true;
+          кнопкиПривязки(true);
+        }
+      });
+      return b;
+    }
+    решение.appendChild(кнопка("Да, это я", true, false));
+    решение.appendChild(кнопка("Нет", false, true));
+  }
+
+  async function загрузитьКаналы(){
+    var заметка = $("channelNote");
+    заметка.textContent = "Проверяю подключённые мессенджеры…";
+    try{
+      var t = await завестиТокен();
+      var r = await fetch(API + "/channels", {headers: сЗаголовком(t)});
+      if (!r.ok) throw new Error("список мессенджеров не отвечает");
+      var д = await r.json();
+      КАНАЛЫ = ((д && д.channels) || []).filter(function(к){
+        // Домашкин — и в MAX, и в Telegram (с 14.09.2026).
+        return к.channel === "tg" || к.channel === "max";
+      });
+      перерисоватьКаналы();
+      await загрузитьПодключениеДомашкина(t);
+    } catch(e){
+      заметка.textContent = "Мессенджеры не загрузились: " +
+        (e.message || "нет связи") + ". Настройки помощника не потеряются.";
+    }
+  }
+
+  function выбранныйЧатДомашкина(){
+    return КАНАЛЫ.filter(function(к){
+      return к.binding_id === ВЫБРАННЫЙ_КАНАЛ && (к.channel === "max" || к.channel === "tg");
+    })[0] || null;
+  }
+
+  function обновитьАктивациюДомашкина(сообщение){
+    var panel = $("domashkinActivation");
+    if (!panel) return;
+    var homework = модулиВыбрано.indexOf("homework") >= 0;
+    panel.hidden = !(ПИЛОТ && homework);
+    if (panel.hidden) return;
+
+    var activate = $("activateDomashkin");
+    var disable = $("disableDomashkin");
+    var consent = $("domashkinConsent");
+    var status = $("domashkinActivationStatus");
+    if (ДОМАШКИН_АКТИВЕН){
+      activate.hidden = true;
+      disable.hidden = false;
+      consent.disabled = true;
+      consent.checked = true;
+      status.textContent = сообщение ||
+        "Домашкин включён. Присылайте ему задания в " + имяМессенджераДомашкина() + " текстом.";
+      return;
+    }
+
+    activate.hidden = false;
+    disable.hidden = true;
+    consent.disabled = false;
+    var неГотово = [];
+    if (УРОВЕНЬ_ВХОДА < 2) неГотово.push("подтвердить, что это вы");
+    if (!ТЕКУЩИЙ_АГЕНТ) неГотово.push("сохранить Домашкина");
+    if (!выбранныйЧатДомашкина()) неГотово.push("выбрать чат с Домашкиным");
+    if (!УЧЕБНЫЙ_ПРОФИЛЬ) неГотово.push("рассказать о ребёнке");
+    if (!УЧЕБНЫЙ_ШАГ_ГОТОВ) неГотово.push("выбрать учебник");
+    activate.disabled = неГотово.length > 0 || !consent.checked;
+    status.textContent = сообщение || (неГотово.length
+      ? "Осталось: " + неГотово.join(", ") + "."
+      : consent.checked
+        ? "Всё готово. Нажмите «Включить Домашкина»."
+        : "Отметьте согласие — без него Домашкин не включится.");
+  }
+
+  async function загрузитьПодключениеДомашкина(t){
+    if (!ПИЛОТ || УРОВЕНЬ_ВХОДА < 2 || !выбранныйЧатДомашкина()) {
+      обновитьАктивациюДомашкина();
+      return;
+    }
+    try{
+      var r = await fetch(API + "/channels/" +
+        encodeURIComponent(ВЫБРАННЫЙ_КАНАЛ) +
+        "/bots/domashkin/enrollment", {headers: сЗаголовком(t)});
+      var д = await jsonОтвет(r);
+      if (!r.ok) throw new Error(причинаОтвета(д, "подключение не прочиталось"));
+      var enrollmentAgent = String(д.personal_agent_id || "");
+      if (!РЕДАКТИРУЕМ && enrollmentAgent.indexOf("me.") === 0 &&
+          валидныйКлючАгента(enrollmentAgent.slice(3))) {
+        РЕДАКТИРУЕМ = enrollmentAgent.slice(3);
+      }
+      if (д.child_id && валидныйПрофиль(д.child_id)) {
+        ПОДСКАЗКА_ПРОФИЛЯ = д.child_id;
+        if (д.state === "active" && д.ready === true) УЧЕБНЫЙ_ПРОФИЛЬ = д.child_id;
+      }
+      ДОМАШКИН_АКТИВЕН = д.state === "active" && д.ready === true;
+      КАНАЛ_ЗАКРЕПЛЁН = ДОМАШКИН_АКТИВЕН;
+      запомнитьВозвратПилота();
+      if (д.entered === false){
+        /* Чат привязан, но входа ИЗ БОТА ДОМАШКИНА не было (привязан, например,
+           через ФиксАРика). Включение без него отказывает — поэтому не пишем
+           «вход подтверждён», а даём кнопку открыть Домашкина в этом чате. */
+        var выбранный = выбранныйЧатДомашкина();
+        показатьДоказательствоЧата($("channelNote"), выбранный ? выбранный.channel : "max");
+        обновитьАктивациюДомашкина(
+          "Откройте Домашкина в " + имяМессенджераДомашкина() +
+          " по кнопке выше и нажмите «Начать» — так мы узнаем, что чат ваш.");
+        return;
+      }
+      обновитьАктивациюДомашкина(
+        ДОМАШКИН_АКТИВЕН ? "Домашкин уже включён в этом чате."
+          : д.state === "off" ? "Домашкин выключен. На обычные вопросы в чате он отвечать продолжит."
+            : "Вход из Домашкина подтверждён. Завершите профиль и включите полный режим."
+      );
+    } catch(e){
+      ДОМАШКИН_АКТИВЕН = false;
+      КАНАЛ_ЗАКРЕПЛЁН = false;
+      обновитьАктивациюДомашкина(e.message || "подключение пока не читается");
+    }
+  }
+
+  $("domashkinConsent").addEventListener("change", function(){
+    обновитьАктивациюДомашкина();
+  });
+
+  $("activateDomashkin").addEventListener("click", async function(){
+    var button = $("activateDomashkin");
+    button.disabled = true;
+    обновитьАктивациюДомашкина("Проверяю владельца, профиль и согласие…");
+    try{
+      var t = await завестиТокен();
+      await спроситьСессию(t);
+      if (УРОВЕНЬ_ВХОДА < 2) throw new Error("сначала подтвердите вход");
+      if (!ТЕКУЩИЙ_АГЕНТ || !УЧЕБНЫЙ_ПРОФИЛЬ || !выбранныйЧатДомашкина()) {
+        throw new Error("сначала завершите предыдущие шаги");
+      }
+      if (!УЧЕБНЫЙ_ШАГ_ГОТОВ) throw new Error("сначала выберите карточку учебника или загрузите копию");
+      if (!$("domashkinConsent").checked) throw new Error("нужно явное согласие");
+      var r = await fetch(API + "/channels/" +
+        encodeURIComponent(ВЫБРАННЫЙ_КАНАЛ) +
+        "/bots/domashkin/enrollment/activate", {
+          method: "POST", headers: сЗаголовком(t),
+          body: JSON.stringify({
+            personal_agent_id: ТЕКУЩИЙ_АГЕНТ,
+            child_id: УЧЕБНЫЙ_ПРОФИЛЬ,
+            consent: true,
+            consent_version: "domashkin-max-homework-v1"
+          })
+        });
+      var д = await jsonОтвет(r);
+      if (!r.ok) throw new Error(причинаОтвета(д, "полный режим не включился"));
+      if (д.state !== "active" || д.ready !== true) {
+        throw new Error("сервер сохранил настройку, но ещё не допустил полный режим");
+      }
+      ДОМАШКИН_АКТИВЕН = true;
+      КАНАЛ_ЗАКРЕПЛЁН = true;
+      await отметитьШаг("channel_bound", "channel", "success", ["channel"]);
+      обновитьАктивациюДомашкина(
+        "Полный Домашкин включён. Он пришлёт отдельное приветствие в " + имяМессенджераДомашкина() + "."
+      );
+      await отметитьЗавершениеЕслиГотово();
+      перейтиКПервойНезавершённой();
+    } catch(e){
+      ДОМАШКИН_АКТИВЕН = false;
+      КАНАЛ_ЗАКРЕПЛЁН = false;
+      обновитьАктивациюДомашкина(e.message || "полный режим не включился");
+    } finally {
+      if (!ДОМАШКИН_АКТИВЕН) button.disabled = false;
+    }
+  });
+
+  $("disableDomashkin").addEventListener("click", async function(){
+    var button = $("disableDomashkin");
+    button.disabled = true;
+    try{
+      var t = await завестиТокен();
+      var r = await fetch(API + "/channels/" +
+        encodeURIComponent(ВЫБРАННЫЙ_КАНАЛ) +
+        "/bots/domashkin/enrollment/disable", {
+          method: "POST", headers: сЗаголовком(t), body: "{}"
+        });
+      var д = await jsonОтвет(r);
+      if (!r.ok) throw new Error(причинаОтвета(д, "полный режим не выключился"));
+      ДОМАШКИН_АКТИВЕН = false;
+      КАНАЛ_ЗАКРЕПЛЁН = false;
+      обновитьАктивациюДомашкина(
+        "Домашкин выключен. На обычные вопросы в чате он отвечать продолжит."
+      );
+      перейтиКПервойНезавершённой();
+    } catch(e){
+      обновитьАктивациюДомашкина(e.message || "не удалось выключить полный режим");
+    } finally { button.disabled = false; }
+  });
+
+  // ── защищённый учебный профиль: Vault → предмет → приватный индекс ─────
+  function обновитьУчебныйШаг(){
+    var включён = модулиВыбрано.indexOf("homework") >= 0;
+    var секция = $("learningSetup");
+    if (!секция) return;
+    секция.hidden = !включён;
+    if (!включён) {
+      обновитьАктивациюДомашкина();
+      обновитьЛестницу();
+      return;
+    }
+    if (!ТЕКУЩИЙ_АГЕНТ){
+      $("learningGate").textContent = ПИЛОТ
+        ? "Сначала сохраните Домашкина на первом шаге."
+        : "Сначала сохраните ФиксАРика с навыком «домашние задания». Данные ребёнка хранятся отдельно от настроек помощника.";
+      $("confirmIdentity").hidden = true;
+      $("catalogPanel").hidden = true;
+      $("privateFallback").hidden = true;
+      $("bookForm").hidden = true;
+      обновитьАктивациюДомашкина();
+      обновитьЛестницу();
+      return;
+    }
+    if (УРОВЕНЬ_ВХОДА < 2){
+      $("learningGate").textContent = ПИЛОТ
+        ? "Сначала подтвердите, что это вы: нажмите «Выбрать способ подтверждения» ниже. Потом вернитесь и сохраните данные ребёнка."
+        : "Вы вошли через мессенджер. Чтобы добавить имя ребёнка и учебники, подтвердите вход: на первом экране нажмите своё имя и добавьте Google, Яндекс или VK ID.";
+      $("confirmIdentity").hidden = false;
+    } else {
+      $("learningGate").textContent = ПИЛОТ
+        ? "Вход подтверждён. Данные ребёнка и учебники видны только вам."
+        : "Вход подтверждён. Файлы останутся в вашем личном хранилище, отдельно для каждого ребёнка и предмета.";
+      $("confirmIdentity").hidden = true;
+    }
+    обновитьАктивациюДомашкина();
+    обновитьЛестницу();
+  }
+
+  function прочитатьФайлB64(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onerror = function(){ reject(new Error("браузер не прочитал файл")); };
+      reader.onload = function(){
+        var value = String(reader.result || "");
+        var comma = value.indexOf(",");
+        resolve(comma < 0 ? value : value.slice(comma + 1));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function строкаЗагрузки(file){
+    var row = document.createElement("div"); row.className = "upload-row";
+    var title = document.createElement("span"); title.textContent = file.name || "Учебник";
+    var state = document.createElement("span"); state.textContent = "готовлю…";
+    row.appendChild(title); row.appendChild(state); $("uploadLog").appendChild(row);
+    return {row: row, state: state};
+  }
+
+  function показатьУчебники(книги){
+    var groups = Object.create(null);
+    (книги || []).forEach(function(к){
+      var subject = String(к.subject || "Без предмета");
+      if (!groups[subject]) groups[subject] = [];
+      groups[subject].push(к);
+    });
+    var root = $("subjectGroups"); root.innerHTML = "";
+    Object.keys(groups).sort(function(a,b){ return a.localeCompare(b, "ru"); })
+      .forEach(function(subject){
+        var box = document.createElement("section"); box.className = "subject-group";
+        var h = document.createElement("h3"); h.textContent = subject; box.appendChild(h);
+        var ul = document.createElement("ul");
+        groups[subject].forEach(function(к){
+          var li = document.createElement("li");
+          var status = к.state === "ready" ? "разобран" :
+            к.state === "needs_clarification" ? "нужно уточнение" : "обрабатывается";
+          li.textContent = String(к.title || "Учебник") + " — " + status;
+          ul.appendChild(li);
+        });
+        box.appendChild(ul); root.appendChild(box);
+      });
+  }
+
+  async function загрузитьСписокУчебников(t){
+    if (!УЧЕБНЫЙ_ПРОФИЛЬ) return;
+    var r = await fetch(API + "/homework/children/" +
+      encodeURIComponent(УЧЕБНЫЙ_ПРОФИЛЬ) + "/textbooks", {headers: сЗаголовком(t)});
+    var д = await jsonОтвет(r);
+    if (r.ok) {
+      var книги = Array.isArray(д) ? д : (д.textbooks || []);
+      ЛИЧНЫЙ_УЧЕБНИК_ГОТОВ = книги.some(function(к){ return к.state === "ready"; });
+      показатьУчебники(книги);
+      синхронизироватьГотовностьУчебников();
+    }
+  }
+
+  function описаниеКарточки(к){
+    return [к.authors, к.publisher, к.class_text ? "класс: " + к.class_text : "",
+      // Код ФПУ родителю ничего не говорит; конструктору он нужен для сверки.
+      к.fpu_code && !ПИЛОТ ? "ФПУ " + к.fpu_code : ""].filter(Boolean).join(" · ");
+  }
+
+  function статусКарточки(к){
+    if (ПИЛОТ) return к.fulltext_available
+      ? "готов"
+      : "текста пока нет — можно загрузить свой";
+    return к.fulltext_available
+      ? "готов для разбора"
+      : "только карточка — файла пока нет";
+  }
+
+  function адресПоискаУчебника(к){
+    var query = [к.title, к.authors, к.publisher, к.subject,
+      "официальная электронная версия учебника"].filter(Boolean).join(" ");
+    return "https://yandex.ru/search/?text=" + encodeURIComponent(query);
+  }
+
+  function показатьКаталог(книги){
+    var root = $("catalogResults"); root.innerHTML = "";
+    if (!книги.length){
+      var empty = document.createElement("p"); empty.className = "catalog-empty";
+      empty.textContent = "Ничего не нашлось. Сократите запрос или проверьте класс.";
+      root.appendChild(empty); return;
+    }
+    книги.forEach(function(к){
+      var card = document.createElement("article"); card.className = "catalog-card";
+      var body = document.createElement("div");
+      var title = document.createElement("h4"); title.textContent = к.title || "Учебник";
+      var meta = document.createElement("p"); meta.textContent = описаниеКарточки(к);
+      var badge = document.createElement("span");
+      badge.className = "catalog-badge " + (к.fulltext_available ? "ready" : "metadata");
+      badge.textContent = статусКарточки(к);
+      body.appendChild(title); body.appendChild(meta); body.appendChild(badge);
+      var button = document.createElement("button"); button.type = "button";
+      button.className = "btn ghost catalog-pick";
+      var selected = !!ВЫБРАННЫЕ_КАТАЛОГА[к.id];
+      button.textContent = selected ? "Выбран" : "Выбрать"; button.disabled = selected;
+      button.addEventListener("click", function(){ выбратьИзКаталога(к, button); });
+      card.appendChild(body); card.appendChild(button); root.appendChild(card);
+    });
+  }
+
+  function показатьВыбранныеКаталога(книги){
+    ВЫБРАННЫЕ_КАТАЛОГА = Object.create(null);
+    (книги || []).forEach(function(к){ ВЫБРАННЫЕ_КАТАЛОГА[к.id] = к; });
+    КАТАЛОГ_ВЫБРАН = (книги || []).length > 0;
+    КАТАЛОГ_ГОТОВ = (книги || []).some(function(к){
+      return к.fulltext_available === true;
+    });
+    синхронизироватьГотовностьУчебников();
+    var root = $("catalogSelected"); root.innerHTML = "";
+    var h = document.createElement("h4"); h.textContent = "Выбрано для этого ребёнка"; root.appendChild(h);
+    if (!книги.length){
+      var empty = document.createElement("p"); empty.textContent = "Пока ни одного.";
+      root.appendChild(empty); return;
+    }
+    var ul = document.createElement("ul");
+    книги.forEach(function(к){
+      var li = document.createElement("li");
+      var summary = document.createElement("span");
+      summary.textContent = String(к.title || "Учебник") + " — " + статусКарточки(к);
+      li.appendChild(summary);
+      if (!к.fulltext_available){
+        var link = document.createElement("a");
+        link.className = "catalog-source-search";
+        link.href = адресПоискаУчебника(к);
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "Найти электронную версию";
+        link.addEventListener("click", function(){
+          $("catalogStatus").textContent = "Поиск открыт для «" +
+            String(к.title || "учебника") + "». Скачайте доступный файл и выберите его ниже.";
+        });
+        li.appendChild(link);
+      }
+      ul.appendChild(li);
+    });
+    root.appendChild(ul);
+    if (!КАТАЛОГ_ГОТОВ){
+      var note = document.createElement("p");
+      note.textContent = ПИЛОТ
+        ? "Учебники выбраны. Если у какого-то нет текста, можно загрузить свой файл ниже."
+        : "Карточки добавлены, но тексты ещё не загружены. Нажмите поиск у нужной карточки, затем выберите скачанный файл ниже — загрузка начнётся сразу.";
+      root.appendChild(note);
+    }
+  }
+
+  async function загрузитьПрограммы(t){
+    var r = await fetch(API + "/homework/catalog/programs?limit=100", {headers: сЗаголовком(t)});
+    var д = await jsonОтвет(r); if (!r.ok) return;
+    var list = $("officialPrograms"); list.innerHTML = "";
+    (Array.isArray(д) ? д : []).forEach(function(п){
+      var option = document.createElement("option"); option.value = п.title || "";
+      list.appendChild(option);
+    });
+  }
+
+  async function загрузитьВыбранныеКаталога(t){
+    var r = await fetch(API + "/homework/children/" +
+      encodeURIComponent(УЧЕБНЫЙ_ПРОФИЛЬ) + "/catalog-textbooks", {headers: сЗаголовком(t)});
+    var д = await jsonОтвет(r);
+    if (!r.ok) throw new Error(причинаОтвета(д, "выбранные учебники не открылись"));
+    показатьВыбранныеКаталога(Array.isArray(д) ? д : []);
+  }
+
+  async function найтиВКаталоге(t){
+    var status = $("catalogStatus"); status.textContent = "Ищу в перечне учебников…";
+    var params = new URLSearchParams();
+    var query = $("catalogQuery").value.trim(); if (query) params.set("q", query);
+    params.set("grade", String(Math.max(1, Math.min(12,
+      parseInt($("childGrade").value, 10) || 1))));
+    params.set("limit", "24");
+    var r = await fetch(API + "/homework/catalog/textbooks?" + params.toString(),
+      {headers: сЗаголовком(t)});
+    var д = await jsonОтвет(r);
+    if (!r.ok) throw new Error(причинаОтвета(д, "каталог не отвечает"));
+    var книги = Array.isArray(д) ? д : [];
+    status.textContent = книги.length ? "Показываю первые " + книги.length : "Совпадений нет";
+    показатьКаталог(книги);
+  }
+
+  async function выбратьИзКаталога(книга, button){
+    button.disabled = true; button.textContent = "Сохраняю…";
+    try{
+      var t = await завестиТокен();
+      var r = await fetch(API + "/homework/children/" +
+        encodeURIComponent(УЧЕБНЫЙ_ПРОФИЛЬ) + "/catalog-textbooks", {
+          method: "POST", headers: сЗаголовком(t),
+          body: JSON.stringify({catalog_textbook_id: книга.id})
+        });
+      var д = await jsonОтвет(r);
+      if (!r.ok) throw new Error(причинаОтвета(д, "выбор не сохранился"));
+      if (!$("bookSubject").value.trim() && книга.subject) {
+        $("bookSubject").value = String(книга.subject).slice(0, 80);
+      }
+      await загрузитьВыбранныеКаталога(t); await найтиВКаталоге(t);
+      await отметитьШаг("textbooks_processed", "textbooks",
+        книга.fulltext_available ? "success" : "needs_attention", ["catalog_textbook"]);
+      if (книга.fulltext_available) {
+        КАТАЛОГ_ГОТОВ = true;
+        синхронизироватьГотовностьУчебников();
+        await отметитьЗавершениеЕслиГотово();
+      }
+      $("catalogStatus").textContent = книга.fulltext_available
+        ? "Учебник выбран и готов для разбора."
+        : "Карточка выбрана, но текста в ней нет. Нажмите «Найти электронную версию» и загрузите доступный файл ниже.";
+    } catch(e){
+      button.disabled = false; button.textContent = "Выбрать";
+      $("catalogStatus").textContent = e.message || "Выбор не сохранился";
+    }
+  }
+
+  $("searchCatalog").addEventListener("click", async function(){
+    var button = $("searchCatalog"); button.disabled = true;
+    try { await найтиВКаталоге(await завестиТокен()); }
+    catch(e){ $("catalogStatus").textContent = e.message || "Каталог не ответил"; }
+    finally { button.disabled = false; }
+  });
+  $("catalogQuery").addEventListener("keydown", function(event){
+    if (event.key === "Enter") { event.preventDefault(); $("searchCatalog").click(); }
+  });
+
+  $("bookFiles").addEventListener("change", function(){
+    var files = Array.prototype.slice.call($("bookFiles").files || []);
+    if (!files.length) return;
+    if (!$("bookSubject").value.trim()){
+      вердиктУчебников().className = "verdict no";
+      вердиктУчебников().innerHTML =
+        "<h4>Нужен предмет</h4><p>Укажите предмет и нажмите «Повторить загрузку».</p>";
+      return;
+    }
+    // Браузер требует явного выбора файла человеком. После него
+    // дополнительная кнопка не нужна: сразу Vault → извлечение → ready.
+    $("uploadBooks").click();
+  });
+
+  function вердиктУчебников(){
+    return ПИЛОТ ? $("textbookVerdict") : $("learningVerdict");
+  }
+
+  async function открытьУчебникиПрофиля(t, показатьПоиск){
+    $("catalogPanel").hidden = false;
+    $("privateFallback").hidden = false;
+    $("bookForm").hidden = false;
+    УЧЕБНЫЙ_ШАГ_ГОТОВ = false;
+    УЧЕБНИК_ГОТОВ = false;
+    КАТАЛОГ_ВЫБРАН = false;
+    КАТАЛОГ_ГОТОВ = false;
+    ЛИЧНЫЙ_УЧЕБНИК_ГОТОВ = false;
+    ВЫБРАННЫЕ_КАТАЛОГА = Object.create(null);
+    try{ await загрузитьПрограммы(t); }
+    catch(e){ /* список программ не мешает ввести программу вручную */ }
+    try{ await загрузитьВыбранныеКаталога(t); }
+    catch(e){ $("catalogStatus").textContent = e.message || "Выбранные учебники не открылись"; }
+    if (показатьПоиск){
+      try{ await найтиВКаталоге(t); }
+      catch(e){ $("catalogStatus").textContent = e.message || "Каталог не ответил"; }
+    }
+    try{ await загрузитьСписокУчебников(t); }
+    catch(e){ /* каталог всё ещё может содержать готовый общий текст */ }
+    // Пересчёт ЗДЕСЬ, а не только в ответах каталога: флаг выше сброшен, и
+    // если каталог не ответил, шаг остался бы закрытым, хотя учебник ребёнку
+    // выбирать не нужно.
+    синхронизироватьГотовностьУчебников();
+  }
+
+  async function восстановитьУчебныйПрофиль(t){
+    if (!ПИЛОТ || УРОВЕНЬ_ВХОДА < 2 || !ТЕКУЩИЙ_АГЕНТ) return false;
+    var hint = прочитатьВозвратПилота();
+    var preferred = валидныйПрофиль(УЧЕБНЫЙ_ПРОФИЛЬ)
+      ? УЧЕБНЫЙ_ПРОФИЛЬ
+      : валидныйПрофиль(ПОДСКАЗКА_ПРОФИЛЯ) ? ПОДСКАЗКА_ПРОФИЛЯ : hint.child_id;
+    try{
+      var response = await fetch(API + "/homework/children", {headers: сЗаголовком(t)});
+      var data = await jsonОтвет(response);
+      if (!response.ok) throw new Error(причинаОтвета(data, "учебные профили не открылись"));
+      var children = Array.isArray(data) ? data : [];
+      var child = children.filter(function(x){ return x.id === preferred; })[0];
+      // Единственный профиль можно восстановить без догадки. При нескольких
+      // пользователь снова явно укажет нужный — произвольного выбора ребёнка нет.
+      if (!child && children.length === 1) child = children[0];
+      if (!child){
+        УЧЕБНЫЙ_ПРОФИЛЬ = "";
+        return false;
+      }
+      УЧЕБНЫЙ_ПРОФИЛЬ = child.id;
+      $("learningProgram").value = child.learning_program_name || "";
+      $("childName").value = child.display_name || "";
+      $("childGrade").value = Math.max(1, Math.min(12,
+        parseInt(child.grade, 10) || 1));
+      запомнитьВозвратПилота();
+      await открытьУчебникиПрофиля(t, false);
+      return true;
+    } catch(e){
+      return false;
+    }
+  }
+
+  async function найтиИлиСоздатьПрофиль(t){
+    var name = $("childName").value.trim();
+    var program = $("learningProgram").value.trim();
+    var grade = Math.max(1, Math.min(12, parseInt($("childGrade").value, 10) || 0));
+    if (!name || !program || !grade) throw new Error("заполните программу, имя и класс");
+
+    // Сначала читаем свои профили. Это не только удобство: если POST успел
+    // создать строку, а ответ потерялся, повтор найдёт её и не заведёт дубль.
+    var listResponse = await fetch(API + "/homework/children", {headers: сЗаголовком(t)});
+    var list = await jsonОтвет(listResponse);
+    if (!listResponse.ok) {
+      var reason = причинаОтвета(list, "учебные профили не открылись");
+      if (listResponse.status === 403) {
+        await отметитьШаг("assurance_required", "identity", "needs_attention", []);
+      }
+      throw new Error(reason);
+    }
+    var existing = (Array.isArray(list) ? list : []).filter(function(x){
+      return String(x.display_name || "").trim() === name &&
+        String(x.learning_program_name || "").trim() === program &&
+        parseInt(x.grade, 10) === grade;
+    })[0];
+    if (existing) return existing;
+
+    var body = {
+      display_name: name, grade: grade, learning_program_name: program,
+      client_request_id: новыйНомер("childreq_")
+    };
+    var r = await fetch(API + "/homework/children", {
+      method: "POST", headers: сЗаголовком(t), body: JSON.stringify(body)
+    });
+    var д = await jsonОтвет(r);
+    if (!r.ok) throw new Error(причинаОтвета(д, "профиль не сохранился"));
+    return д;
+  }
+
+  $("saveLearner").addEventListener("click", async function(){
+    var button = $("saveLearner"); var verdict = $("learningVerdict");
+    button.disabled = true; verdict.className = "verdict ok";
+    verdict.innerHTML = "<h4>Проверяю защищённый вход…</h4>";
+    try{
+      if (!ТЕКУЩИЙ_АГЕНТ) throw new Error(ПИЛОТ ? "сначала сохраните Домашкина" : "сначала сохраните ФиксАРика");
+      var t = await завестиТокен();
+      var who = await спроситьСессию(t);
+      if (!who || УРОВЕНЬ_ВХОДА < 2){
+        обновитьУчебныйШаг();
+        await отметитьШаг("assurance_required", "identity", "needs_attention", []);
+        throw new Error("для данных ребёнка сначала подтвердите вход");
+      }
+      var child = await найтиИлиСоздатьПрофиль(t);
+      if (УЧЕБНЫЙ_ПРОФИЛЬ !== child.id) {
+        // Готовность учебника принадлежит конкретному профилю ребёнка.
+        // Старый ready нельзя переносить на только что выбранный профиль.
+        УЧЕБНЫЙ_ШАГ_ГОТОВ = false;
+        УЧЕБНИК_ГОТОВ = false;
+        КАТАЛОГ_ВЫБРАН = false;
+        КАТАЛОГ_ГОТОВ = false;
+        ЛИЧНЫЙ_УЧЕБНИК_ГОТОВ = false;
+        ВЫБРАННЫЕ_КАТАЛОГА = Object.create(null);
+        ЗАВЕРШЕНИЕ_ОТПРАВЛЕНО = false;
+      }
+      УЧЕБНЫЙ_ПРОФИЛЬ = child.id;
+      обновитьАктивациюДомашкина();
+      запомнитьВозвратПилота();
+      var profileKey = "fixar.domashkin.profile." + ТЕКУЩИЙ_АГЕНТ + "." + child.id;
+      var profileEventId = localStorage.getItem(profileKey) || новыйНомер("profile_");
+      localStorage.setItem(profileKey, profileEventId);
+      var profileAccepted = await отметитьШаг(
+        "learning_profile_saved", "learning_profile", "success",
+        ["learning_program", "child_alias", "grade"], profileEventId
+      );
+      verdict.className = "verdict ok";
+      verdict.innerHTML = "<h4>Учебный профиль сохранён ✓</h4>" +
+        "<p>Учебники выбирать не нужно: Домашкин узнает их сам по номерам упражнений в первых заданиях. Если хотите, выберите вручную ниже.</p>";
+      // Каталог — уже следующая ступень. Его временная ошибка не отменяет
+      // успешно сохранённый защищённый профиль и не должна показывать ложный
+      // вердикт «профиль не сохранён».
+      await открытьУчебникиПрофиля(t, true);
+      if (profileAccepted) await отметитьЗавершениеЕслиГотово();
+      перейтиКПервойНезавершённой();
+    } catch(e){
+      verdict.className = "verdict no";
+      verdict.innerHTML = "<h4>Профиль пока не сохранён</h4><p>" +
+        html(e.message || "нет связи") + ".</p>";
+    } finally { button.disabled = false; }
+  });
+
+  $("uploadBooks").addEventListener("click", async function(){
+    var subject = $("bookSubject").value.trim();
+    var files = Array.prototype.slice.call($("bookFiles").files || []);
+    if (!subject || !files.length){
+      вердиктУчебников().className = "verdict no";
+      вердиктУчебников().innerHTML =
+        "<h4>Нечего загружать</h4><p>Укажите предмет и выберите учебники.</p>";
+      return;
+    }
+    var button = $("uploadBooks"); button.disabled = true;
+    var ok = 0; var failed = 0;
+    try{
+      var t = await завестиТокен();
+      for (var i = 0; i < files.length; i++){
+        var file = files[i]; var ui = строкаЗагрузки(file);
+        try{
+          if (file.size > 64 * 1024 * 1024) throw new Error("больше предела 64 МБ");
+          ui.state.textContent = "сохраняю в ваше хранилище…";
+          var b64 = await прочитатьФайлB64(file);
+          var vr = await fetch(API + "/vault/documents", {
+            method: "POST", headers: сЗаголовком(t), body: JSON.stringify({
+              title: file.name || "Учебник", content_b64: b64,
+              mime: file.type || "application/octet-stream", kind: "file",
+              sensitivity: "pii", domain: "education"
+            })
+          });
+          var vault = await jsonОтвет(vr);
+          if (!vr.ok) throw new Error(причинаОтвета(vault, "хранилище не приняло файл"));
+          var documentId = vault && vault.document && vault.document.id;
+          if (!documentId) throw new Error("хранилище не подтвердило сохранение файла");
+
+          ui.state.textContent = "привязываю к предмету…";
+          var br = await fetch(API + "/homework/textbooks", {
+            method: "POST", headers: сЗаголовком(t), body: JSON.stringify({
+              child_id: УЧЕБНЫЙ_ПРОФИЛЬ, vault_document_id: documentId,
+              subject: subject, title: file.name || "Учебник", sensitivity: "pii"
+            })
+          });
+          var book = await jsonОтвет(br);
+          if (!br.ok) throw new Error(причинаОтвета(book, "учебник не привязался"));
+
+          ui.state.textContent = "разбираю локально…";
+          var er = await fetch(API + "/homework/textbooks/" +
+            encodeURIComponent(book.id) + "/extract", {
+              method: "POST", headers: сЗаголовком(t), body: "{}"
+            });
+          var extracted = await jsonОтвет(er);
+          if (!er.ok) throw new Error(причинаОтвета(extracted, "учебник не разобрался"));
+          if (extracted.status === "ready") {
+            ui.state.textContent = "готово";
+            ok += 1;
+          } else {
+            failed += 1; ui.row.className += " bad";
+            ui.state.textContent = "нужен PDF с текстовым слоем или читаемое фото";
+          }
+        } catch(e){
+          failed += 1; ui.row.className += " bad";
+          ui.state.textContent = e.message || "не вышло";
+        }
+      }
+      await загрузитьСписокУчебников(t);
+      await отметитьШаг("textbooks_processed", "textbooks",
+        failed ? "needs_attention" : "success", ["subject", "textbook"]);
+      if (ok > 0) {
+        ЛИЧНЫЙ_УЧЕБНИК_ГОТОВ = true;
+        синхронизироватьГотовностьУчебников();
+        await отметитьЗавершениеЕслиГотово();
+      }
+      вердиктУчебников().className = failed ? "verdict no" : "verdict ok";
+      вердиктУчебников().innerHTML = "<h4>Учебники: готово " + ok +
+        (failed ? ", требуют внимания " + failed : "") + "</h4>" +
+        "<p>Ниже — загруженные учебники по предметам. Видны только вам.</p>";
+    } catch(e){
+      вердиктУчебников().className = "verdict no";
+      вердиктУчебников().innerHTML = "<h4>Загрузка остановлена</h4><p>" +
+        html(e.message || "нет связи") + ".</p>";
+    } finally { button.disabled = false; }
+  });
+
+  // ── во что обойдётся ──────────────────────────────────────────────────
+  //
+  // Считает ПЛОЩАДКА, а не страница. Своя арифметика здесь означала бы
+  // вторую правду о цене — и разошлась бы со счётом в конце месяца.
+  var считаюСейчас = null;
+  async function посчитать(){
+    var узел = $("calc");
+    var тело = { ходов_на_поручение: поля().max_calls,
+                 поручений_в_месяц: Math.max(0, Math.min(1000,
+                   parseInt($("tasks").value, 10) || 0)) };
+    var мой = JSON.stringify(тело);
+    считаюСейчас = мой;
+    try{
+      var r = await fetch(API + "/personal-agents/subscription", {
+        method: "POST", headers: {"content-type": "application/json"}, body: мой });
+      var д = await r.json();
+      if (считаюСейчас !== мой) return;   // человек уже поправил число
+      var данныеСтрок = д.строки || [];
+      var рабочаяСтрока = данныеСтрок.find(function(с){
+        return String(с.за_что || "").indexOf("облачная модель") >= 0;
+      });
+      var наблюдаемыйРасход = рабочаяСтрока &&
+        !рабочаяСтрока["наблюдение_выше_потолка"] &&
+        рабочаяСтрока.по_факту_рублей
+          ? рабочаяСтрока.по_факту_рублей : "";
+      /* ТАБЛИЦЫ СТУПЕНЕЙ И «ХОДОВ» ЧЕЛОВЕКУ БОЛЬШЕ НЕ ПОКАЗЫВАЕМ — просьба
+         владельца 14.09.2026 представить ФиксАРика нормально (у Домашкина
+         расчёт скрыт целиком ещё 13.09). Три строки «модель / потолок / на
+         деле / измерено» и пояснение службы про «мусор в книге» — язык
+         бухгалтерии площадки, а не ответ на вопрос «сколько я заплачу».
+         Честность ответа при этом не урезана: сначала — что поручения стоили
+         на деле, затем вся вилка от и до, и то, что в неё не вошло. Цифры
+         по-прежнему считает площадка. */
+      var первыйИтог = наблюдаемыйРасход
+        ? "По недавним фактическим списаниям — около <b>" + html(наблюдаемыйРасход) +
+          " в месяц</b> при таком числе поручений."
+        : д.рублей_от
+          ? "При таком числе поручений — от <b>" + html(д.рублей_от) +
+            " в месяц</b>. Точнее посчитаем, когда накопятся настоящие списания."
+          : "";
+      if (!первыйИтог || !д.рублей_до){ узел.textContent = ""; return; }
+      var нет = (д.чего_не_учли || []).map(function(с){
+        return "<li>" + html(с) + "</li>"; }).join("");
+      узел.innerHTML =
+        '<p class="price-lead">' + первыйИтог + "</p>" +
+        '<details class="price-details"><summary>Подробнее о расчёте</summary>' +
+        '<p style="margin:10px 0 0">Вся вилка — <b>от ' + html(д.рублей_от) +
+        " до " + html(д.рублей_до) + " в месяц</b>. Цена поручения зависит от " +
+        "того, какая модель над ним работает и сколько текста ей нужно прочитать.</p>" +
+        (нет ? '<div class="miss">Сюда не вошло:<ul>' + нет + "</ul></div>" : "") +
+        "</details>";
+    } catch(e){
+      узел.textContent = "Не удалось посчитать — нет связи с сервером.";
+    }
+  }
+
+  function включитьРедактирование(д){
+    РЕДАКТИРУЕМ = д.agent_key;
+    ВЕРСИЯ = д.version;
+    ТЕКУЩИЙ_АГЕНТ = д.agent_id;
+    ОТПЕЧАТОК_СОХРАНЁННОГО_АГЕНТА = отпечатокАгента();
+    $("make").textContent = "Сохранить изменения";
+    запомнитьВозвратПилота();
+    обновитьПорогЛичного();
+    перерисоватьКаналы();
+    обновитьУчебныйШаг();
+    try{
+      var адрес = new URL(window.location.href);
+      адрес.search = "";
+      if (ПИЛОТ) адрес.searchParams.set("pilot", "domashkin");
+      if (ЖЕЛАЕМЫЙ_КАНАЛ) адрес.searchParams.set("channel", ЖЕЛАЕМЫЙ_КАНАЛ);
+      адрес.searchParams.set("agent", РЕДАКТИРУЕМ);
+      history.replaceState(null, "", адрес.pathname + адрес.search + адрес.hash);
+    } catch(e){ /* старый браузер: настройка всё равно сохранена */ }
+  }
+
+  function показатьВыборУчебногоАгента(candidates){
+    var заметка = $("presetNote");
+    заметка.hidden = false;
+    заметка.innerHTML = "";
+    var title = document.createElement("b");
+    title.textContent = "Найдено несколько учебных помощников.";
+    var help = document.createElement("p");
+    help.textContent = "Выберите, какого продолжить. Нового агента мастер не создаст.";
+    var bar = document.createElement("div");
+    bar.className = "bar";
+    candidates.forEach(function(agent){
+      var link = document.createElement("a");
+      var url = new URL(адресВозвратаПилота(), window.location.origin);
+      url.searchParams.set("agent", agent.agent_key);
+      link.className = "btn ghost";
+      link.href = url.pathname + url.search;
+      link.textContent = "Продолжить: " + String(agent.title || "Учебный помощник");
+      bar.appendChild(link);
+    });
+    заметка.appendChild(title);
+    заметка.appendChild(help);
+    заметка.appendChild(bar);
+    $("make").disabled = true;
+  }
+
+  function показатьОшибкуПоискаАгента(){
+    var заметка = $("presetNote");
+    заметка.hidden = false;
+    заметка.textContent =
+      "Не удалось безопасно проверить сохранённых помощников. Обновите страницу: пока проверка не прошла, новый агент не создаётся.";
+    $("make").disabled = true;
+  }
+
+  async function найтиЕдинственногоУчебногоАгента(){
+    if (!ПИЛОТ || РЕДАКТИРУЕМ) return {state: "none"};
+    try{
+      var t = await завестиТокен();
+      var r = await fetch(API + "/personal-agents", {headers: сЗаголовком(t)});
+      if (!r.ok){
+        показатьОшибкуПоискаАгента();
+        return {state: "error"};
+      }
+      var data = await r.json();
+      var candidates = ((data && data.agents) || []).filter(function(agent){
+        return agent.state !== "off" && Array.isArray(agent.modules) &&
+          agent.modules.indexOf("homework") >= 0 && валидныйКлючАгента(agent.agent_key);
+      });
+      if (!candidates.length) return {state: "none"};
+      if (candidates.length > 1){
+        показатьВыборУчебногоАгента(candidates);
+        return {state: "ambiguous"};
+      }
+      РЕДАКТИРУЕМ = candidates[0].agent_key;
+      return {state: "one", agent_key: candidates[0].agent_key};
+    } catch(e){
+      показатьОшибкуПоискаАгента();
+      return {state: "error"};
+    }
+  }
+
+  async function загрузитьАгента(){
+    var заметка = $("presetNote");
+    заметка.hidden = false;
+    заметка.textContent = "Открываю сохранённые настройки…";
+    if (!/^[a-z0-9]{8,32}$/.test(РЕДАКТИРУЕМ)) {
+      заметка.textContent = "Ссылка на настройки повреждена. Можно создать нового ФиксАРика.";
+      РЕДАКТИРУЕМ = "";
+      ТЕКУЩИЙ_АГЕНТ = "";
+      ОТПЕЧАТОК_СОХРАНЁННОГО_АГЕНТА = "";
+      очиститьВозвратПилота();
+      посчитать();
+      return false;
+    }
+    try{
+      var t = await завестиТокен();
+      var r = await fetch(API + "/personal-agents", {headers: сЗаголовком(t)});
+      if (!r.ok) throw new Error("настройки не отвечают");
+      var д = await r.json();
+      var найден = ((д && д.agents) || []).filter(function(x){
+        return x.agent_key === РЕДАКТИРУЕМ;
+      })[0];
+      if (!найден){
+        заметка.textContent = "Этот помощник принадлежит другой учётной записи. Открываю чистую настройку.";
+        РЕДАКТИРУЕМ = "";
+        ТЕКУЩИЙ_АГЕНТ = "";
+        ОТПЕЧАТОК_СОХРАНЁННОГО_АГЕНТА = "";
+        очиститьВозвратПилота();
+        return false;
+      }
+      ВЕРСИЯ = найден.version;
+      ТЕКУЩИЙ_АГЕНТ = найден.agent_id;
+      применитьНастройки(найден, найден.title);
+      ОТПЕЧАТОК_СОХРАНЁННОГО_АГЕНТА = отпечатокАгента();
+      перерисоватьКаналы();
+      $("make").textContent = "Сохранить изменения";
+      $("make").disabled = false;
+      запомнитьВозвратПилота();
+      обновитьПорогЛичного();
+      обновитьЛестницу();
+      заметка.textContent = "Открыты сохранённые настройки «" + найден.title +
+        "». Всё можно поменять и сохранить заново.";
+      return true;
+    } catch(e){
+      заметка.textContent = (e.message || "Настройки не открылись") + ".";
+      $("make").disabled = true;
+      посчитать();
+      // Сетевая ошибка не доказывает, что ключ чужой: оставляем его, чтобы
+      // повторное сохранение не создало дубль после временного сбоя.
+      return null;
+    }
+  }
+
+  async function закрепитьВЧате(t, д){
+    if (!ВЫБРАННЫЙ_КАНАЛ) return null;
+    // У двух MAX-ботов одна identity-привязка. Обычный channel_agents меняет
+    // собеседника сразу для обоих, поэтому pilot использует только отдельный
+    // bot-scoped enrollment после профиля ребёнка и явного согласия.
+    if (ПИЛОТ) return null;
+    var r = await fetch(API + "/channels/" +
+      encodeURIComponent(ВЫБРАННЫЙ_КАНАЛ) + "/agent", {
+        method: "PUT",
+        headers: сЗаголовком(t),
+        body: JSON.stringify({
+          domain: "personal", agent_id: д.agent_id, grant_id: ""
+        })
+      });
+    var ответ = await r.json();
+    if (!r.ok){
+      var причина = ответ.detail || "чат не подключился";
+      if (typeof причина === "object") {
+        причина = причина.message || JSON.stringify(причина);
+      }
+      throw new Error(причина);
+    }
+    КАНАЛЫ.forEach(function(к){
+      if (к.binding_id === ВЫБРАННЫЙ_КАНАЛ){
+        к.domain = "personal";
+        к.agent_id = д.agent_id;
+        к["закреплён"] = true;
+      }
+    });
+    return ответ;
+  }
+
+  // ── завести или сохранить того же ФиксАРика ───────────────────────────
+  $("make").addEventListener("click", async function(){
+    var в = $("verdict");
+    $("make").disabled = true;
+    в.className = "verdict ok";
+    в.innerHTML = РЕДАКТИРУЕМ || ПИЛОТ
+      ? "<h4>Сохраняю…</h4>" : "<h4>Сохраняю ФиксАРика…</h4>";
+    try{
+      var t = await завестиТокен();
+      // Пользователь мог подтвердить OAuth в соседней вкладке и вернуться.
+      // Перед закреплением перечитываем assurance той же сессии, чтобы CTA и
+      // результат не оставались на уровне MAX-входа 1 до ручного reload.
+      await спроситьСессию(t);
+      var тело = поля();
+      if (РЕДАКТИРУЕМ) тело.expected_version = ВЕРСИЯ;
+      var путь = "/personal-agents" +
+        (РЕДАКТИРУЕМ ? "/" + encodeURIComponent(РЕДАКТИРУЕМ) : "");
+      var r = await fetch(API + путь, {
+        method: РЕДАКТИРУЕМ ? "PUT" : "POST",
+        headers: сЗаголовком(t), body: JSON.stringify(тело) });
+      var д = await r.json();
+      if (!r.ok){
+        var подробность = д.detail || {};
+        var сп = (подробность.problems ||
+          [подробность.message || подробность || "не сохранился"])
+          .map(function(б){ return "<li>" + html(б) + "</li>"; }).join("");
+        в.className = "verdict no";
+        в.innerHTML = "<h4>Не сохранилось — поправьте, пожалуйста</h4><ul>" + сп + "</ul>";
+        return;
+      }
+      включитьРедактирование(д);
+      var канал = null;
+      var ошибкаКанала = "";
+      try{
+        канал = await закрепитьВЧате(t, д);
+        КАНАЛ_ЗАКРЕПЛЁН = !!(канал && канал["отвечает"] === true);
+        if (канал && канал["отвечает"] !== true){
+          ошибкаКанала = канал["почему_нет"] ||
+            "чат закреплён, но личный помощник ещё не допущен";
+        }
+      } catch(e){
+        КАНАЛ_ЗАКРЕПЛЁН = false;
+        ошибкаКанала = e.message || "чат не подключился";
+      }
+      в.className = "verdict ok";
+      в.innerHTML = "<h4>" + (ПИЛОТ ? "Домашкин сохранён ✓" : "ФиксАРик сохранён ✓") +
+        "</h4>" +
+        "<p><b>" + html(д.title) + "</b> — это тот же помощник и после следующих правок.</p>";
+      if (ошибкаКанала){
+        в.className = "verdict no";
+        в.innerHTML += "<p>Настройки сохранены, но чат ещё не готов: " +
+          html(ошибкаКанала) + ".</p>";
+        // При неподтверждённом входе повтор ничего не даст — сначала вход.
+        в.innerHTML += УРОВЕНЬ_ВХОДА < 2
+          ? "<p>Подтвердите вход по кнопке выше, затем вернитесь на эту страницу " +
+            "и снова нажмите «Сохранить изменения».</p>"
+          : "<p>Нажмите «Сохранить изменения» ещё раз — второго помощника это " +
+            "не создаст.</p>";
+        if (канал) await отметитьШаг(
+          "channel_bound", "channel", "needs_attention", ["channel"]
+        );
+      } else if (канал){
+        await отметитьШаг("channel_bound", "channel", "success", ["channel"]);
+        if (канал["приветствие_отправлено"] && канал["отвечает"]){
+          в.innerHTML += "<p>ФиксАРик уже написал вам в выбранный чат и " +
+            "рассказал, как присылать поручения.</p>";
+        } else if (канал["приветствие_отправлено"]){
+          в.innerHTML += "<p>ФиксАРик написал вам в чат и объяснил, почему " +
+            "пока не может отвечать: " + html(канал["почему_нет"]) + "</p>";
+        } else {
+          в.className = "verdict no";
+          в.innerHTML += "<p>Чат выбран, но приветствие не дошло: " +
+            html(канал["приветствие_статус"] || "причина неизвестна") +
+            ". Сохраните ещё раз — дубля не будет.</p>";
+        }
+      } else if (ПИЛОТ) {
+        // Общий чат MAX у Домашкина здесь не переназначается (`закрепитьВЧате`
+        // возвращает null): включение — отдельный шаг после данных ребёнка.
+        // Прежний текст про «общий MAX-канал» и «ступень» видел родитель.
+        в.innerHTML += "<p>Можно продолжать по шагам.</p>";
+      } else {
+        в.innerHTML += "<p>Мессенджер не выбран. Выберите чат в шаге 3 и " +
+          "сохраните ещё раз — ФиксАРик сразу напишет вам туда.</p>";
+      }
+      var готовыеПоляАгента = ["name", "purpose", "boundaries", "permissions"];
+      if (модулиВыбрано.indexOf("homework") >= 0) {
+        готовыеПоляАгента.push("homework_module");
+      }
+      await отметитьШаг("agent_saved", "agent",
+        ошибкаКанала ? "needs_attention" : "success",
+        готовыеПоляАгента);
+      await отметитьЗавершениеЕслиГотово();
+      перерисоватьКаналы();
+      обновитьАктивациюДомашкина();
+      перейтиКПервойНезавершённой();
+    } catch(e){
+      в.className = "verdict no";
+      в.innerHTML = "<h4>Нет связи с сервером</h4>" +
+        "<p>" + html(e.message || "связь") + ". Настройки не сохранены — " +
+        "попробуйте ещё раз.</p>";
+    } finally {
+      $("make").disabled = false;
+    }
+  });
+
+  ["title","purpose","calls"].forEach(function(id){
+    $(id).addEventListener("input", перерисовать);
+  });
+  ["calls","tasks"].forEach(function(id){
+    $(id).addEventListener("input", посчитать);
+  });
+  var НАЧАЛЬНЫЙ_ВОЗВРАТ = прочитатьВозвратПилота();
+  if (ПИЛОТ){
+    ПЕДУ_ПРОСМОТРЕН = НАЧАЛЬНЫЙ_ВОЗВРАТ.pedu_seen === true;
+    ПОДСКАЗКА_ПРОФИЛЯ = НАЧАЛЬНЫЙ_ВОЗВРАТ.child_id || "";
+    if (!РЕДАКТИРУЕМ && НАЧАЛЬНЫЙ_ВОЗВРАТ.agent_key) {
+      РЕДАКТИРУЕМ = НАЧАЛЬНЫЙ_ВОЗВРАТ.agent_key;
+    }
+  }
+  перерисовать();
+  подготовитьЛестницу();
+  (async function начать(){
+    var t = await завестиТокен();
+    await загрузитьКаналы();
+    var discovery = {state: "none"};
+    if (ПИЛОТ && !РЕДАКТИРУЕМ) {
+      discovery = await найтиЕдинственногоУчебногоАгента();
+      if (discovery.state === "ambiguous" || discovery.state === "error") {
+        // Выбор/повтор остаются на этом экране; в этих двух состояниях
+        // нельзя показывать create-preset и рисковать дублем.
+        $("make").disabled = true;
+      }
+    }
+    var agentLoaded = false;
+    if (РЕДАКТИРУЕМ) agentLoaded = await загрузитьАгента();
+    // Stale OAuth-resume мог ссылаться на ключ другой локальной сессии.
+    // После owner-scoped «не найден» ещё раз ищем агентов текущего
+    // владельца; шаблон для нового откроем только при точном «нет».
+    if (ПИЛОТ && agentLoaded === false && !РЕДАКТИРУЕМ) {
+      discovery = await найтиЕдинственногоУчебногоАгента();
+      if (discovery.state === "one") agentLoaded = await загрузитьАгента();
+    }
+    if (agentLoaded === false && ПРЕСЕТ &&
+        (!ПИЛОТ || discovery.state === "none")) {
+      await загрузитьПресет();
+    }
+    else if (!РЕДАКТИРУЕМ && !ПРЕСЕТ) посчитать();
+    if (ПИЛОТ && ТЕКУЩИЙ_АГЕНТ && УРОВЕНЬ_ВХОДА >= 2){
+      await восстановитьУчебныйПрофиль(t);
+      await загрузитьПодключениеДомашкина(t);
+    }
+    обновитьУчебныйШаг();
+    if (ПИЛОТ) показатьСтупень(перваяНезавершённаяСтупень(), false);
+  })();
+})();
+</script>
+</body>
+</html>

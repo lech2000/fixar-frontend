@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ФиксАР — агент, который доводит дело до конца</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/vhod/vhod.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">ФИКС<b>АР</b></div>
+  <a class="enter" href="/">уже были здесь? — войти</a>
+</header>
+
+<main class="stage"><div class="col">
+  <div class="badge mono" id="badge">фиксар</div>
+  <h1 id="title">Чем могу помочь?</h1>
+  <p class="sub" id="sub">ФиксАР — агент, который доводит дело до конца: ищет, сравнивает, готовит бумаги и напоминает о сроках. Расскажите своими словами.</p>
+
+  <div class="zone" id="zone">
+    <div class="ask">
+      <input id="q" autocomplete="off" placeholder="Например: продлить страховку, проверить договор, подобрать квартиру">
+      <button class="go" id="go" aria-label="Дальше">&rarr;</button>
+    </div>
+    <div class="micro" id="micro"></div>
+  </div>
+
+  <div class="pills" id="pills"></div>
+</div></main>
+
+<footer class="foot"><div class="note" id="note">Один вопрос — не анкета. Без регистрации.</div></footer>
+
+<script src="/vhod/vhod.js"></script>
+<script>
+(function () {
+  "use strict";
+  var Д = window.ДВЕРЬ, эл = Д.эл;
+
+  /* ОТСЮДА НИЧЕГО НЕ ОТПРАВЛЯЕТСЯ. Вопрос уезжает фрагментом в /start/, где
+     его шлёт САМ ЧЕЛОВЕК. Сказать «отправлено» без адресата значило бы
+     соврать: у этого входа нет ни практика, ни кода — есть только разговор
+     с агентом, и он живёт на первом экране. */
+  function дальше(текст) {
+    var в = (текст || эл("q").value).trim();
+    /* ДВЕРЬ НАЗЫВАЕТ СЕБЯ ВМЕСТЕ С ВОПРОСОМ. Сама она не входит —
+       входит /start/, и без этой приписки все пришедшие сюда
+       становились бы неотличимы от зашедших на /start/ напрямую.
+       Фрагмент на сервер не уходит и гасится сразу после чтения. */
+    var хвост = "&from=sovet";
+    location.href = в
+      ? "/#q=" + encodeURIComponent(в) + хвост
+      : "/#from=sovet";
+  }
+
+  function пилюли(список) {
+    var узел = эл("pills");
+    список.forEach(function (п) {
+      var b = document.createElement("button");
+      b.className = "pill" + (п.горячая ? " hot" : "");
+      b.textContent = п.текст;
+      b.addEventListener("click", function () {
+        if (п.сразу) { дальше(п.вопрос); return; }
+        эл("q").value = п.вопрос;
+        эл("q").focus();
+      });
+      узел.appendChild(b);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    /* ЗНАЧОК «ВАМ ПОСОВЕТОВАЛИ» — ТОЛЬКО ПРИ МЕТКЕ. Голая ссылка ни о чём не
+       говорит, и утверждать иначе значит подать догадку как знание: первая же
+       фраза площадки оказалась бы выдумкой. Метки нет — остаёмся нейтральными.
+
+       Это ЕДИНСТВЕННЫЙ вход, у которого ветка совпадает со стволом: ни
+       конкретной задачи, ни конкретного практика — есть общий разговор, и
+       это правильно. */
+    var метка = Д.фрагмент();
+    if (метка) эл("badge").textContent = "вам посоветовали фиксар";
+    пилюли([{ текст: "Проверить договор", вопрос: "Проверить договор" },
+            { текст: "Продлить страховку", вопрос: "Продлить страховку" },
+            { текст: "Разобраться с квартирой", вопрос: "Разобраться с квартирой" },
+            { текст: "Просто посмотреть, как устроено", сразу: true, вопрос: "" }]);
+    эл("go").addEventListener("click", function () { дальше(); });
+    эл("q").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); дальше(); }
+    });
+  });
+})();
+</script>
+</body>
+</html>

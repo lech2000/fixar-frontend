@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Договор на пак в деле</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/sborka/sborka.css">
+<style>
+  /* Только своё. Цвета — токенами общего файла сборщиков, как у кабинета
+     автора: соседние страницы одного пути не должны читаться разными. */
+  .narrow{max-width:760px}
+  .steps{display:grid;gap:14px;margin-top:24px}
+  /* Класс с display побеждает [hidden] — без этой строки шаги видны до входа. */
+  .steps[hidden],.step[hidden]{display:none}
+  .state{margin:4px 0 12px;color:var(--ink-2);font-size:15px}
+  .state .flag{margin-left:0;margin-right:7px}
+  label{display:block;margin:10px 0 5px;color:var(--ink-3);font-size:13.5px}
+  .choice{display:flex;gap:9px;align-items:flex-start;margin:8px 0;
+          color:var(--ink);font-size:15px;cursor:pointer}
+  .choice input{width:auto;margin-top:5px}
+  .choice small{display:block;color:var(--ink-3);font-size:13px}
+  .rights{margin:6px 0 0;padding-left:19px;color:var(--ink-2);font-size:14px}
+  .rights li{margin:4px 0}
+  .money-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .money-row input{max-width:150px}
+  .money-row output{color:var(--ink-2);font-variant-numeric:tabular-nums}
+  .contract{margin:12px 0 0;padding:14px 16px;border:1px solid var(--hair);
+            border-radius:11px;background:var(--sunk);color:var(--ink);
+            font:400 14.5px/1.6 'Golos Text',system-ui,sans-serif;
+            white-space:pre-wrap;overflow-wrap:anywhere;max-height:60vh;
+            overflow:auto}
+  .signers{display:grid;gap:6px;margin:8px 0 0;padding:0;list-style:none}
+  .signers li{display:flex;gap:8px;align-items:center;font-size:14.5px}
+  .signers .flag{margin-left:0}
+  .fine{color:var(--ink-3);font-size:13px;overflow-wrap:anywhere}
+  .meter{height:8px;border-radius:999px;background:var(--sunk);
+         border:1px solid var(--hair);overflow:hidden;margin:8px 0 4px;
+         max-width:360px}
+  .meter i{display:block;height:100%;background:var(--accent)}
+  .msg{margin-top:18px}
+  code{font-family:'IBM Plex Mono',monospace;font-size:.92em}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">ФИКС<b>АР</b></span>
+  <a class="back" href="/pak/">к сборщику пака</a>
+</header>
+
+<div class="wrap narrow">
+  <h1>Договор на пак в деле</h1>
+  <p class="lead">Пак из каталога работает только в деле и только по договору:
+     вы называете предел трат, а подписывают все участники дела, чьи сведения
+     пак увидит. Пока не подписали все, пак не работает.</p>
+
+  <div class="verdict msg" id="msg" role="status" aria-live="polite"></div>
+
+  <div class="steps" id="steps" hidden>
+    <section class="step" id="packStep" aria-labelledby="packH">
+      <h2 id="packH"><span class="num">1</span>Пак</h2>
+      <p class="hint">Что это за пак, кто его выпустил и что он просит.</p>
+      <div id="packBody"></div>
+    </section>
+
+    <section class="step" id="caseStep" aria-labelledby="caseH">
+      <h2 id="caseH"><span class="num">2</span>Дело</h2>
+      <p class="hint">Пак будет работать только в этом деле. Можно завести новое.</p>
+      <div id="caseBody"></div>
+    </section>
+
+    <section class="step" id="termsStep" aria-labelledby="termsH">
+      <h2 id="termsH"><span class="num">3</span>Предел трат</h2>
+      <p class="hint">Сколько паку можно потратить в этом деле. Кредиты заранее не
+         удерживаются; когда предел исчерпан, пак перестаёт ходить наружу.</p>
+      <form id="termsForm" novalidate>
+        <label for="budget">Предел, кредитов</label>
+        <div class="money-row">
+          <input id="budget" type="number" min="1" max="100000" step="1" value="100"
+                 inputmode="numeric">
+          <output id="rub" for="budget"></output>
+        </div>
+        <div id="egressBox" hidden>
+          <label for="egress">Куда паку можно ходить — адреса через запятую</label>
+          <input id="egress" autocomplete="off" spellcheck="false" class="mono"
+                 placeholder="api.example.com">
+        </div>
+        <p class="fine" id="secretsNote" hidden></p>
+        <div class="bar">
+          <button class="btn" type="submit" id="proposeBtn">Составить договор</button>
+        </div>
+      </form>
+      <div class="verdict" id="termsOut" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="step" id="contractStep" aria-labelledby="contractH" hidden>
+      <h2 id="contractH">Договор</h2>
+      <div id="contractBody"></div>
+    </section>
+  </div>
+
+  <footer>
+    Вторая сторона договора — площадка ФиксАР; автор пака отвечает перед
+    площадкой своим договором издателя. Подписать можно после входа по
+    подтверждённому номеру телефона или почте. Текст и условия после подписи не
+    меняются: площадка хранит их отпечаток.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var API = "https://api.agrigate.pro";
+  var KEY = "fixar.token";            // тот же ключ, что у оболочки
+  var я = { токен: "", pid: "" };
+  var выбрано = { пак: null };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var адрес = new URLSearchParams(location.search);
+
+  function узел(тег, класс, текст) {
+    var у = document.createElement(тег);
+    if (класс) у.className = класс;
+    if (текст !== undefined && текст !== null) у.textContent = текст;
+    return у;
+  }
+
+  // ── дверь ──────────────────────────────────────────────────────────────
+  // Слова отказа — только текстом: чужой текст разметкой не становится.
+  function слова(данные, код) {
+    var д = данные && данные.detail;
+    if (typeof д === "string") return [д];
+    if (Array.isArray(д)) {
+      return д.map(function (б) { return (б && б.msg) ? String(б.msg) : String(б); });
+    }
+    if (д && typeof д === "object") {
+      var список = [];
+      if (д.detail) список.push(String(д.detail));
+      // Дверь отказывает объектом {message, reason}: «подтвердите вход» и
+      // прочие её слова — ровно то, что человек должен прочитать.
+      if (д.message) список.push(String(д.message));
+      (д.problems || []).forEach(function (п) { список.push(String(п)); });
+      if (список.length) return список;
+    }
+    return ["служба ответила " + код];
+  }
+
+  async function зов(метод, путь, тело) {
+    var opts = { method: метод, headers: { "Content-Type": "application/json",
+                                           "Authorization": "Bearer " + я.токен } };
+    if (тело !== undefined) opts.body = JSON.stringify(тело);
+    var о;
+    try { о = await fetch(API + путь, opts); }
+    catch (e) {
+      var связь = new Error("связь");
+      связь.список = ["Связь с площадкой оборвалась — это про сеть, а не про договор. Попробуйте ещё раз."];
+      throw связь;
+    }
+    var текст = await о.text();
+    var данные = null;
+    try { данные = текст ? JSON.parse(текст) : null; } catch (e) { данные = null; }
+    if (!о.ok) {
+      var беда = new Error("отказ");
+      беда.status = о.status;
+      беда.список = слова(данные, о.status);
+      throw беда;
+    }
+    return данные;
+  }
+
+  function сказать(куда, заголовок, строки, хорошо) {
+    var в = $(куда);
+    в.className = "verdict " + (хорошо ? "ok" : "no") + (куда === "msg" ? " msg" : "");
+    в.textContent = "";
+    в.appendChild(узел("h4", null, заголовок));
+    if (строки && строки.length) {
+      var ul = узел("ul");
+      строки.forEach(function (с) { ul.appendChild(узел("li", null, с)); });
+      в.appendChild(ul);
+    }
+  }
+
+  function флаг(текст, вид) { return узел("span", "flag" + (вид ? " " + вид : ""), текст); }
+
+  function кредитов(n) {
+    var х = n % 100, е = n % 10;
+    var с = (х >= 11 && х <= 14) ? "кредитов" : е === 1 ? "кредит" : (е >= 2 && е <= 4) ? "кредита" : "кредитов";
+    return n + " " + с;
+  }
+  function рублей(n) {             // 1 кредит = 10 копеек
+    var коп = n * 10;
+    return Math.floor(коп / 100) + "," + String(коп % 100).padStart(2, "0") + " ₽";
+  }
+
+  // ── 1. пак ─────────────────────────────────────────────────────────────
+  async function пак(vid) {
+    var тело = $("packBody"); тело.textContent = "";
+    if (!vid) {
+      var ф = document.createElement("form"); ф.noValidate = true;
+      var l = узел("label", null, "Номер версии пака из каталога"); l.htmlFor = "vid";
+      var i = document.createElement("input"); i.id = "vid"; i.className = "mono";
+      i.autocomplete = "off"; i.placeholder = "pkv_…";
+      var bar = узел("div", "bar"); var b = узел("button", "btn ghost", "Показать пак"); b.type = "submit";
+      bar.appendChild(b); ф.appendChild(l); ф.appendChild(i); ф.appendChild(bar);
+      ф.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var v = i.value.trim(); if (!v) return;
+        адрес.set("version", v); history.replaceState(null, "", "?" + адрес.toString());
+        пак(v).catch(function (беда) { сказать("msg", "Пак не найден", беда.список, false); });
+      });
+      тело.appendChild(ф);
+      return;
+    }
+    var к = await зов("GET", "/storefront/packs/" + encodeURIComponent(я.pid) + "/" + encodeURIComponent(vid));
+    выбрано.пак = к;
+    тело.appendChild(узел("p", "state", "")).appendChild(флаг(к.available ? "можно поставить" : "сейчас не ставится", к.available ? "yes" : "no"));
+    тело.lastChild.appendChild(document.createTextNode((к.title || к.name) + " — " + (к.publisher_name || к.namespace)));
+    тело.appendChild(узел("p", "fine", к.package));
+    if (к.summary) тело.appendChild(узел("p", null, к.summary));
+    if (!к.available && к.unavailable_reason) тело.appendChild(узел("p", "fine", String(к.unavailable_reason)));
+    var права = к.requested_capabilities || [];
+    if (права.length) {
+      var ul = узел("ul", "rights");
+      права.forEach(function (п) {
+        ul.appendChild(узел("li", null, "Сможет " + п["сможет"] + (п["не сможет"] ? "; не сможет " + п["не сможет"] : "") + "."));
+      });
+      тело.appendChild(узел("p", "fine", "Что пак просит:"));
+      тело.appendChild(ul);
+    } else {
+      тело.appendChild(узел("p", "fine", "Особых прав пак не просит."));
+    }
+    var сеть = права.some(function (п) { return п.code === "network:egress"; });
+    $("egressBox").hidden = !сеть;
+    var ключи = (к.secrets || []).map(function (с) { return с.name; });
+    var заметка = $("secretsNote");
+    заметка.hidden = !ключи.length;
+    заметка.textContent = ключи.length
+      ? "Пак объявляет ключи: " + ключи.join(", ") + ". На этой странице ключи пока не привязываются — договор будет без них, и вызовы, которым они нужны, работать не будут. Договор так и скажет."
+      : "";
+  }
+
+  // ── 2. дело ────────────────────────────────────────────────────────────
+  async function дела() {
+    var тело = $("caseBody"); тело.textContent = "";
+    var список = [];
+    try { список = await зов("GET", "/principals/" + encodeURIComponent(я.pid) + "/cases") || []; }
+    catch (беда) { тело.appendChild(узел("p", "fine", "Список дел не загрузился: " + беда.список.join(" "))); }
+    var открытые = список.filter(function (д) { return д.owner_id === я.pid && (д.state === "active" || д.state === "waiting"); });
+    var заданное = адрес.get("case") || "";
+
+    function вариант(value, заголовок, подпись, отмечен) {
+      var l = узел("label", "choice");
+      var r = document.createElement("input"); r.type = "radio"; r.name = "case"; r.value = value; r.checked = отмечен;
+      var t = узел("span", null, заголовок);
+      if (подпись) t.appendChild(узел("small", null, подпись));
+      l.appendChild(r); l.appendChild(t);
+      return l;
+    }
+    тело.appendChild(вариант("", "Завести новое дело", "Название ниже можно поменять.", !заданное));
+    var имя = document.createElement("input"); имя.id = "caseTitle"; имя.maxLength = 200;
+    имя.value = выбрано.пак ? "Пак «" + (выбрано.пак.title || выбрано.пак.name) + "»" : "";
+    имя.setAttribute("aria-label", "Название нового дела");
+    тело.appendChild(имя);
+    открытые.slice(0, 30).forEach(function (д) {
+      тело.appendChild(вариант(д.id, д.title || "Дело без названия", д.id, д.id === заданное));
+    });
+    if (список.length && !открытые.length) {
+      тело.appendChild(узел("p", "fine", "Открытых дел, где вы владелец, нет: договор предлагает только владелец дела."));
+    }
+  }
+
+  function выбранное_дело() {
+    var r = document.querySelector('input[name="case"]:checked');
+    return r ? r.value : "";
+  }
+
+  $("budget").addEventListener("input", function () {
+    var n = parseInt($("budget").value, 10);
+    $("rub").textContent = n > 0 ? "= " + рублей(n) : "";
+  });
+
+  $("termsForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var беды = [];
+    var бюджет = parseInt($("budget").value, 10);
+    if (!выбрано.пак) беды.push("Сначала выберите пак.");
+    if (!(бюджет >= 1 && бюджет <= 100000)) беды.push("Предел — целое число кредитов от 1 до 100 000.");
+    var дело = выбранное_дело();
+    if (!дело && !$("caseTitle").value.trim()) беды.push("Назовите новое дело или выберите своё.");
+    var адреса = $("egressBox").hidden ? [] : $("egress").value.split(/[\s,]+/).filter(Boolean);
+    if (беды.length) { сказать("termsOut", "Проверьте поля", беды, false); return; }
+
+    var b = $("proposeBtn"); b.disabled = true;
+    try {
+      if (!дело) {
+        var новое = await зов("POST", "/cases", { title: $("caseTitle").value.trim() });
+        дело = новое.id;
+        адрес.set("case", дело);
+      }
+      var д = await зов("POST", "/registry/contracts", {
+        case_id: дело, version_id: выбрано.пак.id, budget_credits: бюджет,
+        egress_allowlist: адреса });
+      адрес.set("contract", д.id); history.replaceState(null, "", "?" + адрес.toString());
+      $("termsOut").className = "verdict"; $("termsOut").textContent = "";
+      показать_договор(д);
+    } catch (беда) {
+      сказать("termsOut", "Договор не составлен", беда.список, false);
+    } finally { b.disabled = false; }
+  });
+
+  // ── договор ────────────────────────────────────────────────────────────
+  var СОСТОЯНИЕ = {
+    proposed: ["ждёт подписей", ""], withdrawn: ["отозван", "no"]
+  };
+
+  function показать_договор(д) {
+    ["packStep", "caseStep", "termsStep"].forEach(function (id) { $(id).hidden = true; });
+    var шаг = $("contractStep"); шаг.hidden = false;
+    var тело = $("contractBody"); тело.textContent = "";
+
+    var с = узел("p", "state");
+    if (д.state === "signed") с.appendChild(флаг(д.in_force ? "в силе" : "остановлен", д.in_force ? "yes" : "no"));
+    else с.appendChild(флаг(СОСТОЯНИЕ[д.state][0], СОСТОЯНИЕ[д.state][1]));
+    var пак = д.pack || {};
+    с.appendChild(document.createTextNode((пак.title || пак.name || "") + " — " + пак.namespace + "/" + пак.name + "@" + пак.version));
+    тело.appendChild(с);
+    if (д.not_in_force_reason) тело.appendChild(узел("p", null, д.not_in_force_reason));
+    if (д.state === "withdrawn" && д.withdraw_note) тело.appendChild(узел("p", null, "Причина отзыва: " + д.withdraw_note));
+
+    var доля = д.budget_credits ? Math.min(100, Math.round(100 * д.spent_credits / д.budget_credits)) : 0;
+    var шкала = узел("div", "meter"); шкала.setAttribute("role", "img");
+    шкала.setAttribute("aria-label", "Потрачено " + доля + "% предела");
+    var полоса = узел("i"); полоса.style.width = доля + "%"; шкала.appendChild(полоса);
+    тело.appendChild(узел("p", "fine", "Потрачено " + кредитов(д.spent_credits) + " из " + кредитов(д.budget_credits) + " (" + рублей(д.budget_credits) + ")"));
+    тело.appendChild(шкала);
+
+    тело.appendChild(узел("p", "fine", "Подписывают:"));
+    var ul = узел("ul", "signers");
+    (д.signers || []).forEach(function (п) {
+      var li = узел("li");
+      li.appendChild(флаг(п.signed ? "подписал" : "не подписал", п.signed ? "yes" : ""));
+      li.appendChild(document.createTextNode(п.principal_id === я.pid ? п.name + " (вы)" : п.name));
+      ul.appendChild(li);
+    });
+    тело.appendChild(ul);
+
+    var текст = узел("div", "contract", д.text);
+    текст.tabIndex = 0; текст.setAttribute("aria-label", "Текст договора");
+    тело.appendChild(текст);
+    тело.appendChild(узел("p", "fine", "Отпечаток текста и условий: " + д.terms_hash + (д.hash_ok && д.chain_ok ? " — сверен" : " — НЕ СХОДИТСЯ, не подписывайте")));
+
+    var out = узел("div", "verdict"); out.id = "contractOut"; out.setAttribute("role", "status");
+
+    if (д.you_must_sign && д.hash_ok && д.chain_ok) {
+      var bar = узел("div", "bar");
+      var b = узел("button", "btn", "Подписать этот текст"); b.type = "button";
+      b.addEventListener("click", async function () {
+        b.disabled = true;
+        try {
+          var новый = await зов("POST", "/registry/contracts/" + encodeURIComponent(д.id) + "/sign",
+                                { terms_hash: д.terms_hash });
+          показать_договор(новый);
+          if (новый.state !== "signed") {
+            сказать("msg", "Подпись поставлена",
+                    ["Ждём подписей остальных участников. Им пришло уведомление."], true);
+          } else {
+            // Перевод дела на пак — отдельный шаг после подписи: служба дел
+            // может и отказать (у дела уже своё направление). Говорим, что вышло.
+            var перевод = новый.case_routing || {};
+            var строки = ["Подписали все — пак включён в этом деле."];
+            if (перевод.moved) строки.push("Дело переведено на направление пака: план дела и агент пака на месте.");
+            else if (перевод.reason) строки.push("Дело на направление пака не переведено: " + перевод.reason + ".");
+            сказать("msg", "Договор вступил в силу", строки, true);
+            var m = $("msg");
+            var p = узел("p");
+            var a = узел("a", null, "Открыть дело");
+            a.href = "/rabochaya/#/case/" + encodeURIComponent(новый.case_id);
+            p.appendChild(a); m.appendChild(p);
+          }
+        } catch (беда) {
+          сказать("contractOut", "Подпись не поставлена", беда.список, false);
+          b.disabled = false;
+        }
+      });
+      bar.appendChild(b); тело.appendChild(bar);
+    }
+
+    if (д.state === "proposed" && !д.you_must_sign) {
+      var ссылка = location.origin + location.pathname + "?contract=" + encodeURIComponent(д.id);
+      тело.appendChild(узел("p", "fine", "Ссылка для остальных подписантов: " + ссылка));
+    }
+    if (д.state === "proposed") {
+      // КАЖДОМУ, кто видит неподписанный договор, а не только подписавшим:
+      // писать в дело может и тот, кто ещё не подписал. Первое же сообщение
+      // в деле без направления поставит его на штатное направление, и пак на
+      // него потом не встанет — площадка чужое дело не переводит.
+      тело.appendChild(узел("p", "fine", "Пока договор не подписан всеми, не пишите в само дело: первое сообщение закрепит за делом другое направление, и пак на него уже не встанет."));
+    }
+
+    if (д.state !== "withdrawn") {
+      var ф = document.createElement("form"); ф.noValidate = true;
+      var l = узел("label", null, "Отозвать договор — пак в деле остановится для всех"); l.htmlFor = "wnote";
+      var i = document.createElement("input"); i.id = "wnote"; i.maxLength = 500; i.placeholder = "почему отзываете";
+      var bar2 = узел("div", "bar"); var b2 = узел("button", "btn ghost", "Отозвать"); b2.type = "submit";
+      bar2.appendChild(b2); ф.appendChild(l); ф.appendChild(i); ф.appendChild(bar2);
+      ф.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        if (i.value.trim().length < 3) { сказать("contractOut", "Назовите причину", ["Хотя бы три знака: запись об отзыве остаётся."], false); return; }
+        b2.disabled = true;
+        try {
+          var новый = await зов("POST", "/registry/contracts/" + encodeURIComponent(д.id) + "/withdraw",
+                                { note: i.value.trim() });
+          показать_договор(новый);
+          сказать("msg", "Договор отозван", ["Пак в этом деле остановлен."], true);
+        } catch (беда) {
+          сказать("contractOut", "Не отозван", беда.список, false);
+          b2.disabled = false;
+        }
+      });
+      тело.appendChild(ф);
+    }
+    тело.appendChild(out);
+  }
+
+  // ── вход ───────────────────────────────────────────────────────────────
+  async function начать() {
+    try { я.токен = localStorage.getItem(KEY) || ""; } catch (e) { я.токен = ""; }
+    if (!я.токен) {
+      var m = $("msg"); m.className = "verdict no msg"; m.textContent = "";
+      m.appendChild(узел("h4", null, "Войдите в ФиксАР"));
+      var p = узел("p", null, "Договор заключается от вашего имени. ");
+      var a = узел("a", null, "Войти"); a.href = "/vhod/";
+      p.appendChild(a); m.appendChild(p);
+      return;
+    }
+    try {
+      var кто = await зов("GET", "/entry/whoami");
+      я.pid = (кто && кто.principal_id) || "";
+      if (!я.pid) throw Object.assign(new Error("нет"), { status: 401, список: ["Сессия не узнана."] });
+    } catch (беда) {
+      сказать("msg", беда.status === 401 ? "Вход кончился — войдите заново" : "Не узнали, кто вы",
+              беда.status === 401 ? [] : беда.список, false);
+      return;
+    }
+    $("steps").hidden = false;
+
+    var номер = адрес.get("contract");
+    if (номер) {
+      try {
+        показать_договор(await зов("GET", "/registry/contracts/" + encodeURIComponent(я.pid) + "/" + encodeURIComponent(номер)));
+      } catch (беда) {
+        // Пустые шаги пака и дела под отказом читались бы как «заполните» —
+        // а человек пришёл по ссылке подписать, не составлять.
+        $("steps").hidden = true;
+        сказать("msg", "Договор не открылся", беда.список, false);
+      }
+      return;
+    }
+    try { await пак(адрес.get("version") || ""); }
+    catch (беда) { сказать("msg", "Пак не найден", беда.список, false); }
+    await дела();
+    $("budget").dispatchEvent(new Event("input"));
+  }
+
+  начать();
+})();
+</script>
+</body>
+</html>
