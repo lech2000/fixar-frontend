@@ -281,10 +281,29 @@
     .btn-out:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
     .auth-toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:90; max-width:min(92vw,420px);
       padding:12px 16px; border:1px solid var(--line); border-radius:12px; background:var(--panel-2); box-shadow:0 12px 30px rgba(0,0,0,.4); font-size:13px }
+
+    /* ── Реальные дела (Фаза 2): права, видимость, журнал, приглашение ── */
+    .rtag{ font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid rgba(98,230,242,.35); color:var(--cyan); background:rgba(98,230,242,.08); margin:2px 5px 0 0; display:inline-block }
+    .stag{ font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid rgba(255,200,106,.35); color:var(--amber); background:rgba(255,200,106,.08); margin:2px 5px 0 0; display:inline-block }
+    .see-edit{ margin-top:8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#081e27 }
+    .see-edit .chk{ display:inline-flex; align-items:center; gap:6px; margin:4px 12px 4px 0; font-size:13px }
+    .ev{ padding:9px 12px; border-left:2px solid var(--line); margin:0 0 8px 2px }
+    .ev.agent{ border-left-color:var(--green) } .ev.system{ border-left-color:var(--muted) } .ev.principal{ border-left-color:var(--cyan) }
+    .ev .eh{ font-size:12px; color:var(--muted) } .ev .eh b{ color:var(--text) }
+    .ev .badge{ font-size:10px; padding:1px 7px; border-radius:999px; background:rgba(108,228,151,.15); color:var(--green); margin-left:6px }
+    .ev .et{ margin-top:2px; font-size:14px }
+    .invite-box{ margin-top:12px; padding:12px 14px; border:1px dashed var(--cyan); border-radius:12px; background:#081e27; font-size:13px }
+    .invite-box code{ display:block; margin-top:8px; padding:8px 10px; border-radius:8px; background:#06161d; color:var(--cyan); word-break:break-all; font-size:12px }
+    .invite-box .cta-row{ margin-top:10px }
+    .rc-hint{ color:var(--muted); font-size:12px; margin:8px 0 }
+    .rc-note{ margin:8px 0 0; padding:10px 12px; border:1px solid rgba(255,200,106,.3); border-radius:12px; background:rgba(255,200,106,.06); color:var(--amber); font-size:13px }
+    .rc-strip{ margin:0 0 14px; padding:14px 16px; border:1px solid var(--line); border-radius:16px; background:linear-gradient(160deg,var(--panel),var(--panel-2)) }
+    .rc-strip h3{ margin:0 0 8px; font-size:14px } .rc-strip .rc-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line-soft); cursor:pointer }
+    .rc-strip .rc-row:first-of-type{ border-top:0 } .rc-strip .rc-row b{ font-size:14px } .rc-strip .rc-row .when{ margin-left:auto }
   </style>
 </head>
 <body>
-  <div class="pv-badge" aria-hidden="true">предпросмотр v2 · демо-данные</div>
+  <div class="pv-badge" id="pvbadge" aria-hidden="true">предпросмотр v2 · демо-данные</div>
   <div class="app">
     <aside class="side" id="side" aria-label="Архитектура ФиксАР">
       <div class="brand"><span class="brand-mark" aria-hidden="true">✱</span><b>ФиксАР</b><span>v2 · IA</span></div>
@@ -907,6 +926,8 @@
     if(av) av.textContent=meInitials(); if(nm) nm.textContent=meName();
     if(typeof renderSwitch==="function") renderSwitch();
     if(typeof renderFoot==="function") renderFoot();
+    const badge=document.getElementById("pvbadge"); if(badge) badge.textContent = hasSession()?"предпросмотр v2 · ваши данные":"предпросмотр v2 · демо-данные";
+    if(typeof loadRealCases==="function" && hasSession()){ loadRealCases(true).then(()=>{ if(typeof refreshCurrentView==="function") refreshCurrentView(); }); }
   }
 
   /* ── Лист входа: реальные кнопки от /auth/providers, реальный /auth/start ── */
@@ -1107,17 +1128,21 @@
         '<div class="ch"><p class="eyebrow">'+esc(currentSpace)+'</p><h2>'+esc(b.name)+'</h2></div>'+
         '<div class="cb">'+body+'</div></article>';
     }).join("");
-    return '<div class="dash">'+cards+'</div>';
+    return (realMode()?realDashStrip():'')+'<div class="dash">'+cards+'</div>';
   }
 
   function isListNode(node){ return node.children.length>=3 && node.children.some(c=>/^Все |^Активные$|Завершённые|Черновики|Опубликованные|^Новые$|^Мои /.test(c.name)); }
   function statusNorm(s){ if(/заверш|закрыт|опубликов/i.test(s)) return "Завершено"; if(/^нов|обращ|черновик|иде[яю]/i.test(s)) return "Новое"; if(/ждёт|ожида|подпис|наблюд|взросл|модерац|тестиров/i.test(s)) return "Ожидает человека"; return "В работе"; }
   const LIST_FILTERS = [ {n:"Все",f:()=>true},{n:"Мои",f:s=>s!=="Завершено"},{n:"Требуют меня",f:s=>s==="Ожидает человека"},{n:"Агенты работают",f:s=>s==="В работе"},{n:"Завершённые",f:s=>s==="Завершено"} ];
-  function listItemsFor(node){ const d=SPACE_DATA[currentSpace]||{}; const raw=(d.projects && /проект|пак/i.test(node.name))?d.projects:(d.cases||[]); return raw.map(it=>({title:it[0],status:statusNorm(it[1]),meta:it[2],seed:it[3]})); }
+  function listItemsFor(node){
+    if(realMode()) return realCasesForSpace(currentSpace).map(c=>({title:c.title||"Без названия",status:statusNorm(RU_STATE[c.state]||"в работе"),meta:caseMeta(c),id:c.id,real:true}));
+    const d=SPACE_DATA[currentSpace]||{}; const raw=(d.projects && /проект|пак/i.test(node.name))?d.projects:(d.cases||[]); return raw.map(it=>({title:it[0],status:statusNorm(it[1]),meta:it[2],seed:it[3]})); }
   function listRowsHtml(node){
     const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
-    const shown = listItemsFor(node).filter(it=>cur.f(it.status));
-    return shown.length ? shown.map(it=>'<button class="lrow" data-open="1" data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'" data-seed="'+attr(it.seed||"")+'"><span><h4>'+esc(it.title)+'</h4><p>'+esc(it.meta||"")+'</p></span>'+statusChip(it.status)+'<span class="when">открыть →</span></button>').join("")
+    const items = listItemsFor(node);
+    if(realMode() && items.length===0) return emptyState("🗂","Пока нет дел","Создайте настоящее дело — вы станете его владельцем.","Создать дело","data-act=\"create-case\"");
+    const shown = items.filter(it=>cur.f(it.status));
+    return shown.length ? shown.map(it=>'<button class="lrow" data-open="1" '+(it.real?'data-real="1" data-id="'+attr(it.id)+'"':'data-seed="'+attr(it.seed||"")+'"')+' data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'"><span><h4>'+esc(it.title)+'</h4><p>'+esc(it.meta||"")+'</p></span>'+statusChip(it.status)+'<span class="when">открыть →</span></button>').join("")
       : emptyState("🔍","Ничего в этом фильтре","Смените фильтр — или создайте новое дело.","Сбросить фильтр","data-act=\"reset-filter\" data-node=\""+node.id+"\"");
   }
   function applyFilter(nodeId,name){
@@ -1129,7 +1154,7 @@
   }
   window.applyFilter = applyFilter;
   function bindListRows(){
-    vwrap.querySelectorAll('.lrow[data-open]').forEach(r=>r.onclick=()=>openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed));
+    vwrap.querySelectorAll('.lrow[data-open]').forEach(r=>r.onclick=()=>{ if(r.dataset.real){ realTab="Обзор"; location.hash="#case/"+r.dataset.id; } else openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed); });
     const rf=vwrap.querySelector('[data-act="reset-filter"]'); if(rf) rf.onclick=()=>applyFilter(rf.dataset.node,"Все");
   }
   function renderList(node){
@@ -1138,7 +1163,7 @@
     const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
     const chips = LIST_FILTERS.map(x=>{ const cnt=items.filter(it=>x.f(it.status)).length; return '<button class="tab'+(x.n===cur.n?" active":"")+'" data-filter="'+attr(x.n)+'" data-node="'+node.id+'">'+esc(x.n)+'<span class="tcount">'+cnt+'</span></button>'; }).join("");
     return '<div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div>'+
-      (create?'<button class="btn primary create-btn" onclick="go(\''+create.id+'\')">'+esc(create.name)+'</button>':'')+'</div>'+
+      (realMode()?'<button class="btn primary create-btn" data-act="create-case">Создать дело</button>':(create?'<button class="btn primary create-btn" onclick="go(\''+create.id+'\')">'+esc(create.name)+'</button>':''))+'</div>'+
       '<div class="lst" id="lst">'+listRowsHtml(node)+'</div>';
   }
 
@@ -1406,6 +1431,214 @@
     };
   }
 
+  /* ═══ РЕАЛЬНЫЕ ДЕЛА (Фаза 2) ══════════════════════════════════════════════
+     Читаем и пишем настоящий case_service через шлюз. Контракт сверен по
+     исходникам (см. корпус 62). Гость (без токена) остаётся на демо. Пути —
+     строго из белого списка шлюза; идентичность (owner_id/principal_id/…)
+     подставляет шлюз, мы её не шлём. Права участника менять нельзя (нет ручки),
+     показываем как есть; менять можно только may_see (нужно право «решения»). */
+  const RU_STATE={active:"в работе",waiting:"ждёт человека",closed:"завершено",archived:"в архиве"};
+  const RU_SCOPE={"":"—",personal:"Личное",home:"Семья",pro:"Практика"};
+  const RIGHT_RU={read:"чтение",comment:"комментарии",decide:"решения"};
+  const SEE_RU={normal:"обычное",pii:"персональные",medical:"медицина",financial:"финансы",legal:"юридич.",biometric:"биометрия"};
+  const SEE_ALL=["normal","pii","medical","financial","legal","biometric"];
+  const ROLE_RU={owner:"Владелец",spouse:"Супруг(а)",lawyer:"Юрист",client:"Клиент",dealer:"Дилер",doctor:"Врач",agronomist:"Агроном",colleague:"Коллега",observer:"Наблюдатель",assistant:"Помощник"};
+  const ENG_RU={owner:"владелец",paid:"платно",volunteer:"добровольно",partner:"партнёр"};
+  const INVITE_ROLES=["colleague","spouse","observer","lawyer","client","doctor","agronomist"];
+  const SPACE_SCOPE={"Личное":"personal","Семья":"home","Практика":"pro"};
+  const KIND_RU={"case.created":"дело создано","case.updated":"дело обновлено","case.state_changed":"статус изменён","routing.set":"назначен агент","brief.updated":"бриф обновлён","workflow.transitioned":"этап изменён","participant.added":"участник добавлен","participant.removed":"участник удалён","participant.may_see_changed":"доступ участника изменён","subject.added":"объект добавлен","client.set":"клиент задан","scope_set":"область задана","decision.made":"решение принято","action.added":"добавлено действие","action.completed":"действие выполнено","material.added":"добавлен материал","material.extracted":"материал разобран","source.read":"источник прочитан","deal.stage_set":"стадия сделки","option.added":"вариант добавлен","calendar.event.added":"событие в календаре","draft.added":"черновик добавлен","dialog":"сообщение","thread_started":"начато обсуждение","handoff":"передача","owner_transferred":"передано владение","permit.granted":"разрешение выдано","permit.revoked":"разрешение отозвано","patch.proposed":"агент предлагает изменение","patch.applied":"изменение применено","patch.denied":"изменение отклонено","run.created":"запущен агент","run.step.claimed":"шаг взят","run.step.waiting_approval":"шаг ждёт подтверждения","run.step.succeeded":"шаг выполнен","run.step.skipped":"шаг пропущен","run.step.failed":"шаг не удался","run.succeeded":"агент завершил","run.failed":"агент не смог"};
+
+  let REAL={loaded:false,loading:false,cases:[],error:null};
+  let activeReal=null, realTab="Обзор";
+  const REAL_TABS=["Обзор","Журнал","План","Участники","Настройки"];
+  function hasSession(){ return !!authState.token; }
+  function realMode(){ return hasSession() && !!SPACE_SCOPE[currentSpace]; }
+
+  function fmtWhen(iso){ if(!iso) return ""; const d=new Date(iso); if(isNaN(d.getTime())) return ""; const M=["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"]; const now=new Date(); const hh=String(d.getHours()).padStart(2,"0"),mm=String(d.getMinutes()).padStart(2,"0"); return d.toDateString()===now.toDateString()?("сегодня "+hh+":"+mm):(d.getDate()+" "+M[d.getMonth()]+", "+hh+":"+mm); }
+  async function loadRealCases(force){
+    if(!authState.token||!authState.principal){ REAL.cases=[]; REAL.loaded=true; return; }
+    if(REAL.loading) return; if(REAL.loaded && !force) return;
+    REAL.loading=true;
+    try{ const arr=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/cases"); REAL.cases=Array.isArray(arr)?arr:[]; REAL.loaded=true; REAL.error=null; }
+    catch(e){ REAL.error=e; REAL.cases=[]; REAL.loaded=true; }
+    REAL.loading=false;
+  }
+  function realCasesForSpace(space){
+    if(space==="Личное") return REAL.cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
+    if(space==="Семья")  return REAL.cases.filter(c=>(c.scope||"")==="home");
+    if(space==="Практика")return REAL.cases.filter(c=>(c.scope||"")==="pro");
+    return [];
+  }
+  const caseMeta = c => ((c.participants||[]).length)+" уч. · обновлено "+fmtWhen(c.updated_at);
+
+  async function loadAllEvents(id){ let out=[],since=0; for(let i=0;i<20;i++){ const page=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/events?since_seq="+since); if(!Array.isArray(page)||!page.length) break; out=out.concat(page); const mx=page.reduce((m,e)=>Math.max(m,e.seq||0),since); since=mx+1; if(page.length<200) break; } return out; }
+  const evText = ev => { const p=ev.payload||{}; return p.title||p.message||p.text||p.note||p.name||p.step||p.reason||p.summary||""; };
+  function evActor(ev){ if(ev.actor_kind==="agent")return "Агент"; if(ev.actor_kind==="system")return "Система"; if(ev.actor_kind==="worker")return "Служба"; if(ev.actor_kind==="principal"){ const p=(activeReal&&(activeReal.c.participants||[]).find(x=>x.principal_id===ev.actor_id)); return (p&&p.display_name)||(ev.actor_id===authState.principal?"Вы":"Человек"); } return ev.actor_kind||"—"; }
+  function eventLine(ev){ const k=KIND_RU[ev.kind]||ev.kind; const t=evText(ev); const ag=ev.actor_kind==="agent"; return '<div class="ev '+esc(ev.actor_kind||"")+'"><div class="eh"><b>'+esc(evActor(ev))+'</b> · '+esc(k)+(ag?'<span class="badge">агент</span>':'')+' · '+esc(fmtWhen(ev.created_at))+'</div>'+(t?'<div class="et">'+esc(t)+'</div>':'')+'</div>'; }
+  function ownerName(){ const c=activeReal.c; const o=(c.participants||[]).find(p=>p.role==="owner"); if(o&&o.display_name)return o.display_name; return c.owner_id===authState.principal?"Вы":"—"; }
+
+  function routeCase(id){
+    if (CASE_SEEDS[id] || CASES[id] || /^gen-/.test(id)){ if(!CASES[id]&&CASE_SEEDS[id])CASES[id]=cloneCase(CASE_SEEDS[id]); if(CASES[id]){ activeReal=null; activeCaseId=id; caseTab="Обзор"; renderCase(); } return; }
+    if (hasSession()){ activeCaseId=null; renderRealCase(id); return; }
+    go(kidOf(SPACE_NODES[currentSpace],"Главная"));
+  }
+  async function renderRealCase(id){
+    vwrap.innerHTML=skeletonCase(); vwrap.parentElement.scrollTop=0;
+    try{
+      const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
+      const events=await loadAllEvents(id);
+      const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
+      activeReal={ c, events, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      if(location.hash!=="#case/"+id) location.hash="#case/"+id;
+      drawRealCase();
+    }catch(e){
+      vwrap.innerHTML=errorBox(e.status===410?"Это дело удалено.":(e.status===403?"Нет доступа к этому делу.":(e.message||"Не удалось открыть дело.")),'data-act="rc-retry"');
+      const rb=vwrap.querySelector('[data-act="rc-retry"]'); if(rb) rb.onclick=()=>renderRealCase(id);
+    }
+  }
+  function drawRealCase(){
+    const c=activeReal.c; const sp=SPACE_NODES[currentSpace];
+    vwrap.innerHTML=
+      '<div class="crumbs"><a href="#'+(sp?sp.id:"0")+'">'+esc(currentSpace)+'</a><span class="sep">›</span><span>'+esc(c.title||"Дело")+'</span></div>'+
+      '<p class="eyebrow" style="color:var(--cyan)">Дело · настоящие данные</p>'+
+      '<h1 style="margin:2px 0 0;font-size:28px">'+esc(c.title||"Без названия")+'</h1>'+
+      '<div class="pmeta" style="margin-top:10px">'+statusChip(RU_STATE[c.state]||c.state||"—")+'<span>Владелец: '+esc(ownerName())+'</span><span>Участников: '+((c.participants||[]).length)+'</span>'+(c.needs_word?'<span class="chip warn">нужно ваше слово</span>':'')+'</div>'+
+      '<div class="case-tabs" id="rctabs">'+REAL_TABS.map(t=>'<button class="ct'+(t===realTab?" active":"")+'" data-rtab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
+      '<div id="rcpanel">'+realTabPanel()+'</div>';
+    vwrap.parentElement.scrollTop=0;
+    const tabs=document.getElementById("rctabs"); if(tabs) tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; realTab=b.dataset.rtab; document.getElementById("rcpanel").innerHTML=realTabPanel(); tabs.querySelectorAll(".ct").forEach(x=>x.classList.toggle("active",x.dataset.rtab===realTab)); bindRealPanel(); };
+    bindRealPanel();
+  }
+  function realTabPanel(){
+    const c=activeReal.c, canDecide=activeReal.canDecide, isOwner=activeReal.isOwner;
+    if(realTab==="Обзор"){
+      return '<div class="kv">'+kvRow("Цель",c.goal||"—")+kvRow("Статус",RU_STATE[c.state]||c.state||"—")+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+kvRow("Объектов",String((c.subjects||[]).length))+'</div>'+
+        (c.needs_word?'<div class="rc-note">По этому делу ждут вашего решения — загляните в Журнал.</div>':'')+
+        '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="rc-goto" data-tab="Журнал">Открыть журнал</button><button class="btn" data-act="rc-goto" data-tab="Участники">Участники</button></div>';
+    }
+    if(realTab==="Журнал"){
+      if(!activeReal.events.length) return emptyState("📓","Записей пока нет","Журнал наполнится, когда по делу пойдёт работа.","","");
+      return '<div class="rc-hint">Что происходило по делу — новые записи сверху. Действия агентов помечены.</div>'+activeReal.events.slice().reverse().map(eventLine).join("");
+    }
+    if(realTab==="План"){
+      const steps=c.on_request_steps||[]; let h="";
+      if(c.self_steps) h+='<p class="rc-hint">Автоматических шагов: '+c.self_steps+'</p>';
+      if(steps.length) h+='<div class="section-t">Шаги по запросу</div>'+steps.map(s=>'<div class="task"><span class="tstat todo" aria-hidden="true"></span><div class="tmain"><b>'+esc(s.title||s.step||"Шаг")+'</b><span>по запросу'+(s.min_assurance?' · нужен уровень '+s.min_assurance:'')+'</span></div></div>').join("");
+      const runEv=activeReal.events.filter(e=>/^run\.|^action\.|^patch\./.test(e.kind));
+      if(runEv.length) h+='<div class="section-t">Ход работы</div>'+runEv.slice().reverse().map(eventLine).join("");
+      if(!h) h=emptyState("🧭","План ещё не сложился","Он появится, когда по делу начнётся работа.","","");
+      return h+'<p class="rc-note">Запуск агента и отметки шагов подключаются отдельным шагом проекта. Здесь план и ход работы показаны как есть.</p>';
+    }
+    if(realTab==="Участники"){
+      const rows=(c.participants||[]).map(p=>{
+        const rights=(p.rights&&p.rights.length?p.rights:["read"]).map(r=>'<span class="rtag">'+esc(RIGHT_RU[r]||r)+'</span>').join("");
+        const sees=(p.may_see&&p.may_see.length?p.may_see:["normal"]).map(s=>'<span class="stag">'+esc(SEE_RU[s]||s)+'</span>').join("");
+        const edit=canDecide?'<button class="btn small" data-act="edit-see" data-pid="'+attr(p.principal_id)+'">Изменить доступ</button>':'';
+        return '<div class="prow"><div style="min-width:0"><b>'+esc(p.display_name||"Без имени")+'</b> · '+esc(ROLE_RU[p.role]||p.role||"")+(p.engagement?' · '+esc(ENG_RU[p.engagement]||p.engagement):'')+
+          '<div class="perm-tags" style="margin-top:6px">Права: '+rights+'</div><div class="perm-tags" style="margin-top:4px">Видит: '+sees+'</div></div>'+edit+'</div>';
+      }).join("");
+      let h='<div class="lst">'+rows+'</div>';
+      if(canDecide){
+        h+='<div class="section-t">Пригласить участника</div>'+
+          '<form class="pform" data-act="invite">'+
+          '<div class="pf-row"><label>Роль<select name="role">'+INVITE_ROLES.map(r=>'<option value="'+r+'">'+esc(ROLE_RU[r])+'</option>').join("")+'</select></label>'+
+          '<label>Участие<select name="engagement"><option value="volunteer">добровольно</option><option value="partner">партнёр</option></select></label></div>'+
+          '<fieldset class="perms"><legend>Права</legend>'+["read","comment","decide"].map(r=>'<label class="chk"><input type="checkbox" name="right" value="'+r+'"'+(r==="read"?' checked disabled':'')+'> '+esc(RIGHT_RU[r])+'</label>').join("")+'</fieldset>'+
+          '<fieldset class="perms"><legend>Что сможет видеть</legend>'+SEE_ALL.map(s=>'<label class="chk"><input type="checkbox" name="see" value="'+s+'"'+(s==="normal"?' checked disabled':'')+'> '+esc(SEE_RU[s])+'</label>').join("")+'</fieldset>'+
+          '<label style="display:block">Заметка (необязательно)<input name="note" placeholder="Зачем зову" style="width:100%"></label>'+
+          '<div class="cta-row"><button class="btn primary" type="submit">Создать приглашение</button></div><div id="inviteout"></div></form>';
+      } else {
+        h+='<p class="rc-note">Приглашать участников и менять доступ может тот, у кого есть право «решения».</p>';
+      }
+      return h;
+    }
+    if(realTab==="Настройки"){
+      let s="";
+      if(isOwner){ s+='<div class="section-t">Пространство</div><form class="pform" data-act="scope"><fieldset class="perms">'+[["personal","Личное"],["home","Семья"],["pro","Практика"]].map(x=>'<label class="chk"><input type="radio" name="scope" value="'+x[0]+'"'+((c.scope||"")===x[0]?' checked':'')+'> '+esc(x[1])+'</label>').join("")+'</fieldset><div class="cta-row"><button class="btn" type="submit">Сменить пространство</button></div></form>'; }
+      if(canDecide){ s+='<div class="section-t">Статус дела</div><div class="cta-row">'+
+        (c.state!=="closed"?'<button class="btn" data-act="state" data-state="closed">Завершить</button>':'')+
+        (c.state!=="archived"?'<button class="btn" data-act="state" data-state="archived">Архивировать</button>':'')+
+        ((c.state==="closed"||c.state==="archived")?'<button class="btn primary" data-act="state" data-state="active">Возобновить</button>':'')+'</div>'; }
+      if(!isOwner && !canDecide) s='<p class="rc-note">Изменять дело может владелец или участник с правом «решения».</p>';
+      return s+'<p class="rc-hint">Название и цель редактируются в рабочей версии ФиксАР.</p>';
+    }
+    return "";
+  }
+  function bindRealPanel(){
+    const panel=document.getElementById("rcpanel"); if(!panel) return;
+    panel.onclick=async e=>{
+      const cp=e.target.closest("[data-copy]"); if(cp){ try{ await navigator.clipboard.writeText(cp.dataset.copy); toast("Ссылка скопирована"); }catch(_){ toast("Скопируйте ссылку вручную"); } return; }
+      const b=e.target.closest("[data-act]"); if(!b) return; const c=activeReal.c; const act=b.dataset.act;
+      if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
+      if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
+      if(act==="state"){ const st=b.dataset.state; const nm={closed:"завершить",archived:"архивировать",active:"возобновить"}; if(!window.confirm("Точно "+(nm[st]||st)+" это дело?")) return; b.disabled=true;
+        try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/state",{target_state:st,reason:"смена статуса из предпросмотра v2"}); REAL.loaded=false; renderRealCase(c.id); }
+        catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось изменить статус."); } return; }
+    };
+    panel.onsubmit=async e=>{
+      const f=e.target.closest("form[data-act]"); if(!f) return; e.preventDefault(); const c=activeReal.c;
+      if(f.dataset.act==="invite"){
+        const rights=[...f.querySelectorAll('input[name="right"]:checked')].map(x=>x.value); if(rights.indexOf("read")<0) rights.unshift("read");
+        const may_see=[...f.querySelectorAll('input[name="see"]:checked')].map(x=>x.value); if(may_see.indexOf("normal")<0) may_see.unshift("normal");
+        const btn=f.querySelector('button[type="submit"]'); btn.disabled=true; btn.textContent="Создаю…";
+        try{ const r=await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/invites",{role:f.role.value,rights,may_see,engagement:f.engagement.value,note:(f.note.value||"").trim()});
+          const link=location.origin+"/?invite="+encodeURIComponent(r.code);
+          document.getElementById("inviteout").innerHTML='<div class="invite-box">Приглашение готово ('+esc(String(r.expires_in_hours||72))+' ч). Отправьте ссылку человеку:<code>'+esc(link)+'</code><div class="cta-row"><button class="btn small" type="button" data-copy="'+attr(link)+'">Копировать</button></div></div>';
+          btn.disabled=false; btn.textContent="Создать приглашение";
+        }catch(err){ btn.disabled=false; btn.textContent="Создать приглашение"; toast((err&&err.message)||"Не удалось создать приглашение."); }
+        return;
+      }
+      if(f.dataset.act==="scope"){ const v=f.querySelector('input[name="scope"]:checked'); if(!v) return; const btn=f.querySelector("button"); btn.disabled=true;
+        try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:v.value}); REAL.loaded=false; renderRealCase(c.id); }
+        catch(err){ btn.disabled=false; toast((err&&err.message)||"Не удалось сменить пространство."); } return; }
+    };
+  }
+  function openMaySee(caseId,pid){
+    const p=(activeReal.c.participants||[]).find(x=>x.principal_id===pid)||{}; const cur=p.may_see||["normal"];
+    modalOpen("Что видит участник",
+      '<p class="lead">'+esc(p.display_name||"Участник")+' · '+esc(ROLE_RU[p.role]||p.role||"")+'. Отметьте категории данных, к которым есть доступ. «Обычное» доступно всегда.</p>'+
+      '<form id="msf"><fieldset class="perms">'+SEE_ALL.map(s=>'<label class="chk"><input type="checkbox" name="see" value="'+s+'"'+((cur.indexOf(s)>=0||s==="normal")?' checked':'')+(s==="normal"?' disabled':'')+'> '+esc(SEE_RU[s])+'</label>').join("")+'</fieldset><div class="cta-row" style="margin-top:14px"><button class="btn primary" type="submit">Сохранить</button></div></form>',
+      body=>{ const f=body.querySelector("#msf"); f.onsubmit=async e=>{ e.preventDefault(); const see=[...f.querySelectorAll('input[name="see"]:checked')].map(x=>x.value); if(see.indexOf("normal")<0) see.unshift("normal"); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Сохраняю…";
+        try{ await authFetch("PUT","/cases/"+encodeURIComponent(caseId)+"/participants/"+encodeURIComponent(pid)+"/may-see",{may_see:see}); modalClose(); REAL.loaded=false; renderRealCase(caseId); }
+        catch(err){ btn.disabled=false; btn.textContent="Сохранить"; toast((err&&err.message)||"Не удалось изменить доступ."); } }; });
+  }
+  function openCreateCase(){
+    modalOpen("Новое семейное дело",
+      '<p class="lead">Создаётся настоящее дело в вашем аккаунте ФиксАР (пространство «Семья»). Вы — владелец; участников можно пригласить позже.</p>'+
+      '<form id="ccf" class="pform"><label style="display:block">Название<input name="title" required placeholder="Напр., Переезд семьи" style="width:100%"></label>'+
+      '<label style="display:block;margin-top:10px">Цель (необязательно)<input name="goal" placeholder="Чего хотим достичь" style="width:100%"></label>'+
+      '<div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело</button></div></form>',
+      body=>{ const f=body.querySelector("#ccf"); f.title.focus(); f.onsubmit=async e=>{ e.preventDefault(); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Создаю…";
+        try{ await ensureSession(); const c=await authFetch("POST","/cases",{title:(f.title.value||"").trim()||"Семейное дело",goal:(f.goal.value||"").trim()});
+          try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:"home"}); }catch(_){}
+          REAL.loaded=false; modalClose(); realTab="Обзор"; currentSpace="Семья"; rebuildNav(); renderRealCase(c.id);
+        }catch(err){ btn.disabled=false; btn.textContent="Создать дело"; toast((err&&err.message)||"Не удалось создать дело."); } }; });
+  }
+  window.openCreateCase=openCreateCase;
+  function realDashStrip(){
+    const rc=realCasesForSpace(currentSpace); const top=rc.slice(0,4);
+    const rows=top.length?top.map(c=>'<div class="rc-row" data-id="'+attr(c.id)+'"><b>'+esc(c.title||"Без названия")+'</b>'+statusChip(statusNorm(RU_STATE[c.state]||"в работе"))+'<span class="when">'+esc(fmtWhen(c.updated_at))+'</span></div>').join("")
+      :'<p class="rc-hint">У вас пока нет настоящих дел в этом пространстве.</p>';
+    return '<div class="rc-strip"><h3>Ваши дела · '+esc(currentSpace)+' ('+rc.length+')</h3>'+rows+'<div class="cta-row" style="margin-top:10px"><button class="btn primary" data-act="create-case">Создать дело</button></div></div>';
+  }
+  function refreshCurrentView(){ const h=location.hash.slice(1); if(h.indexOf("case/")===0||h==="demo/states") return; const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; const node=byId[id]; if(node) render(node); }
+
+  /* ── Общий модальный лист (для создания дела и правки доступа) ── */
+  let _m=null,_mReturn=null;
+  function modalOpen(title,html,onMount){
+    if(!_m){ _m=document.createElement("div"); _m.className="sheet"; _m.setAttribute("role","dialog"); _m.setAttribute("aria-modal","true");
+      _m.innerHTML='<div class="sheet-bg" data-mx></div><div class="sheet-card"><button class="sheet-x" data-mx aria-label="Закрыть">✕</button><div id="mbody"></div></div>';
+      document.body.appendChild(_m);
+      _m.addEventListener("click",e=>{ if(e.target.hasAttribute("data-mx")) modalClose(); });
+      document.addEventListener("keydown",e=>{ if(_m.classList.contains("open")&&e.key==="Escape"){ e.preventDefault(); modalClose(); } });
+    }
+    _mReturn=document.activeElement;
+    _m.querySelector("#mbody").innerHTML='<h2>'+esc(title)+'</h2>'+html;
+    _m.classList.add("open"); document.body.style.overflow="hidden";
+    if(onMount) onMount(_m.querySelector("#mbody"));
+  }
+  function modalClose(){ if(_m){ _m.classList.remove("open"); document.body.style.overflow=""; } if(_mReturn&&_mReturn.focus) _mReturn.focus(); }
+
   // ===== P5: состояния — загрузка / пусто / ошибка =====
   let loadToken = 0;
   function loadThen(build, skel, after, ms){
@@ -1471,7 +1704,7 @@
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
     if (h==="demo/states"){ renderStatesDemo(); return; }
-    if (h.indexOf("case/")===0){ const cid=h.slice(5); if(!CASES[cid] && CASE_SEEDS[cid]) CASES[cid]=cloneCase(CASE_SEEDS[cid]); if(CASES[cid]){ activeCaseId=cid; caseTab="Обзор"; renderCase(); } return; }
+    if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
     const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; listFilter = t>=0 ? decodeURIComponent(h.slice(t+1)) : "Все";
     if (byId[id]) go(id);
   });
@@ -1516,12 +1749,14 @@
   // Аккаунт: триггеры (мобильная шапка + подвал навигации) и загрузка личности
   document.getElementById("acct").addEventListener("click", openAccount);
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
+  // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
+  document.getElementById("view").addEventListener("click", e=>{ const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
   bootIdentity();
 
   // старт
   (function(){ const h=location.hash.slice(1);
     if (h==="demo/states"){ renderStatesDemo(); return; }
-    if (h.indexOf("case/")===0){ const cid=h.slice(5); if(!CASES[cid] && CASE_SEEDS[cid]) CASES[cid]=cloneCase(CASE_SEEDS[cid]); if(CASES[cid]){ activeCaseId=cid; renderCase(); return; } }
+    if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
     const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; if(t>=0) listFilter=decodeURIComponent(h.slice(t+1));
     go(byId[id] ? id : kidOf(SPACE_NODES[currentSpace],"Главная"));
   })();
