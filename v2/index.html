@@ -1641,6 +1641,12 @@
     return '<div class="rc-strip"><h3>Пригласить второго родителя</h3><p class="rc-hint">Он сможет читать и обсуждать материалы, назначать семейные действия и подтверждать предложения Домашкина. Персональные сведения открываются явно, без передачи вашего логина от дневника.</p>'+
       '<form class="pform" data-act="invite-parent"><label class="chk"><input name="pii" type="checkbox" checked> Разрешить видеть персональные сведения в этом деле</label><label class="chk"><input name="decide" type="checkbox" checked> Разрешить подтверждать действия Домашкина</label><p class="rc-hint">После принятия ссылки уведомления о новых сообщениях дела включены по умолчанию. Доступ к самому электронному дневнику остаётся отдельным и проверяется сервером.</p><div class="cta-row"><button class="btn primary" type="submit">Создать семейное приглашение</button></div><div data-parent-invite-out></div></form></div>';
   }
+  function domashkinFamilyThreadPanel(){
+    if(!isDomashkinCase(activeReal.c))return "";
+    const messages=(activeReal.familyThread&&activeReal.familyThread.messages)||[];
+    const rows=messages.slice(-20).map(message=>{ const participant=(activeReal.c.participants||[]).find(p=>p.principal_id===message.author_id); const author=message.author_id===authState.principal?"Вы":((participant&&participant.display_name)||"Второй родитель"); return '<div class="ev principal"><div class="eh"><b>'+esc(author)+'</b> · '+esc(fmtWhen(message.at))+'</div><div class="et">'+esc(message.retracted?"Сообщение отозвано":message.body)+'</div></div>'; }).join("");
+    return '<div class="section-t">Семейное обсуждение</div>'+(rows||'<p class="rc-hint">Напишите первое сообщение. После принятия приглашения второй родитель получит следующие сообщения через свои подключённые каналы.</p>')+'<form class="composer" data-act="family-message" style="max-width:720px;display:flex;flex-direction:column"><textarea name="message" required rows="2" maxlength="8000" style="resize:vertical;min-height:58px" placeholder="Например, я заберу после изменённого шестого урока"></textarea><button class="btn primary" type="submit">Отправить семье</button></form>';
+  }
   function realLinksPanel(){
     const plans={}, links=[];
     (activeReal.events||[]).forEach(ev=>{ const p=eventPayload(ev); if(ev.kind==="plan.branches") (p.branches||[]).forEach((branch,index)=>plans[index]=branch); if(ev.kind==="branch.started"&&p.child_case_id) links.push({id:String(p.child_case_id),title:String(p.title||((plans[p.ord]||{}).title)||"Рабочее дело")}); });
@@ -1664,7 +1670,7 @@
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const events=await loadAllEvents(id);
-      let runs=[],patches=[],drafts=[],children=[],childrenError="",personalAgents=[],materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
+      let runs=[],patches=[],drafts=[],children=[],childrenError="",personalAgents=[],familyThread=null,materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
       try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
@@ -1674,8 +1680,11 @@
         try{ const cc=await authFetch("GET","/homework/children"); children=Array.isArray(cc)?cc:[]; }catch(error){ childrenError=(error&&error.message)||"Не удалось проверить профили детей."; }
         try{ const aa=await authFetch("GET","/personal-agents"); personalAgents=Array.isArray(aa&&aa.agents)?aa.agents:[]; }catch(_){}
       }
+      if(isDomashkinCase(c)){
+        try{ const list=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/threads?limit=100"); const ref=(list.threads||[]).find(thread=>thread.case_id===id); if(ref){ familyThread=await authFetch("GET","/threads/"+encodeURIComponent(ref.thread_id)); const messages=familyThread.messages||[]; if(messages.length)try{ await authFetch("POST","/threads/"+encodeURIComponent(ref.thread_id)+"/read",{seq:messages[messages.length-1].seq}); }catch(_){} } }catch(_){}
+      }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, drafts, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, school:null, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, drafts, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       if(isDomashkinCase(c)&&activeReal.isOwner&&children.length) await loadSchoolDay(children[0].id,dateInputValue(new Date(Date.now()+24*60*60*1000)),false);
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
@@ -1743,6 +1752,7 @@
         (c.needs_word?'<div class="rc-note">По этому делу ждут вашего решения — загляните в Журнал.</div>':'')+
         domashkinParentInvitePanel()+
         domashkinBookPanel()+
+        domashkinFamilyThreadPanel()+
         '<div class="section-t">Написать агенту</div><form class="composer" data-act="ask-agent" style="max-width:620px;display:flex;flex-direction:column"><textarea name="message" required rows="1" style="resize:vertical;min-height:42px" placeholder="Напр., изменилось школьное расписание — что нужно сделать?" aria-label="Сообщение агенту"></textarea><button class="btn primary" type="submit">Отправить</button></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble" style="margin-top:12px">'+esc(activeReal.reply)+'</div>':'')+'</div>'+
         '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="rc-goto" data-tab="Журнал">Открыть журнал</button><button class="btn" data-act="rc-goto" data-tab="Участники">Участники</button></div>';
     }
@@ -1861,11 +1871,17 @@
         const rights=["read","comment"]; if(f.decide.checked) rights.push("decide");
         const may_see=["normal"]; if(f.pii.checked) may_see.push("pii");
         const btn=f.querySelector('button[type="submit"]'), out=f.querySelector("[data-parent-invite-out]"); btn.disabled=true; btn.textContent="Создаю…";
-        try{ const r=await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/invites",{role:"spouse",rights,may_see,engagement:"partner",note:"Семейное дело Домашкина: школа, задания и согласованные действия"});
+        try{ await authFetch("POST","/threads",{case_id:c.id,subject:"Семейное обсуждение Домашкина"}); const r=await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/invites",{role:"spouse",rights,may_see,engagement:"partner",note:"Семейное дело Домашкина: школа, задания и согласованные действия"});
           const link=location.origin+"/?invite="+encodeURIComponent(r.code);
           out.innerHTML='<div class="invite-box">Ссылка действует '+esc(String(r.expires_in_hours||72))+' ч. Второй родитель увидит условия до принятия.<code>'+esc(link)+'</code><div class="cta-row"><button class="btn small" type="button" data-copy="'+attr(link)+'">Копировать</button><button class="btn small" type="button" data-share-link="'+attr(link)+'">Отправить</button></div><p class="rc-hint">После принятия новые сообщения дела будут приходить через подключённые им каналы уведомлений.</p></div>';
           btn.disabled=false; btn.textContent="Создать новую ссылку";
         }catch(err){ btn.disabled=false; btn.textContent="Создать семейное приглашение"; toast((err&&err.message)||"Не удалось создать приглашение."); }
+        return;
+      }
+      if(f.dataset.act==="family-message"){
+        const btn=f.querySelector('button[type="submit"]'), message=(f.message.value||"").trim(); if(!message)return; btn.disabled=true; btn.classList.add("thinking"); btn.textContent="Отправляю…";
+        try{ let threadId=activeReal.familyThread&&activeReal.familyThread.thread_id; if(!threadId){ const started=await authFetch("POST","/threads",{case_id:c.id,subject:"Семейное обсуждение Домашкина"}); threadId=started.thread_id; } const sent=await authFetch("POST","/threads/"+encodeURIComponent(threadId)+"/messages",{body:message,sensitivity:"normal"}); toast(sent.notified?"Сообщение отправлено, семья получит уведомление.":"Сообщение сохранено. Второй родитель ещё не подключён или отключил уведомления."); await renderRealCase(c.id); }
+        catch(err){ btn.disabled=false; btn.classList.remove("thinking"); btn.textContent="Отправить семье"; toast((err&&err.message)||"Не удалось отправить сообщение семье."); }
         return;
       }
       if(f.dataset.act==="school-day"){ await loadSchoolDay(f.child.value,f.date.value); return; }
