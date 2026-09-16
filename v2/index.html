@@ -1444,6 +1444,7 @@
   const SEE_ALL=["normal","pii","medical","financial","legal","biometric"];
   const ROLE_RU={owner:"Владелец",spouse:"Супруг(а)",lawyer:"Юрист",client:"Клиент",dealer:"Дилер",doctor:"Врач",agronomist:"Агроном",colleague:"Коллега",observer:"Наблюдатель",assistant:"Помощник"};
   const ENG_RU={owner:"владелец",paid:"платно",volunteer:"добровольно",partner:"партнёр"};
+  const RUN_STATUS={queued:"в очереди",running:"выполняется",waiting_approval:"ждёт подтверждения",succeeded:"завершён",failed:"не удался",cancelled:"отменён",pending:"ожидает",claimed:"взят",skipped:"пропущен"};
   const INVITE_ROLES=["colleague","spouse","observer","lawyer","client","doctor","agronomist"];
   const SPACE_SCOPE={"Личное":"personal","Семья":"home","Практика":"pro"};
   const KIND_RU={"case.created":"дело создано","case.updated":"дело обновлено","case.state_changed":"статус изменён","routing.set":"назначен агент","brief.updated":"бриф обновлён","workflow.transitioned":"этап изменён","participant.added":"участник добавлен","participant.removed":"участник удалён","participant.may_see_changed":"доступ участника изменён","subject.added":"объект добавлен","client.set":"клиент задан","scope_set":"область задана","decision.made":"решение принято","action.added":"добавлено действие","action.completed":"действие выполнено","material.added":"добавлен материал","material.extracted":"материал разобран","source.read":"источник прочитан","deal.stage_set":"стадия сделки","option.added":"вариант добавлен","calendar.event.added":"событие в календаре","draft.added":"черновик добавлен","dialog":"сообщение","thread_started":"начато обсуждение","handoff":"передача","owner_transferred":"передано владение","permit.granted":"разрешение выдано","permit.revoked":"разрешение отозвано","patch.proposed":"агент предлагает изменение","patch.applied":"изменение применено","patch.denied":"изменение отклонено","run.created":"запущен агент","run.step.claimed":"шаг взят","run.step.waiting_approval":"шаг ждёт подтверждения","run.step.succeeded":"шаг выполнен","run.step.skipped":"шаг пропущен","run.step.failed":"шаг не удался","run.succeeded":"агент завершил","run.failed":"агент не смог"};
@@ -1487,8 +1488,11 @@
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const events=await loadAllEvents(id);
+      let runs=[],patches=[];
+      try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
+      try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
     }catch(e){
@@ -1509,6 +1513,14 @@
     const tabs=document.getElementById("rctabs"); if(tabs) tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; realTab=b.dataset.rtab; document.getElementById("rcpanel").innerHTML=realTabPanel(); tabs.querySelectorAll(".ct").forEach(x=>x.classList.toggle("active",x.dataset.rtab===realTab)); bindRealPanel(); };
     bindRealPanel();
   }
+  function runCard(run){
+    const steps=(run.steps||[]).map(s=>'<div class="task"><span class="tstat '+(s.status==="succeeded"?"done":(s.status==="failed"?"blocked":"todo"))+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(s.step||"Шаг")+'</b><span>'+esc(RUN_STATUS[s.status]||s.status||"ожидает")+(s.error?' · '+esc(s.error):'')+'</span></div></div>').join("");
+    return '<div class="rc-strip"><h3>Агент · '+esc(RUN_STATUS[run.status]||run.status||"—")+'</h3>'+(run.current_step?'<p class="rc-hint">Сейчас: '+esc(run.current_step)+'</p>':'')+(steps||'<p class="rc-hint">Шаги ещё готовятся.</p>')+(run.last_error?'<p class="rc-note">'+esc(run.last_error)+'</p>':'')+'</div>';
+  }
+  function patchCard(p){
+    const detail=p.value===undefined?"Содержание доступно только решающему участнику.":JSON.stringify(p.value);
+    return '<div class="rc-strip"><h3>Нужно подтверждение · '+esc(p.op||"изменение")+'</h3><p class="rc-hint">Агент предлагает изменение уровня '+esc(String(p.risk||"—"))+'.</p><p class="rc-hint">'+esc(detail)+'</p>'+ (activeReal.canDecide?'<div class="cta-row"><button class="btn primary" data-act="patch-approve" data-patch="'+attr(p.id)+'">Подтвердить</button><button class="btn" data-act="patch-reject" data-patch="'+attr(p.id)+'">Отклонить</button></div>':'<p class="rc-note">Подтвердить или отклонить может участник с правом «решения».</p>')+'</div>';
+  }
   function realTabPanel(){
     const c=activeReal.c, canDecide=activeReal.canDecide, isOwner=activeReal.isOwner;
     if(realTab==="Обзор"){
@@ -1527,7 +1539,15 @@
       const runEv=activeReal.events.filter(e=>/^run\.|^action\.|^patch\./.test(e.kind));
       if(runEv.length) h+='<div class="section-t">Ход работы</div>'+runEv.slice().reverse().map(eventLine).join("");
       if(!h) h=emptyState("🧭","План ещё не сложился","Он появится, когда по делу начнётся работа.","","");
-      return h+'<p class="rc-note">Запуск агента и отметки шагов подключаются отдельным шагом проекта. Здесь план и ход работы показаны как есть.</p>';
+      const runs=(activeReal.runs||[]).map(runCard).join("");
+      const patches=(activeReal.patches||[]).map(patchCard).join("");
+      let command='';
+      if(canDecide && authState.assurance>=2){
+        command='<div class="section-t">Поручить агенту</div><p class="rc-hint">Агент возьмёт только закреплённый план этого дела. Существенные изменения всё равно появятся отдельным запросом на подтверждение.</p><button class="btn primary" data-act="grant-agent">Дать поручение агенту</button>';
+      } else if(canDecide) {
+        command='<div class="rc-note">Чтобы поручить работу агенту, подтвердите вход до уровня 2. Это защищает запуск, который может тратить кредиты и создавать предложения изменений.</div>';
+      }
+      return h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command;
     }
     if(realTab==="Участники"){
       const rows=(c.participants||[]).map(p=>{
@@ -1571,6 +1591,8 @@
       const b=e.target.closest("[data-act]"); if(!b) return; const c=activeReal.c; const act=b.dataset.act;
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
+      if(act==="grant-agent"){ openRunConsent(c.id); return; }
+      if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
       if(act==="state"){ const st=b.dataset.state; const nm={closed:"завершить",archived:"архивировать",active:"возобновить"}; if(!window.confirm("Точно "+(nm[st]||st)+" это дело?")) return; b.disabled=true;
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/state",{target_state:st,reason:"смена статуса из предпросмотра v2"}); REAL.loaded=false; renderRealCase(c.id); }
         catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось изменить статус."); } return; }
@@ -1601,6 +1623,22 @@
       body=>{ const f=body.querySelector("#msf"); f.onsubmit=async e=>{ e.preventDefault(); const see=[...f.querySelectorAll('input[name="see"]:checked')].map(x=>x.value); if(see.indexOf("normal")<0) see.unshift("normal"); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Сохраняю…";
         try{ await authFetch("PUT","/cases/"+encodeURIComponent(caseId)+"/participants/"+encodeURIComponent(pid)+"/may-see",{may_see:see}); modalClose(); REAL.loaded=false; renderRealCase(caseId); }
         catch(err){ btn.disabled=false; btn.textContent="Сохранить"; toast((err&&err.message)||"Не удалось изменить доступ."); } }; });
+  }
+  function openRunConsent(caseId){
+    modalOpen("Поручить работу агенту",
+      '<p class="lead">Агент получит поручение только в рамках закреплённого плана дела. Он не получит доступ к данным вне прав дела, а изменения повышенного риска остановятся на вашем подтверждении.</p>'+
+      '<form id="runf" class="pform"><label style="display:block">Что сделать<input name="query" required placeholder="Напр., проверить изменение школьного расписания" style="width:100%"></label><label class="chk" style="margin-top:12px"><input name="consent" type="checkbox" required> Я понимаю, что поручение запускает работу агента и может расходовать кредиты.</label><div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Поручить</button></div></form>',
+      body=>{ const f=body.querySelector("#runf"); f.query.focus(); f.onsubmit=async e=>{ e.preventDefault(); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Поручаю…";
+        try{ await authFetch("POST","/cases/"+encodeURIComponent(caseId)+"/runs",{idempotency_key:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),kind:"case.execute",input:{query:(f.query.value||"").trim()}}); modalClose(); renderRealCase(caseId); }
+        catch(err){ btn.disabled=false; btn.textContent="Поручить"; toast((err&&err.message)||"Не удалось поручить работу агенту."); } }; });
+  }
+  function openPatchDecision(patchId,approve){
+    const action=approve?"подтвердить":"отклонить";
+    modalOpen((approve?"Подтвердить":"Отклонить")+" изменение",
+      '<p class="lead">Вы собираетесь '+action+' предложение агента. Это решение будет записано в журнал дела; после подтверждения связанный шаг продолжится или завершится.</p><div class="cta-row"><button class="btn '+(approve?"primary":"")+'" id="patchdecision">'+(approve?"Подтвердить изменение":"Отклонить изменение")+'</button></div>',
+      body=>{ const btn=body.querySelector("#patchdecision"); btn.focus(); btn.onclick=async()=>{ btn.disabled=true; btn.textContent="Сохраняю…";
+        try{ await authFetch("POST","/patches/"+encodeURIComponent(patchId)+(approve?"/approve":"/reject"),{}); const caseId=activeReal.c.id; modalClose(); renderRealCase(caseId); }
+        catch(err){ btn.disabled=false; btn.textContent=approve?"Подтвердить изменение":"Отклонить изменение"; toast((err&&err.message)||"Не удалось сохранить решение."); } }; });
   }
   function openCreateCase(){
     modalOpen("Новое семейное дело",
