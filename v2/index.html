@@ -301,7 +301,7 @@
     .rc-strip h3{ margin:0 0 8px; font-size:14px } .rc-strip .rc-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line-soft); cursor:pointer }
     .rc-strip .rc-row:first-of-type{ border-top:0 } .rc-strip .rc-row b{ font-size:14px } .rc-strip .rc-row .when{ margin-left:auto }
     .agent-dock{ position:fixed; right:18px; bottom:18px; z-index:70; width:min(420px,calc(100vw - 36px)); padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--panel-2); box-shadow:0 16px 44px rgba(0,0,0,.38) }
-    .agent-dock form{ display:flex; gap:8px } .agent-dock input{ min-width:0; flex:1 } .agent-dock .agent-answer{ margin:9px 2px 0; font-size:13px; color:var(--muted) }
+    .agent-dock form{ display:flex; flex-direction:column; gap:8px } .agent-dock textarea{ min-width:0; width:100%; min-height:42px; max-height:180px; resize:none; box-sizing:border-box } .agent-dock button{ align-self:flex-end } .agent-dock .agent-answer{ margin:9px 2px 0; font-size:13px; color:var(--muted) }
   </style>
 </head>
 <body>
@@ -327,7 +327,7 @@
   </div>
   <div class="scrim" id="scrim" hidden></div>
   <section class="agent-dock" aria-label="Агент дела">
-    <form id="agentdockform"><input name="message" aria-label="Сообщение агенту" placeholder="Спросите агента о текущем деле"><button class="btn primary" type="submit">Отправить</button></form>
+    <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите агента о текущем деле"></textarea><button class="btn primary" type="submit">Отправить</button></form>
     <div class="agent-answer" id="agentdockanswer">Откройте настоящее дело — агент сможет вести его и показывать следующий экран.</div>
   </section>
 
@@ -1139,7 +1139,8 @@
         '<div class="ch"><p class="eyebrow">'+esc(currentSpace)+'</p><h2>'+esc(b.name)+'</h2></div>'+
         '<div class="cb">'+body+'</div></article>';
     }).join("");
-    return (realMode()?realDashStrip():'')+'<div class="dash">'+cards+'</div>';
+    const settings=(currentSpace==="Личное"||currentSpace==="Семья")?'<div class="rc-strip"><h3>Помощники</h3><p class="rc-hint">Настройки открываются в проверенных экранах прежней версии: согласия, каналы и детские данные остаются там под серверной проверкой прав.</p><div class="cta-row"><a class="btn" href="/fixclo/">Настроить Фиксарика</a><a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>':'';
+    return (realMode()?realDashStrip():'')+settings+'<div class="dash">'+cards+'</div>';
   }
 
   function isListNode(node){ return node.children.length>=3 && node.children.some(c=>/^Все |^Активные$|Завершённые|Черновики|Опубликованные|^Новые$|^Мои /.test(c.name)); }
@@ -1537,7 +1538,7 @@
     if(realTab==="Обзор"){
       return '<div class="kv">'+kvRow("Цель",c.goal||"—")+kvRow("Статус",RU_STATE[c.state]||c.state||"—")+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+kvRow("Объектов",String((c.subjects||[]).length))+'</div>'+
         (c.needs_word?'<div class="rc-note">По этому делу ждут вашего решения — загляните в Журнал.</div>':'')+
-        '<div class="section-t">Написать агенту</div><form class="composer" data-act="ask-agent" style="max-width:620px"><input name="message" required placeholder="Напр., изменилось школьное расписание — что нужно сделать?" aria-label="Сообщение агенту"><button type="submit" aria-label="Отправить">→</button></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble" style="margin-top:12px">'+esc(activeReal.reply)+'</div>':'')+'</div>'+
+        '<div class="section-t">Написать агенту</div><form class="composer" data-act="ask-agent" style="max-width:620px;display:flex;flex-direction:column"><textarea name="message" required rows="1" style="resize:vertical;min-height:42px" placeholder="Напр., изменилось школьное расписание — что нужно сделать?" aria-label="Сообщение агенту"></textarea><button class="btn primary" type="submit">Отправить</button></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble" style="margin-top:12px">'+esc(activeReal.reply)+'</div>':'')+'</div>'+
         '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="rc-goto" data-tab="Журнал">Открыть журнал</button><button class="btn" data-act="rc-goto" data-tab="Участники">Участники</button></div>';
     }
     if(realTab==="Журнал"){
@@ -1823,6 +1824,7 @@
   document.getElementById("view").addEventListener("click", e=>{ const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
   document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; button.disabled=true; answer.textContent="Агент думает…";
     try{ answer.textContent=await askCaseAgent(message); input.value=""; }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; } });
+  document.addEventListener("input",e=>{ const field=e.target.closest("textarea[name=message]"); if(!field)return; field.style.height="auto"; field.style.height=Math.min(field.scrollHeight,180)+"px"; });
   bootIdentity();
 
   // старт
