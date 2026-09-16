@@ -102,6 +102,39 @@
     .stub .tag{ display:inline-block; padding:4px 10px; border-radius:999px; background:rgba(98,230,242,.1); color:var(--cyan); font-size:12px; margin-bottom:10px }
     .stub p{ color:var(--muted); margin:6px 0 0 }
 
+    /* Богатые экраны */
+    .btn{ display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:13px;border:1px solid var(--line);
+      background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;font-weight:650;font-size:14px;transition:border-color var(--dur),filter var(--dur) }
+    .btn:hover{ border-color:var(--cyan) } .btn.primary{ background:var(--cyan);color:#06202a;border-color:transparent } .btn.primary:hover{ filter:brightness(1.06) }
+    .hero{ padding:8px 0 2px } .hero h1{ margin:6px 0 0;font-size:clamp(30px,4.4vw,52px);letter-spacing:-.035em;line-height:1.03 }
+    .hero .lead{ margin:14px 0 0;max-width:62ch;color:var(--muted);font-size:17px }
+    .cta-row{ display:flex;flex-wrap:wrap;gap:10px;margin-top:22px }
+    .section-t{ margin:32px 0 12px;font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted) }
+    .feat{ display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px }
+    .feat .card{ min-height:auto;padding:16px;cursor:pointer } .feat .card:hover{ border-color:rgba(98,230,242,.4) }
+    .tabs{ display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 14px }
+    .tab{ padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted);cursor:pointer;font-size:13px }
+    .tab.active{ background:rgba(98,230,242,.14);border-color:rgba(98,230,242,.4);color:var(--text) }
+    .pgrid{ display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px }
+    .pcard{ display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:var(--radius);text-align:left;
+      background:linear-gradient(155deg,var(--panel),var(--panel-2));cursor:pointer;transition:border-color var(--dur),transform var(--dur);width:100% }
+    .pcard:hover{ transform:translateY(-2px);border-color:rgba(98,230,242,.4) }
+    .pico{ width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:rgba(98,230,242,.1);color:var(--cyan);font-weight:800 }
+    .pcard h3{ margin:0;font-size:15.5px } .pcard p{ margin:0;color:var(--muted);font-size:12.5px;flex:1 }
+    .pmeta{ display:flex;flex-wrap:wrap;gap:12px;align-items:center;color:var(--muted);font-size:12px } .stars{ color:var(--amber) }
+    .pack-head{ display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:6px }
+    .pack-head .big{ width:64px;height:64px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(145deg,#78ef9f,#1ab25a);font-size:28px;font-weight:800;color:#06202a }
+    .perm{ display:flex;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line-soft);color:var(--muted);font-size:13.5px }
+    .perm b{ color:var(--text);font-weight:600 } .perm .dot{ width:8px;height:8px;border-radius:50%;background:var(--amber);flex:0 0 8px }
+    .stepper{ display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 6px }
+    .step{ display:flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:13px }
+    .step .num{ width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:12px;font-weight:700 }
+    .step.active{ border-color:rgba(98,230,242,.45);color:var(--text) } .step.active .num{ background:var(--cyan);color:#06202a }
+    .step.done .num{ background:var(--green);color:#06202a }
+    .case-tabs{ display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 14px;border-bottom:1px solid var(--line-soft);padding-bottom:10px }
+    .ct{ padding:7px 12px;border-radius:10px;background:none;border:0;color:var(--muted);cursor:pointer;font-size:13.5px }
+    .ct.active{ background:rgba(98,230,242,.12);color:var(--text) }
+
     /* Мобилка */
     .menu-btn{ display:none }
     .scrim{ display:none }
@@ -716,7 +749,121 @@
       '<div class="metric"><b>0</b><span>просрочек</span></div></div>';
   }
 
+  // --- Богатые экраны (нативные button/<a>, фокус, без эмодзи-иконок) ---
+  const crumbsBlock = node => '<div class="crumbs">'+crumbHtml(node)+'</div>';
+  function findNode(name){ let f=null; (function w(n){ if(f)return; if(n.name===name)f=n; n.children.forEach(w); })(ROOT); return f; }
+  const PACK_NODE = findNode("Страница пака") || ROOT;
+  const kidId = (node,name)=>{ const k=node.children.find(c=>c.name===name); return k?k.id:node.id; };
+  const sibId = (node,name)=>{ const s=(node.parent?node.parent.children:[]).find(c=>c.name===name); return s?s.id:node.id; };
+
+  const PACKS = [
+    {n:"Семейные дела", d:"Дела, документы и сроки всей семьи", c:"Семья", r:"4.8", i:"12k", ic:"С"},
+    {n:"Школьный дневник", d:"Оценки, домашка и изменения расписания", c:"Семья", r:"4.7", i:"9k", ic:"Ш"},
+    {n:"Личные документы", d:"Сроки действия паспортов и справок", c:"Личное", r:"4.6", i:"7k", ic:"Д"},
+    {n:"Автомобиль", d:"Страховка, ТО, штрафы и расходы", c:"Личное", r:"4.5", i:"6k", ic:"А"},
+    {n:"Приём клиентов", d:"Обращения, квалификация и дела практики", c:"Практика", r:"4.9", i:"3k", ic:"П"},
+    {n:"Конструктор паков", d:"Декларативная сборка агентов и инструментов", c:"Разработка", r:"4.8", i:"2k", ic:"К"}
+  ];
+  function packCard(p){ return '<button class="pcard" onclick="go(\''+PACK_NODE.id+'\')">'+
+    '<div style="display:flex;gap:10px;align-items:center"><span class="pico">'+esc(p.ic)+'</span><span class="chip">'+esc(p.c)+'</span></div>'+
+    '<h3>'+esc(p.n)+'</h3><p>'+esc(p.d)+'</p>'+
+    '<div class="pmeta"><span class="stars">★ '+p.r+'</span><span>'+p.i+' установок</span></div></button>'; }
+
+  function screenLanding(node){
+    const feat = node.children.filter(k=>/возможности|как работают|безопасность/i.test(k.name));
+    return crumbsBlock(node)+
+      '<div class="hero"><p class="eyebrow" style="color:var(--cyan)">ФиксАР · платформа долгоживущих агентов</p>'+
+      '<h1>Ваши дела ведут агенты — а вы держите границы</h1>'+
+      '<p class="lead">ФиксАР собирает личные, семейные и рабочие дела в одном месте: показывает важное, доводит до результата и не даёт пропустить срок. Каждый агент действует в понятных рамках и спрашивает разрешение.</p>'+
+      '<div class="cta-row"><button class="btn primary" onclick="go(\''+kidId(node,"Начать работу")+'\')">Начать работу</button>'+
+      '<button class="btn" onclick="go(\''+sibId(node,"Каталог решений")+'\')">Каталог решений</button></div></div>'+
+      '<div class="section-t">Что умеет</div><div class="feat">'+
+      feat.map(f=>'<article class="card" onclick="go(\''+f.id+'\')"><div class="ch"><h2 style="font-size:16px">'+esc(f.name)+'</h2></div>'+
+        '<div class="cb">Раздел витрины — открыть подробности.</div></article>').join('')+'</div>'+
+      '<div class="section-t">Популярные паки</div><div class="pgrid">'+PACKS.slice(0,4).map(packCard).join('')+'</div>'+
+      '<div class="section-t">&nbsp;</div><div class="stub"><span class="tag">Начать</span><p>Возьмите готовый пак или создайте пространство под свои дела — агенты подхватят.</p>'+
+      '<div class="cta-row"><button class="btn primary" onclick="go(\''+kidId(node,"Начать работу")+'\')">Начать работу</button></div></div>';
+  }
+
+  function screenCatalog(node){
+    return crumbsBlock(node)+
+      '<div class="vhead"><p class="eyebrow">Публичная часть</p><h1>Каталог решений</h1><p>Готовые паки под ваши дела — установите и начните.</p></div>'+
+      '<div class="tabs" data-cat>'+node.children.map((c,i)=>'<button class="tab'+(i===0?' active':'')+'" data-tab="'+esc(c.name)+'">'+esc(c.name)+'</button>').join('')+'</div>'+
+      '<div class="pgrid" id="pgrid">'+PACKS.map(packCard).join('')+'</div>';
+  }
+
+  function screenPack(node){
+    const perms=["Чтение календаря","Доступ к документам дела","Отправка уведомлений","Подключение электронного дневника"];
+    const conns=["Telegram","Электронный дневник","Google Календарь","Почта"];
+    let b = crumbsBlock(node)+
+      '<div class="pack-head"><span class="big">С</span><div style="flex:1;min-width:220px">'+
+      '<p class="eyebrow">Публичная часть · Страница пака</p><h1 style="font-size:30px;margin:2px 0 6px">Семейные дела</h1>'+
+      '<div class="pmeta"><span class="stars">★ 4.8</span><span>1 248 отзывов</span><span>12k установок</span><span>Разработчик: lech2000</span></div></div>'+
+      '<button class="btn primary" style="align-self:center">Установить</button></div>';
+    node.children.forEach(s=>{ b+='<div class="section-t">'+esc(s.name)+'</div>';
+      if(/разрешен/i.test(s.name)) b+='<div>'+perms.map(x=>'<div class="perm"><span class="dot"></span><b>'+esc(x)+'</b><span>по запросу</span></div>').join('')+'</div>';
+      else if(/коннектор/i.test(s.name)) b+='<div class="tabs">'+conns.map(x=>'<span class="tab">'+esc(x)+'</span>').join('')+'</div>';
+      else if(/отзыв|рейтинг/i.test(s.name)) b+='<div class="feat">'+
+        '<article class="card"><div class="cb"><b style="color:var(--text)">Мария</b> · ★★★★★<br>Наконец все семейные дела в одном месте.</div></article>'+
+        '<article class="card"><div class="cb"><b style="color:var(--text)">Игорь</b> · ★★★★☆<br>Дневник и сроки — удобно, агент напоминает.</div></article></div>';
+      else if(/разработчик/i.test(s.name)) b+='<div class="perm"><span class="pico" style="width:32px;height:32px">L</span><b>lech2000</b><span>6 паков · ★ 4.8</span></div>';
+      else b+='<p style="color:var(--muted);max-width:72ch;margin:4px 0 0">Раздел «'+esc(s.name)+'»: содержательный текст пака в дизайне v2.</p>';
+    });
+    return b;
+  }
+
+  function screenOnboarding(node){
+    const steps=node.children;
+    const spaces=[["Личное","Ваши дела — только для вас"],["Семья","Общее пространство семьи"],["Практика","Клиенты и ведение дел"],["Разработка","Проекты, паки и агенты"]];
+    return crumbsBlock(node)+
+      '<div class="vhead"><p class="eyebrow">Первый запуск</p><h1>Добро пожаловать в ФиксАР</h1><p>Несколько шагов — и агенты начнут вести ваши дела.</p></div>'+
+      '<div class="stepper">'+steps.map((s,i)=>'<div class="step'+(i===2?' active':(i<2?' done':''))+'"><span class="num">'+(i<2?'✓':(i+1))+'</span>'+esc(s.name)+'</div>').join('')+'</div>'+
+      '<div class="section-t">Шаг 3 · Выбор пространства</div>'+
+      '<div class="tiles">'+spaces.map(s=>'<button class="tile"><span><h3>'+s[0]+'</h3><p>'+s[1]+'</p></span><span class="chev" aria-hidden="true">→</span></button>').join('')+'</div>'+
+      '<div class="cta-row" style="margin-top:22px"><button class="btn">Назад</button><button class="btn primary">Далее</button></div>';
+  }
+
+  function casePanel(tab){
+    if(/диалог/i.test(tab.name)) return '<div class="bubble" style="max-width:560px">Нашёл ваш прошлый полис — срок до 24 сентября. Подготовить заявку на продление и запросить счёт у страховой?</div>'+
+      '<div class="composer" style="max-width:560px"><input placeholder="Сообщение по делу…" aria-label="Сообщение"><button aria-label="Отправить">→</button></div>';
+    if(!tab.children.length) return '<div class="stub"><span class="tag">Вкладка дела</span><p>«'+esc(tab.name)+'» — содержимое в дизайне v2.</p></div>';
+    return '<div class="tiles">'+tab.children.map(c=>'<button class="tile" onclick="go(\''+c.id+'\')"><span><h3>'+esc(c.name)+'</h3><p>раздел дела</p></span><span class="chev" aria-hidden="true">→</span></button>').join('')+'</div>';
+  }
+  function screenCase(node){
+    const tabs=node.children;
+    return crumbsBlock(node)+
+      '<p class="eyebrow" style="color:var(--cyan)">Дело · пример</p>'+
+      '<h1 style="margin:2px 0 0;font-size:30px">Продлить страховку автомобиля</h1>'+
+      '<div class="pmeta" style="margin-top:10px"><span class="chip">активно</span><span>Следующий шаг: подтвердить полис · сегодня</span><span>Прогресс 60%</span></div>'+
+      '<div class="case-tabs" data-casetabs>'+tabs.map((t,i)=>'<button class="ct'+(i===0?' active':'')+'" data-ctab="'+t.id+'">'+esc(t.name)+'</button>').join('')+'</div>'+
+      '<div id="casepanel">'+casePanel(tabs[0])+'</div>';
+  }
+
+  const SCREENS = {
+    "Публичная часть / Главная": screenLanding,
+    "Публичная часть / Каталог решений": screenCatalog,
+    "Публичная часть / Страница пака": screenPack,
+    "Первый запуск": screenOnboarding,
+    "Внутренняя структура любого дела": screenCase
+  };
+  const pathKey = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
+
+  function bindScreen(){
+    const cat=vwrap.querySelector('.tabs[data-cat]');
+    if(cat) cat.addEventListener('click',e=>{ const btn=e.target.closest('.tab'); if(!btn)return;
+      cat.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
+      const map={'Для личных дел':'Личное','Для семьи':'Семья','Для практики':'Практика','Для разработчиков':'Разработка'};
+      const f=map[btn.dataset.tab]; const list=f?PACKS.filter(p=>p.c===f):PACKS;
+      vwrap.querySelector('#pgrid').innerHTML = list.length?list.map(packCard).join(''):'<p style="color:var(--muted)">Пока пусто — можно запросить пак.</p>'; });
+    const ct=vwrap.querySelector('[data-casetabs]');
+    if(ct) ct.addEventListener('click',e=>{ const btn=e.target.closest('.ct'); if(!btn)return;
+      ct.querySelectorAll('.ct').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
+      vwrap.querySelector('#casepanel').innerHTML = casePanel(byId[btn.dataset.ctab]); });
+  }
+
   function render(node){
+    const custom = SCREENS[pathKey(node)];
+    if (custom){ vwrap.innerHTML = custom(node); vwrap.parentElement.scrollTop = 0; bindScreen(); return; }
     let inner = '<div class="crumbs">'+crumbHtml(node)+'</div>'+
       '<div class="vhead"><p class="eyebrow">'+esc(eyebrowFor(node))+'</p><h1>'+esc(node.name)+'</h1>';
     if (node.children.length){
