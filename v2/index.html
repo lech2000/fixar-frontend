@@ -1583,11 +1583,13 @@
 
   let REAL={loaded:false,loading:false,cases:[],error:null};
   let activeReal=null, realTab="Обзор";
-  const REAL_TABS=["Обзор","Журнал","План","Документы","Участники","Настройки"];
+  const REAL_TABS=["Обзор","Журнал","План","Сроки","Документы","Участники","Настройки"];
   function hasSession(){ return !!authState.token; }
   function realMode(){ return hasSession() && !!SPACE_SCOPE[currentSpace]; }
 
   function fmtWhen(iso){ if(!iso) return ""; const d=new Date(iso); if(isNaN(d.getTime())) return ""; const M=["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"]; const now=new Date(); const hh=String(d.getHours()).padStart(2,"0"),mm=String(d.getMinutes()).padStart(2,"0"); return d.toDateString()===now.toDateString()?("сегодня "+hh+":"+mm):(d.getDate()+" "+M[d.getMonth()]+", "+hh+":"+mm); }
+  function calendarInputValue(date){ const d=date||new Date(Date.now()+24*60*60*1000), pad=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes()); }
+  const CALENDAR_KIND={deadline:"Срок",hearing:"Заседание",meeting:"Встреча",reminder:"Напоминание"};
   async function loadRealCases(force){
     if(!authState.token||!authState.principal){ REAL.cases=[]; REAL.loaded=true; return; }
     if(REAL.loading) return; if(REAL.loaded && !force) return;
@@ -1653,14 +1655,15 @@
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const events=await loadAllEvents(id);
-      let runs=[],patches=[],drafts=[],children=[],materials=[],hiddenMaterials=0;
+      let runs=[],patches=[],drafts=[],children=[],materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
       try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
       try{ const mm=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/materials"); materials=Array.isArray(mm&&mm.materials)?mm.materials:[]; hiddenMaterials=Number(mm&&mm.hidden)||0; }catch(_){}
+      if(c.owner_id===authState.principal){ try{ const ce=await authFetch("GET","/calendar?case_id="+encodeURIComponent(id)+"&days=730&past=365"); calendarEvents=Array.isArray(ce&&ce.events)?ce.events:[]; }catch(error){ calendarError=(error&&error.message)||"Календарь временно недоступен."; } }
       if(isDomashkinCase(c)){ try{ const cc=await authFetch("GET","/homework/children"); children=Array.isArray(cc)?cc:[]; }catch(_){} }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, drafts, materials, hiddenMaterials, children, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, drafts, materials, hiddenMaterials, calendarEvents, calendarError, children, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
     }catch(e){
@@ -1721,6 +1724,12 @@
       }
       return h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command;
     }
+    if(realTab==="Сроки"){
+      if(!isOwner) return '<div class="rc-note">Календарь пока принадлежит владельцу дела. Участникам показываются только сроки, записанные в журнале; общий календарь дела ещё подключается.</div>';
+      if(activeReal.calendarError) return errorBox(activeReal.calendarError,'data-act="calendar-retry"');
+      const rows=(activeReal.calendarEvents||[]).map(event=>'<div class="prow"><div><b>'+esc(event.title||"Событие")+'</b><div class="rc-hint">'+esc(CALENDAR_KIND[event.kind]||event.kind||"Событие")+' · '+esc(fmtWhen(event.at))+(event.until?' — '+esc(fmtWhen(event.until)):'')+(event.place?' · '+esc(event.place):'')+'</div>'+(event.note?'<div class="rc-hint">'+esc(event.note)+'</div>':'')+'</div><button class="btn small" data-act="calendar-cancel" data-id="'+attr(event.id)+'">Отменить</button></div>').join("")||'<p class="rc-hint">Событий и сроков по делу пока нет.</p>';
+      return '<div class="section-t">Календарь дела</div><div class="lst">'+rows+'</div><div class="section-t">Добавить срок или встречу</div><form class="pform" data-act="calendar-create"><div class="pf-row"><label>Вид<select name="kind"><option value="deadline">Срок</option><option value="hearing">Заседание</option><option value="meeting">Встреча</option><option value="reminder">Напоминание</option></select></label><label>Когда<input name="at" type="datetime-local" required value="'+attr(calendarInputValue())+'"></label></div><label style="display:block;margin-top:10px">Название<input name="title" required maxlength="500" placeholder="Например, подтвердить новое расписание" style="width:100%"></label><div class="pf-row" style="margin-top:10px"><label>Окончание (необязательно)<input name="until" type="datetime-local"></label><label>Место (необязательно)<input name="place" maxlength="500" placeholder="Школа, суд, онлайн"></label></div><label style="display:block;margin-top:10px">Заметка<textarea name="note" rows="3" maxlength="4000" style="width:100%;resize:vertical" placeholder="Что подготовить или проверить"></textarea></label><p class="rc-hint">Для срока напоминание по умолчанию ставится за три дня, для заседания — за сутки.</p><div class="cta-row"><button class="btn primary" type="submit">Добавить в календарь</button></div></form>';
+    }
     if(realTab==="Документы"){
       const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<div class="cta-row"><button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>'+(d.shared?'<button class="btn small" data-act="draft-external" data-id="'+attr(d.id)+'">Ссылка</button>':'')+'</div>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
       const materialRows=(activeReal.materials||[]).map(m=>{ const mayChange=canDecide||m.uploaded_by===authState.principal; return '<div class="prow"><div><b>'+esc(m.title||"Материал")+'</b><div class="rc-hint">'+esc(m.mime||m.kind||"файл")+' · '+esc(SEE_RU[m.sensitivity]||m.sensitivity||"обычное")+' · '+esc(m.extract_status==="ok"?"разобран":(m.extract_status==="failed"?"не разобран":"обработка ожидается"))+'</div></div><div class="cta-row"><button class="btn small" data-act="material-download" data-id="'+attr(m.id)+'" data-name="'+attr(m.title||"material")+'">Скачать</button>'+(mayChange?'<button class="btn small" data-act="material-sensitivity" data-id="'+attr(m.id)+'" data-sensitivity="'+attr(m.sensitivity||"normal")+'">Доступ</button>':'')+'</div></div>'; }).join("")||'<p class="rc-hint">Приложенных файлов пока нет.</p>';
@@ -1753,13 +1762,14 @@
     }
     if(realTab==="Настройки"){
       let s="";
+      if(canDecide){ s+='<div class="section-t">Название и цель</div><form class="pform" data-act="case-details"><label style="display:block">Название<input name="title" required maxlength="500" value="'+attr(c.title||"")+'" style="width:100%"></label><label style="display:block;margin-top:10px">Цель<textarea name="goal" rows="4" maxlength="4000" style="width:100%;resize:vertical" placeholder="Какой результат должен быть достигнут">'+esc(c.goal||"")+'</textarea></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить реквизиты</button></div></form>'; }
       if(isOwner){ s+='<div class="section-t">Пространство</div><form class="pform" data-act="scope"><fieldset class="perms">'+[["personal","Личное"],["home","Семья"],["pro","Практика"]].map(x=>'<label class="chk"><input type="radio" name="scope" value="'+x[0]+'"'+((c.scope||"")===x[0]?' checked':'')+'> '+esc(x[1])+'</label>').join("")+'</fieldset><div class="cta-row"><button class="btn" type="submit">Сменить пространство</button></div></form>'; }
       if(canDecide){ s+='<div class="section-t">Статус дела</div><div class="cta-row">'+
         (c.state!=="closed"?'<button class="btn" data-act="state" data-state="closed">Завершить</button>':'')+
         (c.state!=="archived"?'<button class="btn" data-act="state" data-state="archived">Архивировать</button>':'')+
         ((c.state==="closed"||c.state==="archived")?'<button class="btn primary" data-act="state" data-state="active">Возобновить</button>':'')+'</div>'; }
       if(!isOwner && !canDecide) s='<p class="rc-note">Изменять дело может владелец или участник с правом «решения».</p>';
-      return s+'<p class="rc-hint">Название и цель редактируются в рабочей версии ФиксАР.</p>';
+      return s;
     }
     return "";
   }
@@ -1780,6 +1790,8 @@
       if(act==="draft-external"){ b.disabled=true; try{ const r=await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/external-share",{}); const link=location.origin+"/document/"+encodeURIComponent(r.token); await navigator.clipboard.writeText(link); toast("Внешняя ссылка скопирована. Просмотр доступен 7 дней; редактирование — после регистрации и приглашения."); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось создать ссылку."); } return; }
       if(act==="material-download"){ b.disabled=true; try{ await authDownload("/cases/"+encodeURIComponent(c.id)+"/materials/"+encodeURIComponent(b.dataset.id)+"/content",b.dataset.name); }catch(err){ toast(err.status===403?"Для скачивания подтвердите вход до уровня 2.":((err&&err.message)||"Не удалось скачать файл.")); }finally{ b.disabled=false; } return; }
       if(act==="material-sensitivity"){ openMaterialSensitivity(c.id,b.dataset.id,b.dataset.sensitivity); return; }
+      if(act==="calendar-retry"){ renderRealCase(c.id); return; }
+      if(act==="calendar-cancel"){ if(!window.confirm("Отменить это событие? Запись останется в истории календаря."))return; b.disabled=true; try{ await authFetch("POST","/calendar/"+encodeURIComponent(b.dataset.id)+"/cancel",{}); realTab="Сроки"; renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось отменить событие."); } return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
@@ -1803,6 +1815,12 @@
       if(f.dataset.act==="scope"){ const v=f.querySelector('input[name="scope"]:checked'); if(!v) return; const btn=f.querySelector("button"); btn.disabled=true;
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:v.value}); REAL.loaded=false; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; toast((err&&err.message)||"Не удалось сменить пространство."); } return; }
+      if(f.dataset.act==="case-details"){ const btn=f.querySelector("button"), title=(f.title.value||"").trim(), goal=(f.goal.value||"").trim(); if(!title)return; btn.disabled=true; btn.textContent="Сохраняю…";
+        try{ await authFetch("PUT","/cases/"+encodeURIComponent(c.id)+"/details",{title,goal,expect_version:c.version}); REAL.loaded=false; realTab="Настройки"; renderRealCase(c.id); }
+        catch(err){ btn.disabled=false; btn.textContent="Сохранить реквизиты"; toast(err.status===409?"Дело изменилось в другом окне. Обновите карточку и повторите.":((err&&err.message)||"Не удалось сохранить реквизиты.")); } return; }
+      if(f.dataset.act==="calendar-create"){ const btn=f.querySelector("button"), at=new Date(f.at.value), until=f.until.value?new Date(f.until.value):null; if(isNaN(at.getTime())){ toast("Укажите дату и время события."); return; } if(until&&isNaN(until.getTime())){ toast("Проверьте время окончания."); return; } btn.disabled=true; btn.textContent="Добавляю…";
+        try{ await authFetch("POST","/calendar",{case_id:c.id,kind:f.kind.value,title:(f.title.value||"").trim(),at:at.toISOString(),until:until?until.toISOString():null,place:(f.place.value||"").trim(),note:(f.note.value||"").trim(),basis:"добавлено владельцем в FixAR v2",source:"human"}); realTab="Сроки"; renderRealCase(c.id); }
+        catch(err){ btn.disabled=false; btn.textContent="Добавить в календарь"; toast((err&&err.message)||"Не удалось добавить событие."); } return; }
       if(f.dataset.act==="draft-create"){ const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Сохраняю…";
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/drafts",{title:(f.title.value||"").trim(),body:(f.body.value||"").trim(),basis:"текст владельца из v2",kind:"document"}); realTab="Документы"; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; btn.textContent="Сохранить версию"; toast((err&&err.message)||"Не удалось сохранить документ."); } return; }
