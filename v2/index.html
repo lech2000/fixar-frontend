@@ -300,6 +300,8 @@
     .rc-strip{ margin:0 0 14px; padding:14px 16px; border:1px solid var(--line); border-radius:16px; background:linear-gradient(160deg,var(--panel),var(--panel-2)) }
     .rc-strip h3{ margin:0 0 8px; font-size:14px } .rc-strip .rc-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line-soft); cursor:pointer }
     .rc-strip .rc-row:first-of-type{ border-top:0 } .rc-strip .rc-row b{ font-size:14px } .rc-strip .rc-row .when{ margin-left:auto }
+    .agent-dock{ position:fixed; right:18px; bottom:18px; z-index:70; width:min(420px,calc(100vw - 36px)); padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--panel-2); box-shadow:0 16px 44px rgba(0,0,0,.38) }
+    .agent-dock form{ display:flex; gap:8px } .agent-dock input{ min-width:0; flex:1 } .agent-dock .agent-answer{ margin:9px 2px 0; font-size:13px; color:var(--muted) }
   </style>
 </head>
 <body>
@@ -324,6 +326,10 @@
     </div>
   </div>
   <div class="scrim" id="scrim" hidden></div>
+  <section class="agent-dock" aria-label="Агент дела">
+    <form id="agentdockform"><input name="message" aria-label="Сообщение агенту" placeholder="Спросите агента о текущем деле"><button class="btn primary" type="submit">Отправить</button></form>
+    <div class="agent-answer" id="agentdockanswer">Откройте настоящее дело — агент сможет вести его и показывать следующий экран.</div>
+  </section>
 
   <script type="text/plain" id="ia">
 ФиксАР
@@ -1623,7 +1629,7 @@
         catch(err){ btn.disabled=false; toast((err&&err.message)||"Не удалось сменить пространство."); } return; }
       if(f.dataset.act==="ask-agent"){
         const input=f.querySelector('input[name="message"]'), btn=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; btn.disabled=true;
-        try{ const r=await authFetch("POST","/dialog",{case_id:c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)}); activeReal.reply=r.reply||"Агент принял сообщение."; input.value=""; drawRealCase(); }
+        try{ await askCaseAgent(message); input.value=""; drawRealCase(); }
         catch(err){ toast((err&&err.message)||"Агент пока не ответил. Повторите позже."); btn.disabled=false; } return;
       }
     };
@@ -1652,6 +1658,19 @@
       body=>{ const btn=body.querySelector("#patchdecision"); btn.focus(); btn.onclick=async()=>{ btn.disabled=true; btn.textContent="Сохраняю…";
         try{ await authFetch("POST","/patches/"+encodeURIComponent(patchId)+(approve?"/approve":"/reject"),{}); const caseId=activeReal.c.id; modalClose(); renderRealCase(caseId); }
         catch(err){ btn.disabled=false; btn.textContent=approve?"Подтвердить изменение":"Отклонить изменение"; toast((err&&err.message)||"Не удалось сохранить решение."); } }; });
+  }
+  function applyAgentAction(action){
+    if(!activeReal||!action||typeof action!=="object") return false;
+    const allowed={open_plan:"План",open_participants:"Участники",open_journal:"Журнал",open_overview:"Обзор"};
+    if(allowed[action.type]){ realTab=allowed[action.type]; drawRealCase(); return true; }
+    if(action.type==="switch_space" && SPACE_NODES[action.space]){ switchSpace(action.space); return true; }
+    if(action.type==="open_case" && typeof action.case_id==="string" && action.case_id===activeReal.c.id){ location.hash="#case/"+action.case_id; return true; }
+    return false;
+  }
+  async function askCaseAgent(message){
+    if(!activeReal) throw new Error("Сначала откройте настоящее дело: агент отвечает в его защищённом контексте.");
+    const r=await authFetch("POST","/dialog",{case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)});
+    activeReal.reply=r.reply||"Агент принял сообщение."; applyAgentAction(r.ui_action); return activeReal.reply;
   }
   function openCreateCase(){
     modalOpen("Новое семейное дело",
@@ -1802,6 +1821,8 @@
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
   document.getElementById("view").addEventListener("click", e=>{ const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
+  document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; button.disabled=true; answer.textContent="Агент думает…";
+    try{ answer.textContent=await askCaseAgent(message); input.value=""; }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; } });
   bootIdentity();
 
   // старт
