@@ -198,6 +198,9 @@
     .book-upload h3{ margin:0 0 4px;font-size:16px }.book-upload p{ margin:0;color:var(--muted);font-size:13px }
     .book-file{ display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border:1px dashed rgba(98,230,242,.4);border-radius:12px;background:rgba(98,230,242,.05);cursor:pointer;color:var(--text) }
     .book-file input{ position:absolute;width:1px;height:1px;opacity:0;pointer-events:none }.book-file-name{ color:var(--muted);font-size:12.5px;overflow-wrap:anywhere }
+    .owner-tools{ margin:0 0 18px;padding:18px;border:1px solid rgba(255,200,106,.35);border-radius:var(--radius);background:linear-gradient(150deg,rgba(255,200,106,.10),rgba(7,27,36,.82)) }
+    .owner-tools .eyebrow{ margin:0;color:var(--amber);font-size:11px;font-weight:850;letter-spacing:.13em;text-transform:uppercase }.owner-tools h2{ margin:4px 0 3px;font-size:20px }.owner-tools p{ margin:0;color:var(--muted) }
+    .owner-tool-grid{ display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px;margin-top:14px }.owner-tool{ min-height:76px;padding:12px 13px;border:1px solid var(--line);border-radius:13px;background:rgba(6,21,29,.6) }.owner-tool:hover{ border-color:var(--amber) }.owner-tool b{ display:block }.owner-tool span{ display:block;margin-top:3px;color:var(--muted);font-size:12px }
     .perms{ border:1px solid var(--line);border-radius:12px;padding:12px 14px } .perms legend{ padding:0 6px;color:var(--muted);font-size:12px }
     .chk{ display:flex;align-items:center;gap:8px;color:var(--text);font-size:13.5px;padding:4px 0 } .chk input{ width:16px;height:16px }
     .toggles{ display:flex;flex-direction:column;gap:8px }
@@ -865,6 +868,7 @@
   const BRAND = { google:{cls:"g",t:"Google"}, yandex:{cls:"y",t:"Яндекс"}, vk:{cls:"vk",t:"VK ID"},
                   sber:{cls:"s",t:"Сбер ID"}, tbank:{cls:"t",t:"Т-Банк"}, tg:{cls:"tg",t:"Телеграм"} };
   let authState = { token:null, principal:null, assurance:0, signed_in:false, providers:[], name:null, ready:false };
+  let ownerTools = { principal:null, checked:false, allowed:false, checking:false };
 
   const store = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
   const put   = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
@@ -952,6 +956,16 @@
     if(typeof renderFoot==="function") renderFoot();
     const badge=document.getElementById("pvbadge"); if(badge) badge.textContent = hasSession()?"предпросмотр v2 · ваши данные":"предпросмотр v2 · демо-данные";
     if(typeof loadRealCases==="function" && hasSession()){ loadRealCases(true).then(()=>{ if(typeof refreshCurrentView==="function") refreshCurrentView(); }); }
+    probeOwnerTools().then(()=>{ if(currentSpace==="Разработка" && typeof refreshCurrentView==="function") refreshCurrentView(); });
+  }
+
+  async function probeOwnerTools(){
+    if(!authState.token||!authState.principal){ ownerTools={principal:null,checked:true,allowed:false,checking:false}; return; }
+    if(ownerTools.checking||(ownerTools.checked&&ownerTools.principal===authState.principal))return;
+    ownerTools={principal:authState.principal,checked:false,allowed:false,checking:true};
+    try{ const response=await authFetch("GET","/ops/owner/settings"); ownerTools.allowed=!!(response&&response.settings); }
+    catch(_){ ownerTools.allowed=false; }
+    ownerTools.checked=true; ownerTools.checking=false;
   }
 
   /* ── Лист входа: реальные кнопки от /auth/providers, реальный /auth/start ── */
@@ -1210,7 +1224,20 @@
         '<div class="cb">'+body+'</div></article>';
     }).join("");
     const settings=(currentSpace==="Личное"||currentSpace==="Семья")?'<div class="rc-strip"><h3>Помощники</h3><p class="rc-hint">Настройки открываются в проверенных экранах прежней версии: согласия, каналы и детские данные остаются там под серверной проверкой прав.</p><div class="cta-row"><a class="btn" href="/fixclo/">Настроить Фиксарика</a><a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>':'';
-    return '<div class="'+(friendly?'friendly-home':'')+'">'+(currentSpace==="Практика"?practicePanel():"")+(realMode()?realDashStrip():'')+quick+settings+'<div class="dash">'+cards+'</div></div>';
+    return '<div class="'+(friendly?'friendly-home':'')+'">'+(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"")+(realMode()?realDashStrip():'')+quick+settings+'<div class="dash">'+cards+'</div></div>';
+  }
+
+  function ownerToolsPanel(){
+    if(!ownerTools.allowed||ownerTools.principal!==authState.principal)return "";
+    const tools=[
+      ["overview","Сводка","Пользователи, дела, модели и агенты"],
+      ["users","Пользователи","Состояние аккаунтов без контактов и токенов"],
+      ["acquisition","Привлечение","Источники и новые пользователи"],
+      ["settings","Настройки","Вход новых посетителей и параметры кабинета"],
+      ["broadcast","Ленты","Черновики и подтверждение публикаций"],
+      ["audit","Аудит","Журнал действий владельца"]
+    ];
+    return '<section class="owner-tools"><p class="eyebrow">Owner · private</p><h2>Инструменты владельца</h2><p>Доступ подтверждён сервером. Опасные изменения и публикации требуют отдельного подтверждения.</p><div class="owner-tool-grid">'+tools.map(tool=>'<a class="owner-tool" href="/classic/?owner='+tool[0]+'"><b>'+esc(tool[1])+'</b><span>'+esc(tool[2])+' →</span></a>').join("")+'</div></section>';
   }
 
   function isListNode(node){ return node.children.length>=3 && node.children.some(c=>/^Все |^Активные$|Завершённые|Черновики|Опубликованные|^Новые$|^Мои /.test(c.name)); }

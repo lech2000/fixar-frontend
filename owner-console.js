@@ -76,6 +76,11 @@
         if (!settings) return;
         allowed = true;
         addAccountAction(accountMount || (node("mepanel") && node("mepanel").querySelector(".acts")));
+        var requested = new URLSearchParams(window.location.search).get("owner");
+        if (["overview", "users", "acquisition", "settings", "broadcast", "audit"].indexOf(requested) >= 0) {
+          active = requested;
+          open();
+        }
       } catch (error) {
         // 404 — штатное «не владелец». Любую другую ошибку до первого
         // успешного ответа тоже не показываем: иначе посторонний узнает о
