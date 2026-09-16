@@ -310,7 +310,9 @@
     .rc-strip h3{ margin:0 0 8px; font-size:14px } .rc-strip .rc-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line-soft); cursor:pointer }
     .rc-strip .rc-row:first-of-type{ border-top:0 } .rc-strip .rc-row b{ font-size:14px } .rc-strip .rc-row .when{ margin-left:auto }
     .agent-dock{ position:fixed; right:18px; bottom:18px; z-index:70; width:min(420px,calc(100vw - 36px)); padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--panel-2); box-shadow:0 16px 44px rgba(0,0,0,.38) }
-    .agent-dock form{ display:flex; flex-direction:column; gap:8px } .agent-dock textarea{ min-width:0; width:100%; min-height:64px; max-height:180px; padding:12px 14px; font-size:16px; resize:none; box-sizing:border-box } .agent-dock button{ align-self:flex-end } .agent-dock .agent-answer{ margin:9px 2px 0; font-size:13px; color:var(--muted) }
+    .agent-dock form{ display:flex; flex-direction:column; gap:8px } .agent-dock textarea{ min-width:0; width:100%; min-height:64px; max-height:180px; padding:12px 14px; font-size:16px; resize:none; box-sizing:border-box } .agent-dock form .btn{ align-self:flex-end } .agent-dock .agent-answer{ margin:9px 2px 0; font-size:13px; color:var(--muted) }
+    .agent-dock-toggle{ display:flex; align-items:center; justify-content:space-between; width:100%; border:0; background:transparent; color:var(--text); cursor:pointer; font:inherit; font-weight:750; padding:2px 1px 10px }.agent-dock-toggle span{ color:var(--muted); font-size:12px; font-weight:600 }
+    .agent-dock.compact{ width:auto; min-width:0; padding:10px 13px; border-radius:999px; box-shadow:0 10px 28px rgba(0,0,0,.34) }.agent-dock.compact form,.agent-dock.compact .agent-answer{ display:none }.agent-dock.compact .agent-dock-toggle{ padding:0; gap:10px }.agent-dock.compact .agent-dock-toggle span{ color:var(--cyan) }
     @media (max-width:760px){ .friendly-home .quick-jumps{ grid-template-columns:1fr } .quick-jump{ min-height:62px } }
   </style>
 </head>
@@ -336,7 +338,8 @@
     </div>
   </div>
   <div class="scrim" id="scrim" hidden></div>
-  <section class="agent-dock" aria-label="Агент дела">
+  <section class="agent-dock" id="agentdock" aria-label="Агент дела">
+    <button class="agent-dock-toggle" id="agentdocktoggle" type="button" aria-expanded="true">✦ Агент <span>Свернуть</span></button>
     <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите агента о текущем деле"></textarea><button class="btn primary" type="submit">Отправить</button></form>
     <div class="agent-answer" id="agentdockanswer">Откройте настоящее дело — агент сможет вести его и показывать следующий экран.</div>
   </section>
@@ -1862,6 +1865,10 @@
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
   document.getElementById("view").addEventListener("click", e=>{ const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
+  const agentDock=document.getElementById("agentdock"), agentDockToggle=document.getElementById("agentdocktoggle");
+  function setAgentDockCompact(compact){ agentDock.classList.toggle("compact",compact); agentDockToggle.setAttribute("aria-expanded",String(!compact)); agentDockToggle.querySelector("span").textContent=compact?"Открыть":"Свернуть"; try{ localStorage.setItem("fixar-v2-agent-dock-compact",compact?"1":"0"); }catch(_){} }
+  let savedDock; try{ savedDock=localStorage.getItem("fixar-v2-agent-dock-compact"); }catch(_){} setAgentDockCompact(savedDock===null?window.matchMedia("(max-width: 760px)").matches:savedDock==="1");
+  agentDockToggle.addEventListener("click",()=>setAgentDockCompact(!agentDock.classList.contains("compact")));
   document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.textContent="Агент думает…";
     try{ answer.textContent=await askCaseAgent(message); input.value=""; }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); } });
   document.addEventListener("input",e=>{ const field=e.target.closest("textarea[name=message]"); if(!field)return; field.style.height="auto"; field.style.height=Math.min(field.scrollHeight,180)+"px"; });
