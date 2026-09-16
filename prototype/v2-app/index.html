@@ -29,12 +29,12 @@
     button{font:inherit;color:inherit}
 
     /* Каркас */
-    .app{ display:grid; grid-template-columns:var(--nav-w) 1fr; height:100vh; }
+    .app{ display:grid; grid-template-columns:var(--nav-w) 1fr; height:100vh; height:100dvh; }
     .side{
       display:flex; flex-direction:column; min-height:0;
       border-right:1px solid var(--line-soft);
       background:linear-gradient(180deg,rgba(8,28,37,.7),rgba(6,20,27,.55));
-      backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
     }
     .brand{ display:flex; align-items:center; gap:10px; padding:16px 16px 10px }
     .brand-mark{ display:grid;place-items:center;width:34px;height:34px;border-radius:10px;
@@ -44,7 +44,7 @@
     .search input{ width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px;
       background:#081e27; color:var(--text); outline:none }
     .search input:focus{ border-color:var(--cyan); box-shadow:0 0 0 3px rgba(98,230,242,.1) }
-    nav{ overflow:auto; padding:4px 8px 20px; flex:1; min-height:0 }
+    nav{ overflow:auto; padding:4px 8px 20px; flex:1; min-height:0; -webkit-overflow-scrolling:touch }
     .n-row{ display:flex; align-items:center; gap:2px; border-radius:9px }
     .n-row:hover{ background:rgba(255,255,255,.03) }
     .n-row.active{ background:rgba(98,230,242,.12) }
@@ -61,7 +61,7 @@
     button:focus-visible, a:focus-visible, input:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
 
     /* Контент */
-    .view{ overflow:auto; min-height:0 }
+    .view{ overflow:auto; min-height:0; -webkit-overflow-scrolling:touch }
     .vwrap{ width:min(1180px,100%); margin:0 auto; padding:22px clamp(16px,3vw,40px) 60px }
     .crumbs{ display:flex; flex-wrap:wrap; gap:6px; color:var(--muted); font-size:13px; margin-bottom:12px }
     .crumbs a{ color:var(--muted) } .crumbs a:hover{ color:var(--cyan) }
@@ -145,7 +145,7 @@
     .chip.info{ background:rgba(98,230,242,.12);color:var(--cyan) } .chip.done{ background:rgba(255,255,255,.06);color:var(--muted) }
     .minmetrics{ display:flex;flex-wrap:wrap;gap:18px } .minmetrics>div>b{ display:block;font-size:18px;color:var(--text) } .minmetrics>div>span{ color:var(--muted);font-size:12px }
     .lbar{ display:flex;flex-wrap:nowrap;gap:8px;align-items:center;margin:14px 0 }
-    .lbar.sticky{ position:sticky;top:0;z-index:5;background:linear-gradient(180deg,rgba(6,20,27,.97),rgba(6,20,27,.9));backdrop-filter:blur(6px);padding:8px 0;margin:6px 0 12px }
+    .lbar.sticky{ position:sticky;top:0;z-index:5;background:linear-gradient(180deg,rgba(6,20,27,.97),rgba(6,20,27,.9));-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:8px 0;margin:6px 0 12px }
     .filter-bar{ flex:1 1 auto;min-width:0;display:flex;gap:8px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch } .filter-bar::-webkit-scrollbar{ display:none }
     .filter-bar .tab{ white-space:nowrap;display:inline-flex;align-items:center;gap:6px }
     .tcount{ background:rgba(255,255,255,.08);border-radius:999px;padding:1px 7px;font-size:11px;color:var(--muted) } .filter-bar .tab.active .tcount{ background:rgba(6,32,42,.5);color:var(--text) }
@@ -227,7 +227,7 @@
       body.nav-open .side{ transform:none }
       .scrim{ display:block; position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity var(--dur) }
       body.nav-open .scrim{ opacity:1; visibility:visible }
-      .topm{ display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line-soft); position:sticky; top:0; background:rgba(6,20,27,.9); backdrop-filter:blur(8px); z-index:10 }
+      .topm{ display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line-soft); position:sticky; top:0; background:rgba(6,20,27,.9); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); z-index:10 }
       .menu-btn{ display:grid; place-items:center; width:38px;height:38px;border:1px solid var(--line);border-radius:11px;background:var(--panel);cursor:pointer }
       .dash{ grid-template-columns:1fr }
     }
