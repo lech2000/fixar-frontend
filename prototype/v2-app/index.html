@@ -190,6 +190,19 @@
     .toggle .knob::after{ content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#cfe;transition:transform var(--dur) }
     .toggle.on .knob{ background:var(--cyan) } .toggle.on .knob::after{ transform:translateX(18px);background:#06202a }
     @media (max-width:760px){ .kvr{ grid-template-columns:1fr;gap:2px } .pf-row{ grid-template-columns:1fr } }
+    /* Состояния (P5) */
+    @keyframes shimmer{ 0%{ background-position:200% 0 } 100%{ background-position:-200% 0 } }
+    .sk{ background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.10),rgba(255,255,255,.04));background-size:200% 100%;animation:shimmer 1.2s linear infinite;border-radius:10px }
+    .sk-card{ border:1px solid var(--line);border-radius:var(--radius);padding:18px;background:linear-gradient(155deg,var(--panel),var(--panel-2));min-height:150px }
+    .sk-line{ height:12px;margin:9px 0 } .sk-line.w40{ width:40% } .sk-line.w60{ width:60% } .sk-line.w80{ width:80% } .sk-title{ height:18px;width:55%;margin-bottom:12px }
+    .empty{ text-align:center;padding:38px 20px;border:1px dashed var(--line);border-radius:var(--radius);background:rgba(7,27,36,.4) }
+    .empty .emoji{ font-size:30px } .empty h3{ margin:10px 0 4px;font-size:17px } .empty p{ color:var(--muted);margin:0 auto 14px;max-width:44ch }
+    .errbox{ display:flex;gap:14px;align-items:flex-start;padding:18px;border:1px solid rgba(255,120,120,.35);border-radius:var(--radius);background:rgba(120,30,30,.12) }
+    .errbox .ic{ width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:rgba(255,120,120,.16);color:#ff9b9b;flex:0 0 32px;font-weight:900 }
+    .errbox b{ font-size:14.5px } .errbox p{ margin:3px 0 10px;color:var(--muted);font-size:13px }
+    .demo-grid{ display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px } @media (max-width:900px){ .demo-grid{ grid-template-columns:1fr } }
+    .demo-cell{ border:1px solid var(--line);border-radius:var(--radius);padding:16px;background:linear-gradient(155deg,var(--panel),var(--panel-2));min-height:210px }
+    .demo-cell>h4{ margin:0 0 12px;font-size:12px;color:var(--cyan);letter-spacing:.1em;text-transform:uppercase }
     @media (max-width:900px){
       .dash>.card{ grid-row:auto !important }
       .b-today{ order:1 } .b-dialog{ order:2 } .b-deadlines{ order:3 } .b-list{ order:4 } .b-summary{ order:5 }
@@ -787,7 +800,8 @@
       (notif?'<button class="foot-link" onclick="go(\''+notif.id+'\')">Уведомления</button>':'')+
       (settings?'<button class="foot-link" onclick="go(\''+settings.id+'\')">Настройки</button>':'')+
       '<div class="nav-div">Прототип · контексты</div>'+
-      ctx.map(c=>{ if(c[0]==="Структура дела") return '<button class="foot-link dim" onclick="openCaseRow(\'\',\'\',\'shkola-raspisanie\')">'+esc(c[0])+'</button>'; const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("");
+      ctx.map(c=>{ if(c[0]==="Структура дела") return '<button class="foot-link dim" onclick="openCaseRow(\'\',\'\',\'shkola-raspisanie\')">'+esc(c[0])+'</button>'; const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("")+
+      '<button class="foot-link dim" onclick="location.hash=\'#demo/states\'">Состояния экранов</button>';
   }
   function rebuildNav(){ nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
   rebuildNav();
@@ -883,19 +897,33 @@
   function isListNode(node){ return node.children.length>=3 && node.children.some(c=>/^Все |^Активные$|Завершённые|Черновики|Опубликованные|^Новые$|^Мои /.test(c.name)); }
   function statusNorm(s){ if(/заверш|закрыт|опубликов/i.test(s)) return "Завершено"; if(/^нов|обращ|черновик|иде[яю]/i.test(s)) return "Новое"; if(/ждёт|ожида|подпис|наблюд|взросл|модерац|тестиров/i.test(s)) return "Ожидает человека"; return "В работе"; }
   const LIST_FILTERS = [ {n:"Все",f:()=>true},{n:"Мои",f:s=>s!=="Завершено"},{n:"Требуют меня",f:s=>s==="Ожидает человека"},{n:"Агенты работают",f:s=>s==="В работе"},{n:"Завершённые",f:s=>s==="Завершено"} ];
-  function applyFilter(nodeId,name){ listFilter=name; try{ history.replaceState(null,"","#"+nodeId+"~"+encodeURIComponent(name)); }catch(e){} render(byId[nodeId]); }
-  window.applyFilter = applyFilter;
-  function renderList(node){
-    const d = SPACE_DATA[currentSpace] || {};
-    const raw = (d.projects && /проект|пак/i.test(node.name)) ? d.projects : (d.cases || []);
-    const items = raw.map(it=>({title:it[0], status:statusNorm(it[1]), meta:it[2], seed:it[3]}));
-    const create = node.children.find(c=>/^Создать|^Добавить/.test(c.name));
+  function listItemsFor(node){ const d=SPACE_DATA[currentSpace]||{}; const raw=(d.projects && /проект|пак/i.test(node.name))?d.projects:(d.cases||[]); return raw.map(it=>({title:it[0],status:statusNorm(it[1]),meta:it[2],seed:it[3]})); }
+  function listRowsHtml(node){
     const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
-    const shown = items.filter(it=>cur.f(it.status));
+    const shown = listItemsFor(node).filter(it=>cur.f(it.status));
+    return shown.length ? shown.map(it=>'<button class="lrow" data-open="1" data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'" data-seed="'+attr(it.seed||"")+'"><span><h4>'+esc(it.title)+'</h4><p>'+esc(it.meta||"")+'</p></span>'+statusChip(it.status)+'<span class="when">открыть →</span></button>').join("")
+      : emptyState("🔍","Ничего в этом фильтре","Смените фильтр — или создайте новое дело.","Сбросить фильтр","data-act=\"reset-filter\" data-node=\""+node.id+"\"");
+  }
+  function applyFilter(nodeId,name){
+    listFilter=name; try{ history.replaceState(null,"","#"+nodeId+"~"+encodeURIComponent(name)); }catch(e){}
+    const node=byId[nodeId]; const bar=vwrap.querySelector('.filter-bar');
+    if(!bar){ render(node); return; }
+    bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.filter===name));
+    const lst=vwrap.querySelector('#lst'); if(lst){ lst.innerHTML=listRowsHtml(node); bindListRows(); }
+  }
+  window.applyFilter = applyFilter;
+  function bindListRows(){
+    vwrap.querySelectorAll('.lrow[data-open]').forEach(r=>r.onclick=()=>openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed));
+    const rf=vwrap.querySelector('[data-act="reset-filter"]'); if(rf) rf.onclick=()=>applyFilter(rf.dataset.node,"Все");
+  }
+  function renderList(node){
+    const create = node.children.find(c=>/^Создать|^Добавить/.test(c.name));
+    const items = listItemsFor(node);
+    const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
     const chips = LIST_FILTERS.map(x=>{ const cnt=items.filter(it=>x.f(it.status)).length; return '<button class="tab'+(x.n===cur.n?" active":"")+'" data-filter="'+attr(x.n)+'" data-node="'+node.id+'">'+esc(x.n)+'<span class="tcount">'+cnt+'</span></button>'; }).join("");
     return '<div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div>'+
       (create?'<button class="btn primary create-btn" onclick="go(\''+create.id+'\')">'+esc(create.name)+'</button>':'')+'</div>'+
-      '<div class="lst" id="lst">'+ (shown.length? shown.map(it=>'<button class="lrow" data-open="1" data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'" data-seed="'+attr(it.seed||"")+'"><span><h4>'+esc(it.title)+'</h4><p>'+esc(it.meta||"")+'</p></span>'+statusChip(it.status)+'<span class="when">открыть →</span></button>').join("") : '<div style="padding:18px;color:var(--muted)">Ничего в этом фильтре.</div>') +'</div>';
+      '<div class="lst" id="lst">'+listRowsHtml(node)+'</div>';
   }
 
   // --- Богатые экраны (нативные button/<a>, фокус, без эмодзи-иконок) ---
@@ -1023,9 +1051,9 @@
     if(ct) ct.addEventListener('click',e=>{ const btn=e.target.closest('.ct'); if(!btn)return;
       ct.querySelectorAll('.ct').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
       vwrap.querySelector('#casepanel').innerHTML = casePanel(byId[btn.dataset.ctab]); });
-    vwrap.querySelectorAll('.lrow[data-open]').forEach(r=>r.addEventListener('click',()=>openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed)));
     const fb=vwrap.querySelector('.filter-bar');
     if(fb) fb.addEventListener('click',e=>{ const b=e.target.closest('[data-filter]'); if(b) applyFilter(b.dataset.node,b.dataset.filter); });
+    bindListRows();
   }
 
   // ===== P1: настоящее дело (интерактивно, состояние в памяти) =====
@@ -1099,8 +1127,8 @@
         '<fieldset class="perms"><legend>Что разрешено</legend>'+Object.keys(PERM_LABELS).map(k=>'<label class="chk"><input type="checkbox" name="perm" value="'+k+'"> '+esc(PERM_LABELS[k])+'</label>').join("")+'</fieldset>'+
         '<label class="chk"><input type="checkbox" name="notify" checked> Получает уведомления</label>'+
         '<div class="cta-row"><button class="btn primary" type="submit">Пригласить</button></div></form>';
-    if (tab==="Документы") return cs.docs.length? '<div class="lst">'+cs.docs.map(d=>'<div class="prow"><div><b>'+esc(d[0])+'</b></div><span class="when">'+esc(d[1])+'</span></div>').join("")+'</div>' : '<div class="stub"><span class="tag">Документы</span><p>Пока нет документов. Их приложат участники или агент.</p></div>';
-    if (tab==="Сроки") return cs.deadlines.length? '<div class="lst">'+cs.deadlines.map(d=>'<div class="prow"><div><b>'+esc(d[0])+'</b></div>'+(d[2]?statusChip(d[2]):'<span class="when">'+esc(d[1])+'</span>')+'</div>').join("")+'</div>' : '<div class="stub"><span class="tag">Сроки</span><p>Сроков пока нет.</p></div>';
+    if (tab==="Документы") return cs.docs.length? '<div class="lst">'+cs.docs.map(d=>'<div class="prow"><div><b>'+esc(d[0])+'</b></div><span class="when">'+esc(d[1])+'</span></div>').join("")+'</div>' : emptyState("📄","Пока нет документов","Их приложат участники или агент по ходу дела.","","");
+    if (tab==="Сроки") return cs.deadlines.length? '<div class="lst">'+cs.deadlines.map(d=>'<div class="prow"><div><b>'+esc(d[0])+'</b></div>'+(d[2]?statusChip(d[2]):'<span class="when">'+esc(d[1])+'</span>')+'</div>').join("")+'</div>' : emptyState("🗓","Сроков пока нет","Появятся, когда в деле возникнут даты и напоминания.","","");
     if (tab==="Агенты") return '<div class="lst">'+cs.agents.map(a=>'<div class="prow"><div><b>'+esc(a[0])+'</b><span> · '+esc(a[1])+'</span></div><span class="chip">'+esc(a[2])+'</span></div>').join("")+'</div>'+
       '<div class="section-t">Границы агентов</div><div class="toggles">'+toggleRow("Разрешить наблюдение за делом",cs.agentWatch,"toggle-watch")+toggleRow("Спрашивать подтверждение перед действием",cs.requireConfirm,"toggle-confirm")+'</div>';
     if (tab==="Настройки") return '<form class="pform" data-act="save-case">'+
@@ -1112,40 +1140,40 @@
     return "";
   }
 
-  function renderCase(){
+  function renderCase(fast){
     const cs = activeCase(); if(!cs) return;
     const sp = SPACE_NODES[cs.space] || SPACE_NODES[currentSpace];
-    vwrap.innerHTML =
+    const build = () =>
       '<div class="crumbs"><a href="#'+(sp?sp.id:"0")+'">'+esc(cs.space)+'</a><span class="sep">›</span><span>'+esc(cs.title)+'</span></div>'+
       '<p class="eyebrow" style="color:var(--cyan)">Дело · '+esc(cs.space)+'</p>'+
       '<h1 style="margin:2px 0 0;font-size:28px">'+esc(cs.title)+'</h1>'+
       '<div class="pmeta" style="margin-top:10px">'+statusChip(cs.status)+'<span>Следующий шаг: '+esc(cs.nextStep)+'</span><span>Ответственный: '+esc(cs.responsible)+'</span><span>Срок: '+esc(cs.deadline)+'</span><span>Прогресс '+cs.progress+'%</span></div>'+
       '<div class="case-tabs" id="ctabs">'+CASE_TABS.map(t=>'<button class="ct'+(t===caseTab?" active":"")+'" data-tab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
       '<div id="casepanel">'+caseTabPanel(cs,caseTab)+'</div>';
-    vwrap.parentElement.scrollTop = 0;
-    bindCase();
+    if (fast){ vwrap.innerHTML = build(); vwrap.parentElement.scrollTop = 0; bindCase(); }
+    else { loadThen(build, skeletonCase(), bindCase); }
   }
 
   function bumpProgress(cs){ const all=cs.plan.flatMap(s=>s.tasks); const done=all.filter(t=>t.status==="done").length; cs.progress=Math.round(done/all.length*100); }
   function bindCase(){
     const tabs=document.getElementById("ctabs"); if(!tabs) return;
-    tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; caseTab=b.dataset.tab; renderCase(); };
+    tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; caseTab=b.dataset.tab; renderCase(true); };
     const panel=document.getElementById("casepanel");
     panel.onclick=e=>{
       const b=e.target.closest("[data-act]"); if(!b)return; const cs=activeCase(); const act=b.dataset.act;
-      if(act==="goto-settings"){ caseTab="Настройки"; renderCase(); }
-      else if(act==="goto-plan"){ caseTab="План"; renderCase(); }
-      else if(act==="task-done"){ cs.plan[+b.dataset.s].tasks[+b.dataset.t].status="done"; bumpProgress(cs); renderCase(); }
-      else if(act==="toggle-watch"){ cs.agentWatch=!cs.agentWatch; renderCase(); }
-      else if(act==="toggle-confirm"){ cs.requireConfirm=!cs.requireConfirm; renderCase(); }
-      else if(act==="archive"){ if(window.confirm("Архивировать дело? Оно уйдёт в архив, но не удалится.")){ cs.status="в архиве"; renderCase(); } }
-      else if(act==="agent-no"){ const m=cs.dialog[+b.dataset.i]; m.propose=false; cs.dialog.push({who:"user",text:"Пока не надо."}); renderCase(); }
+      if(act==="goto-settings"){ caseTab="Настройки"; renderCase(true); }
+      else if(act==="goto-plan"){ caseTab="План"; renderCase(true); }
+      else if(act==="task-done"){ cs.plan[+b.dataset.s].tasks[+b.dataset.t].status="done"; bumpProgress(cs); renderCase(true); }
+      else if(act==="toggle-watch"){ cs.agentWatch=!cs.agentWatch; renderCase(true); }
+      else if(act==="toggle-confirm"){ cs.requireConfirm=!cs.requireConfirm; renderCase(true); }
+      else if(act==="archive"){ if(window.confirm("Архивировать дело? Оно уйдёт в архив, но не удалится.")){ cs.status="в архиве"; renderCase(true); } }
+      else if(act==="agent-no"){ const m=cs.dialog[+b.dataset.i]; m.propose=false; cs.dialog.push({who:"user",text:"Пока не надо."}); renderCase(true); }
       else if(act==="agent-yes"){
         const m=cs.dialog[+b.dataset.i]; m.done=true;
         cs.dialog.push({who:"user",text:"Подтверждаю."});
         cs.dialog.push({who:"agent",text:"Готово: напоминание перенесено на понедельник 19:00, контрольная добавлена в семейный календарь."});
         const t=cs.plan.flatMap(s=>s.tasks).find(x=>x.status==="waiting"); if(t){ t.status="done"; t.who="Агент"; }
-        cs.nextStep="Напомнить Мише вечером"; bumpProgress(cs); renderCase();
+        cs.nextStep="Напомнить Мише вечером"; bumpProgress(cs); renderCase(true);
       }
     };
     panel.onsubmit=e=>{
@@ -1153,31 +1181,63 @@
       if(f.dataset.act==="add-part"){
         const perms=[...f.querySelectorAll('input[name="perm"]:checked')].map(x=>x.value);
         cs.participants.push({ name:f.name.value.trim()||"Участник", contact:f.contact.value.trim()||"—", role:f.role.value, actions:perms, notify:f.notify.checked, invite:"приглашение отправлено" });
-        caseTab="Участники"; renderCase();
+        caseTab="Участники"; renderCase(true);
       } else if(f.dataset.act==="save-case"){
         cs.title=f.title.value.trim()||cs.title; cs.goal=f.goal.value.trim()||"—"; cs.responsible=f.responsible.value;
         cs.deadline=f.deadline.value.trim()||"—"; const v=f.querySelector('input[name="visibility"]:checked'); if(v)cs.visibility=v.value;
-        renderCase();
+        renderCase(true);
       }
     };
+  }
+
+  // ===== P5: состояния — загрузка / пусто / ошибка =====
+  let loadToken = 0;
+  function loadThen(build, skel, after, ms){
+    const t = ++loadToken; vwrap.innerHTML = skel; vwrap.parentElement.scrollTop = 0;
+    setTimeout(()=>{ if(t!==loadToken) return; vwrap.innerHTML = build(); vwrap.parentElement.scrollTop = 0; if(after) after(); }, ms||300);
+  }
+  const skelCard = n => '<div class="sk-card"><div class="sk sk-title"></div>'+Array.from({length:n||3}).map((_,i)=>'<div class="sk sk-line '+["w80","w60","w40"][i%3]+'"></div>').join("")+'</div>';
+  const skeletonDash = head => head+'<div class="dash">'+skelCard(4)+skelCard(3)+skelCard(3)+skelCard(3)+skelCard(2)+'</div>';
+  const skeletonList = head => head+'<div class="lbar sticky"><div class="tabs filter-bar">'+Array.from({length:5}).map(()=>'<span class="sk" style="height:32px;width:100px;border-radius:999px"></span>').join("")+'</div></div><div class="lst">'+Array.from({length:4}).map(()=>'<div style="padding:16px;border-bottom:1px solid var(--line-soft)"><div class="sk sk-line w40" style="height:15px"></div><div class="sk sk-line w60"></div></div>').join("")+'</div>';
+  const skeletonCase = () => '<div class="sk" style="height:26px;width:52%;margin-bottom:16px;border-radius:10px"></div><div class="sk" style="height:14px;width:70%;margin-bottom:18px;border-radius:8px"></div>'+skelCard(6);
+  function emptyState(emoji,title,text,ctaLabel,ctaAttr){ return '<div class="empty"><div class="emoji" aria-hidden="true">'+emoji+'</div><h3>'+esc(title)+'</h3><p>'+esc(text)+'</p>'+(ctaLabel?'<button class="btn primary" '+(ctaAttr||"")+'>'+esc(ctaLabel)+'</button>':'')+'</div>'; }
+  function errorBox(msg,retryAttr){ return '<div class="errbox"><span class="ic" aria-hidden="true">!</span><div><b>Не удалось загрузить</b><p>'+esc(msg)+'</p><button class="btn" '+(retryAttr||"")+'>Повторить</button></div></div>'; }
+  function renderStatesDemo(){
+    const homeId = kidOf(SPACE_NODES[currentSpace],"Главная");
+    vwrap.innerHTML = '<div class="crumbs"><span>Прототип</span><span class="sep">›</span><span>Состояния экранов</span></div>'+
+      '<div class="vhead"><p class="eyebrow">Прототип</p><h1>Состояния экранов</h1><p>Как выглядят загрузка, пустой экран и ошибка.</p></div>'+
+      '<div class="demo-grid">'+
+        '<div class="demo-cell" id="demoLoad"><h4>Загрузка</h4>'+skelCard(4)+'</div>'+
+        '<div class="demo-cell"><h4>Пусто</h4>'+emptyState("🗂","Пока нет дел","Здесь появятся ваши дела. Начните с готового пака или создайте дело.","Создать дело","onclick=\"go('"+homeId+"')\"")+'</div>'+
+        '<div class="demo-cell" id="demoErr"><h4>Ошибка</h4>'+errorBox("Проверьте соединение и попробуйте ещё раз.","data-act=\"demo-retry\"")+'</div>'+
+      '</div>';
+    vwrap.parentElement.scrollTop = 0;
+    const t=++loadToken, dl=document.getElementById("demoLoad");
+    setTimeout(()=>{ if(t!==loadToken||!dl||!dl.isConnected) return; dl.innerHTML='<h4>Загрузка → готово</h4><div class="row"><b>Ремонт в ванной</b><span class="chip">В работе</span></div><div class="row"><b>Школа Миши</b><span class="chip warn">Ожидает человека</span></div><div class="row"><b>Поездка</b><span class="chip">В работе</span></div>'; },1300);
+    document.getElementById("demoErr").addEventListener("click",e=>{ if(!e.target.closest('[data-act="demo-retry"]'))return; const cell=document.getElementById("demoErr");
+      cell.innerHTML='<h4>Повтор…</h4>'+skelCard(3);
+      setTimeout(()=>{ if(!cell.isConnected)return; cell.innerHTML='<h4>Ошибка → успех</h4><div class="row"><b>Данные загрузились</b><span class="chip">ок</span></div><div class="row"><b>Соединение восстановлено</b><span class="chip">ок</span></div>'; },900); });
   }
 
   function render(node){
     const custom = SCREENS[pathKey(node)];
     if (custom){ vwrap.innerHTML = custom(node); vwrap.parentElement.scrollTop = 0; bindScreen(); return; }
     const isMain = node.name==="Главная";
-    let inner = '<div class="crumbs">'+crumbHtml(node)+'</div>'+
+    let head = '<div class="crumbs">'+crumbHtml(node)+'</div>'+
       '<div class="vhead"><p class="eyebrow">'+esc(isMain?currentSpace:eyebrowFor(node))+'</p><h1>'+esc(isMain?("Главная — "+currentSpace):node.name)+'</h1>';
     if (isMain){
-      inner += '<p>Ваше пространство «'+esc(currentSpace)+'»: важное, дела и сроки под наблюдением агентов.</p></div>'+dashboard(node);
+      head += '<p>Ваше пространство «'+esc(currentSpace)+'»: важное, дела и сроки под наблюдением агентов.</p></div>';
+      loadThen(()=>head+dashboard(node), skeletonDash(head), bindScreen); return;
     } else if (isListNode(node)){
-      inner += '<p>Фильтр по состоянию · клик открывает дело.</p></div>'+renderList(node);
+      head += '<p>Фильтр по состоянию · клик открывает дело.</p></div>';
+      loadThen(()=>head+renderList(node), skeletonList(head), bindScreen); return;
     } else if (node.children.length){
-      inner += '<p>Раздел «'+esc(node.name)+'» · '+node.children.length+' пункт(ов).</p></div>'+tileGrid(node);
+      head += '<p>Раздел «'+esc(node.name)+'» · '+node.children.length+' пункт(ов).</p></div>';
+      vwrap.innerHTML = head+tileGrid(node);
     } else {
-      inner += '</div><div class="stub"><span class="tag">Экран · дизайн v2</span><p>«'+esc(node.name)+'» — конечный экран в дизайне v2 (форма, список или карточка).</p></div>';
+      head += '</div><div class="stub"><span class="tag">Экран · дизайн v2</span><p>«'+esc(node.name)+'» — конечный экран в дизайне v2 (форма, список или карточка).</p></div>';
+      vwrap.innerHTML = head;
     }
-    vwrap.innerHTML = inner;
     vwrap.parentElement.scrollTop = 0;
     bindScreen();
   }
@@ -1194,6 +1254,7 @@
   window.go = go;
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
+    if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ const cid=h.slice(5); if(!CASES[cid] && CASE_SEEDS[cid]) CASES[cid]=cloneCase(CASE_SEEDS[cid]); if(CASES[cid]){ activeCaseId=cid; caseTab="Обзор"; renderCase(); } return; }
     const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; listFilter = t>=0 ? decodeURIComponent(h.slice(t+1)) : "Все";
     if (byId[id]) go(id);
@@ -1228,6 +1289,7 @@
 
   // старт
   (function(){ const h=location.hash.slice(1);
+    if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ const cid=h.slice(5); if(!CASES[cid] && CASE_SEEDS[cid]) CASES[cid]=cloneCase(CASE_SEEDS[cid]); if(CASES[cid]){ activeCaseId=cid; renderCase(); return; } }
     const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; if(t>=0) listFilter=decodeURIComponent(h.slice(t+1));
     go(byId[id] ? id : kidOf(SPACE_NODES[currentSpace],"Главная"));
