@@ -134,6 +134,28 @@
     .case-tabs{ display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 14px;border-bottom:1px solid var(--line-soft);padding-bottom:10px }
     .ct{ padding:7px 12px;border-radius:10px;background:none;border:0;color:var(--muted);cursor:pointer;font-size:13.5px }
     .ct.active{ background:rgba(98,230,242,.12);color:var(--text) }
+    /* Скоуп-оболочка */
+    .switch{ padding:2px 12px 10px } .switch .sw-label{ color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:0 4px 6px }
+    .sw-row{ display:grid;grid-template-columns:1fr 1fr;gap:6px } .sw{ padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.03);color:var(--muted);cursor:pointer;font-size:13px }
+    .sw.on{ background:rgba(98,230,242,.14);border-color:rgba(98,230,242,.4);color:var(--text);font-weight:600 } .sw:hover{ border-color:var(--cyan) }
+    .nav-div{ margin:14px 8px 4px;color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.75 }
+    .protofoot{ padding:8px 10px 16px;border-top:1px solid var(--line-soft) }
+    .foot-link{ display:block;width:100%;text-align:left;padding:6px 8px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:12.5px;border-radius:7px } .foot-link:hover{ color:var(--cyan);background:rgba(255,255,255,.03) }
+    .chip.warn{ background:rgba(255,200,106,.14);color:var(--amber) }
+    .minmetrics{ display:flex;flex-wrap:wrap;gap:18px } .minmetrics>div>b{ display:block;font-size:18px;color:var(--text) } .minmetrics>div>span{ color:var(--muted);font-size:12px }
+    .lbar{ display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 }
+    .lst{ border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:linear-gradient(155deg,var(--panel),var(--panel-2)) }
+    .lrow{ display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:14px 16px;border:0;border-bottom:1px solid var(--line-soft);cursor:pointer;color:inherit;text-align:left;width:100%;background:none }
+    .lrow:last-child{ border-bottom:0 } .lrow:hover{ background:rgba(98,230,242,.05) }
+    .lrow h4{ margin:0;font-size:14.5px } .lrow p{ margin:2px 0 0;color:var(--muted);font-size:12.5px } .lrow .when{ color:var(--muted);font-size:12.5px;white-space:nowrap }
+    .popen{ margin-top:2px;color:var(--cyan);font-size:13px;font-weight:600 } .pcard:hover .popen{ text-decoration:underline }
+    .flow{ display:grid;grid-template-columns:repeat(4,1fr);gap:12px }
+    .flow-step{ position:relative;display:flex;gap:10px;align-items:flex-start;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(155deg,var(--panel),var(--panel-2)) }
+    .flow-n{ flex:0 0 26px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--cyan);color:#06202a;font-weight:800;font-size:13px }
+    .flow-step b{ font-size:14px } .flow-step p{ margin:3px 0 0;color:var(--muted);font-size:12.5px }
+    .flow-arrow{ position:absolute;right:-9px;top:50%;transform:translateY(-50%);color:var(--muted);z-index:1;font-size:18px }
+    @media (max-width:900px){ .flow{ grid-template-columns:1fr } .flow-arrow{ display:none } }
+    @media (max-width:760px){ .crumbs{ display:none } .vhead .eyebrow{ font-size:10px } }
 
     /* Мобилка */
     .menu-btn{ display:none }
@@ -158,7 +180,9 @@
     <aside class="side" id="side" aria-label="Архитектура ФиксАР">
       <div class="brand"><span class="brand-mark" aria-hidden="true">✱</span><b>ФиксАР</b><span>v2 · IA</span></div>
       <div class="search"><input id="q" type="search" placeholder="Поиск по разделам…" aria-label="Поиск по разделам"></div>
+      <div class="switch" id="switch"></div>
       <nav id="nav"></nav>
+      <div class="protofoot" id="protofoot"></div>
     </aside>
 
     <div class="view" id="view">
@@ -694,7 +718,35 @@
       child._row = row; child._caret = caret; child._kids = kids;
     });
   }
-  buildNav(ROOT, nav);
+  // --- Скоуп: показываем только выбранное пространство + аккаунт (не всё дерево) ---
+  const SPACE_NODES = {
+    "Личное": findNode("Для жизни · Личное"),
+    "Семья": findNode("Для жизни · Семья"),
+    "Практика": findNode("Для работы · Практика"),
+    "Разработка": findNode("Для работы · Разработка")
+  };
+  const ACCOUNT_NODES = [findNode("Общие разделы аккаунта"), findNode("Настройки"), findNode("Помощь")].filter(Boolean);
+  const kidOf = (node,name) => { const k=node&&node.children.find(c=>c.name===name); return k?k.id:(node?node.id:"0"); };
+  let currentSpace = "Семья";
+  function spaceOf(node){ let n=node; while(n){ for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } n=n.parent; } return null; }
+  function renderSwitch(){
+    const el=document.getElementById("switch");
+    el.innerHTML='<div class="sw-label">Пространство</div><div class="sw-row">'+
+      Object.keys(SPACE_NODES).map(k=>'<button class="sw'+(k===currentSpace?" on":"")+'" data-sp="'+esc(k)+'">'+esc(k)+'</button>').join("")+'</div>';
+    el.querySelectorAll(".sw").forEach(b=>b.addEventListener("click",()=>{ if(b.dataset.sp===currentSpace)return; currentSpace=b.dataset.sp; go(kidOf(SPACE_NODES[currentSpace],"Главная")); }));
+  }
+  function renderFoot(){
+    const el=document.getElementById("protofoot");
+    const ctx=[["Публичная часть","Публичная часть"],["Первый запуск","Первый запуск"],["Структура дела","Внутренняя структура любого дела"],["Юридические","Юридические документы"]];
+    el.innerHTML='<div class="nav-div">Прототип · контексты</div>'+ctx.map(c=>{ const n=findNode(c[1]); return n?'<button class="foot-link" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("");
+  }
+  function rebuildNav(){
+    nav.innerHTML="";
+    buildNav(SPACE_NODES[currentSpace], nav);
+    if (ACCOUNT_NODES.length){ const dv=document.createElement("div"); dv.className="nav-div"; dv.textContent="Аккаунт"; nav.appendChild(dv); buildNav({ children: ACCOUNT_NODES }, nav); }
+    renderSwitch(); renderFoot();
+  }
+  rebuildNav();
 
   function expandTo(node){
     ancestors(node).concat(node).forEach(n => {
@@ -723,30 +775,76 @@
       '</button>').join("") + '</div>';
   }
 
+  // Реальные примеры данных по пространствам (rows: [title, meta, chip])
+  const SPACE_DATA = {
+    "Личное": {
+      "Диалог с ФиксАР": {dialog:"Сегодня в 18:00 истекает ОСАГО, и пришёл счёт за интернет. Подготовить продление и оплату?"},
+      "Главное сегодня": {rows:[["Продлить ОСАГО","","сегодня 18:00"],["Счёт за интернет — 700 ₽","до завтра",""]]},
+      "Мои активные дела": {rows:[["Продлить страховку авто","","в работе"],["Записаться к терапевту","","ожидает вас"],["Транспортный налог","","под наблюдением"]]},
+      "Сроки и изменения": {rows:[["Продлить ОСАГО","сегодня 18:00",""],["Оплатить налог","24 сен",""],["Техосмотр","30 сен",""]]},
+      "Личная сводка": {metrics:[["18 мин","сэкономлено сегодня"],["3","активных дела"],["0","просрочек"]]},
+      cases:[["Продлить страховку автомобиля","в работе","обновлено 8 мин назад"],["Записаться к терапевту","ожидает вас","создано вчера"],["Оплатить транспортный налог","под наблюдением","срок 24 сен"],["Оформить загранпаспорт","завершено","закрыто 12 сен"]]
+    },
+    "Семья": {
+      "Семейный диалог": {dialog:"У Миши завтра контрольная и изменилось расписание. Показания счётчиков — до 25-го. Что сделать первым?"},
+      "Главное сегодня": {rows:[["Подтвердить домашку Миши","","сегодня 18:00"],["Показания воды и света","до 25 сен",""]]},
+      "Общие дела": {rows:[["Ремонт в ванной","","в работе"],["Поездка на каникулы","","планируется"],["Страховка квартиры","","ждёт взрослого"]]},
+      "Сроки и изменения": {rows:[["Изменилось расписание Миши","завтра 09:00",""],["Передать показания","25 сен",""],["Родительское собрание","1 окт",""]]},
+      "Семейная сводка": {metrics:[["2","взрослых · 1 ребёнок"],["5","общих дел"],["0","просрочек"]]},
+      cases:[["Ремонт в ванной","в работе","3 задачи · 2 участника"],["Школа Миши — успеваемость","под наблюдением","обновлено сегодня"],["Поездка на осенние каникулы","планируется","создано 3 дня назад"],["Страховка квартиры","ждёт взрослого","срок 5 окт"]]
+    },
+    "Практика": {
+      "Рабочий диалог": {dialog:"3 новых обращения, одно похоже на срочное (наследство). Квалифицировать и подготовить ответы?"},
+      "Новые обращения": {rows:[["Оформление наследства","2 ч назад","срочно"],["Раздел имущества","4 ч назад",""],["Консультация по договору","вчера","квалификация"]]},
+      "Клиенты и дела": {rows:[["Иванов И. — развод","","активно"],["ООО «Ромашка» — спор","","ждёт клиента"],["Петрова А. — наследство","","на подписи"]]},
+      "Сроки и агенты": {rows:[["Заседание — Иванов","сегодня 15:00",""],["Подача иска — Ромашка","26 сен",""],["Агент готовит проект договора","в работе",""]]},
+      "Рабочая сводка": {metrics:[["14","клиентов"],["23","активных дела"],["0","просрочек"]]},
+      cases:[["Иванов И. — расторжение брака","активно","заседание сегодня 15:00"],["ООО «Ромашка» — договорный спор","ждёт клиента","подача иска 26 сен"],["Петрова А. — наследство","на подписи","обновлено 1 ч назад"],["Сидоров — консультация","завершено","закрыто 10 сен"]]
+    },
+    "Разработка": {
+      "Помощник разработчика": {dialog:"Тесты пака «Семейные дела» зелёные, безопасность пройдена. Опубликовать версию 1.3.0?"},
+      "Мои проекты и паки": {rows:[["Семейные дела 1.3.0","","на тестировании"],["Школьный дневник 2.1","","опубликован"],["Автопомощник","","черновик"]]},
+      "Тесты и публикации": {rows:[["Семейные дела","тесты ок","на модерации"],["Школьный дневник","","опубликовано"]]},
+      "Рейтинг паков": {rank:[["Семейные дела","12k · ★4.8"],["Школьный дневник","9k · ★4.7"],["Личные документы","7k · ★4.6"]]},
+      "Рейтинг запросов": {rank:[["Учёт лекарств","+320% спрос"],["Садовод-помощник","+180%"],["Репетитор по математике","+90%"]]},
+      projects:[["Семейные дела 1.3.0","на тестировании","12k пользователей · ★4.8"],["Школьный дневник 2.1","опубликован","9k пользователей · ★4.7"],["Автопомощник","черновик","создан 2 дня назад"],["Учёт лекарств","идея по запросу","+320% спрос"]]
+    }
+  };
+
   function dashboard(node){
-    // «Главная»: рендерим блоки из детей узла как карточки дашборда
-    const blocks = node.children;
-    return '<div class="dash">' + blocks.map((b, i) => {
-      const isDialog = /диалог|помощник|переписк/i.test(b.name);
+    const d = SPACE_DATA[currentSpace] || {};
+    const cards = node.children.map(b=>{
+      const c = d[b.name] || {}; const isDialog = /диалог|помощник/i.test(b.name);
       let body;
       if (isDialog){
-        body = '<div class="bubble">Я просмотрел ваши дела. Есть 1 срочное на сегодня и 2 изменения. Показать?</div>'+
-               '<div class="composer"><input placeholder="Расскажите своими словами…" aria-label="Сообщение"><button aria-label="Отправить">→</button></div>';
-      } else if (/сводк|сегодня|сроки|рейтинг|тест|публикац|обращени|клиент|дел|проект|пак/i.test(b.name)){
-        body = '<div class="row"><b>Пункт списка</b><span class="chip">в работе</span></div>'+
-               '<div class="row"><b>Ещё один</b><span class="chip">ок</span></div>'+
-               '<div class="row"><b>И третий</b><span>сегодня</span></div>';
+        body='<div class="bubble">'+esc(c.dialog||"Чем помочь по вашим делам?")+'</div>'+
+             '<div class="composer"><input placeholder="Расскажите своими словами…" aria-label="Сообщение"><button aria-label="Отправить">→</button></div>';
+      } else if (c.rows){
+        body=c.rows.map(r=>{ const right = r[2] ? '<span class="chip'+(/сроч/i.test(r[2])?" warn":"")+'">'+esc(r[2])+'</span>' : '<span class="when">'+esc(r[1]||"")+'</span>'; return '<div class="row"><b>'+esc(r[0])+'</b>'+right+'</div>'; }).join("");
+      } else if (c.rank){
+        body=c.rank.map((r,i)=>'<div class="row"><b>'+(i+1)+'. '+esc(r[0])+'</b><span class="when">'+esc(r[1])+'</span></div>').join("");
+      } else if (c.metrics){
+        body='<div class="minmetrics">'+c.metrics.map(m=>'<div><b>'+esc(m[0])+'</b><span>'+esc(m[1])+'</span></div>').join("")+'</div>';
       } else {
-        body = '<div class="row"><b>'+esc(b.name)+'</b><span>раздел</span></div>'+
-               '<div class="row"><b>Пример строки</b><span>—</span></div>';
+        body='<div class="row"><b>'+esc(b.name)+'</b><span class="when">открыть</span></div>';
       }
       return '<article class="card"'+(isDialog?' style="grid-row:span 2"':'')+'>'+
-        '<div class="ch"><p class="eyebrow">'+esc(node.parent&&node.parent.name!=="__root__"?node.parent.name:"Главная")+'</p><h2>'+esc(b.name)+'</h2></div>'+
+        '<div class="ch"><p class="eyebrow">'+esc(currentSpace)+'</p><h2>'+esc(b.name)+'</h2></div>'+
         '<div class="cb">'+body+'</div></article>';
-    }).join("") + '</div>'+
-    '<div class="metrics"><div class="metric"><b>—</b><span>сэкономлено</span></div>'+
-      '<div class="metric"><b>'+blocks.length+'</b><span>блоков экрана</span></div>'+
-      '<div class="metric"><b>0</b><span>просрочек</span></div></div>';
+    }).join("");
+    return '<div class="dash">'+cards+'</div>';
+  }
+
+  function isListNode(node){ return node.children.length>=3 && node.children.some(c=>/^Все |^Активные$|Завершённые|Черновики|Опубликованные|^Новые$|^Мои /.test(c.name)); }
+  function renderList(node){
+    const d = SPACE_DATA[currentSpace] || {};
+    const items = (d.projects && /проект|пак/i.test(node.name)) ? d.projects : (d.cases || []);
+    const create = node.children.find(c=>/^Создать|^Добавить/.test(c.name));
+    const filters = node.children.filter(c=>c!==create);
+    const caseId = (findNode("Внутренняя структура любого дела")||{id:node.id}).id;
+    return '<div class="lbar"><div class="tabs">'+filters.map((f,i)=>'<button class="tab'+(i===0?" active":"")+'">'+esc(f.name)+'</button>').join("")+'</div>'+
+      (create?'<button class="btn primary" style="margin-left:auto" onclick="go(\''+create.id+'\')">'+esc(create.name)+'</button>':'')+'</div>'+
+      '<div class="lst">'+ (items.length? items.map(it=>'<button class="lrow" onclick="go(\''+caseId+'\')"><span><h4>'+esc(it[0])+'</h4><p>'+esc(it[2]||"")+'</p></span><span class="chip">'+esc(it[1])+'</span><span class="when">открыть →</span></button>').join("") : '<div style="padding:18px;color:var(--muted)">Пока пусто.</div>') +'</div>';
   }
 
   // --- Богатые экраны (нативные button/<a>, фокус, без эмодзи-иконок) ---
@@ -767,19 +865,34 @@
   function packCard(p){ return '<button class="pcard" onclick="go(\''+PACK_NODE.id+'\')">'+
     '<div style="display:flex;gap:10px;align-items:center"><span class="pico">'+esc(p.ic)+'</span><span class="chip">'+esc(p.c)+'</span></div>'+
     '<h3>'+esc(p.n)+'</h3><p>'+esc(p.d)+'</p>'+
-    '<div class="pmeta"><span class="stars">★ '+p.r+'</span><span>'+p.i+' установок</span></div></button>'; }
+    '<div class="pmeta"><span class="stars">★ '+p.r+'</span><span>'+p.i+' установок</span></div>'+
+    '<span class="popen">Открыть пак →</span></button>'; }
 
   function screenLanding(node){
     const feat = node.children.filter(k=>/возможности|как работают|безопасность/i.test(k.name));
+    const FD = {
+      "Как работают долгоживущие агенты":"Агент помнит контекст дела неделями: следит за изменениями, готовит документы и напоминает — без повторных объяснений.",
+      "Возможности для жизни":"Личное и семья: документы, здоровье, авто, школа, дом. Сроки под контролем, платежи и напоминания вовремя.",
+      "Возможности для работы":"Практика и разработка: обращения, клиенты, дела, публикация паков — рабочий поток вместе с агентами.",
+      "Безопасность и границы агентов":"Каждое действие — по вашему разрешению и в чётких границах. Данные детей и персональные данные под особой защитой."
+    };
+    const flow = [
+      ["Пришло изменение","Школа прислала новое расписание — ФиксАР это заметил"],
+      ["Создалось дело","Агент завёл дело и предложил план: подтвердить, напомнить ребёнку"],
+      ["Напомнил вовремя","За день до контрольной — тихое напоминание вам и ребёнку"],
+      ["Готов результат","Домашка собрана, расписание в календаре — вы только подтвердили"]
+    ];
     return crumbsBlock(node)+
       '<div class="hero"><p class="eyebrow" style="color:var(--cyan)">ФиксАР · платформа долгоживущих агентов</p>'+
-      '<h1>Ваши дела ведут агенты — а вы держите границы</h1>'+
-      '<p class="lead">ФиксАР собирает личные, семейные и рабочие дела в одном месте: показывает важное, доводит до результата и не даёт пропустить срок. Каждый агент действует в понятных рамках и спрашивает разрешение.</p>'+
+      '<h1>ФиксАР ведёт дела — вы сохраняете контроль</h1>'+
+      '<p class="lead">Личные, семейные и рабочие дела в одном месте: важное на виду, сроки не теряются, рутину берут на себя агенты. Каждый шаг — в понятных границах и по вашему разрешению.</p>'+
       '<div class="cta-row"><button class="btn primary" onclick="go(\''+kidId(node,"Начать работу")+'\')">Начать работу</button>'+
       '<button class="btn" onclick="go(\''+sibId(node,"Каталог решений")+'\')">Каталог решений</button></div></div>'+
+      '<div class="section-t">Как это выглядит в жизни</div>'+
+      '<div class="flow">'+flow.map((s,i)=>'<div class="flow-step"><span class="flow-n">'+(i+1)+'</span><div><b>'+esc(s[0])+'</b><p>'+esc(s[1])+'</p></div>'+(i<flow.length-1?'<span class="flow-arrow" aria-hidden="true">→</span>':'')+'</div>').join('')+'</div>'+
       '<div class="section-t">Что умеет</div><div class="feat">'+
       feat.map(f=>'<article class="card" onclick="go(\''+f.id+'\')"><div class="ch"><h2 style="font-size:16px">'+esc(f.name)+'</h2></div>'+
-        '<div class="cb">Раздел витрины — открыть подробности.</div></article>').join('')+'</div>'+
+        '<div class="cb">'+esc(FD[f.name]||"Открыть подробности.")+'</div></article>').join('')+'</div>'+
       '<div class="section-t">Популярные паки</div><div class="pgrid">'+PACKS.slice(0,4).map(packCard).join('')+'</div>'+
       '<div class="section-t">&nbsp;</div><div class="stub"><span class="tag">Начать</span><p>Возьмите готовый пак или создайте пространство под свои дела — агенты подхватят.</p>'+
       '<div class="cta-row"><button class="btn primary" onclick="go(\''+kidId(node,"Начать работу")+'\')">Начать работу</button></div></div>';
@@ -864,15 +977,17 @@
   function render(node){
     const custom = SCREENS[pathKey(node)];
     if (custom){ vwrap.innerHTML = custom(node); vwrap.parentElement.scrollTop = 0; bindScreen(); return; }
+    const isMain = node.name==="Главная";
     let inner = '<div class="crumbs">'+crumbHtml(node)+'</div>'+
-      '<div class="vhead"><p class="eyebrow">'+esc(eyebrowFor(node))+'</p><h1>'+esc(node.name)+'</h1>';
-    if (node.children.length){
-      inner += '<p>'+ (node.name==="Главная" ? 'Экран собран из блоков ниже — дизайн v2.' :
-        'Раздел «'+esc(node.name)+'» · '+node.children.length+' пункт(ов). Выберите ниже.') +'</p></div>';
-      inner += (node.name === "Главная") ? dashboard(node) : tileGrid(node);
+      '<div class="vhead"><p class="eyebrow">'+esc(isMain?currentSpace:eyebrowFor(node))+'</p><h1>'+esc(isMain?("Главная — "+currentSpace):node.name)+'</h1>';
+    if (isMain){
+      inner += '<p>Ваше пространство «'+esc(currentSpace)+'»: важное, дела и сроки под наблюдением агентов.</p></div>'+dashboard(node);
+    } else if (isListNode(node)){
+      inner += '<p>'+esc(node.name)+' · '+node.children.length+' фильтр(ов)</p></div>'+renderList(node);
+    } else if (node.children.length){
+      inner += '<p>Раздел «'+esc(node.name)+'» · '+node.children.length+' пункт(ов).</p></div>'+tileGrid(node);
     } else {
-      inner += '</div><div class="stub"><span class="tag">Экран · дизайн v2</span>'+
-        '<p>Лист архитектуры «'+esc(node.name)+'». Здесь будет конечный экран в дизайне v2 — форма, список или карточка по смыслу пункта.</p></div>';
+      inner += '</div><div class="stub"><span class="tag">Экран · дизайн v2</span><p>«'+esc(node.name)+'» — конечный экран в дизайне v2 (форма, список или карточка).</p></div>';
     }
     vwrap.innerHTML = inner;
     vwrap.parentElement.scrollTop = 0;
@@ -881,13 +996,15 @@
   // --- Роутинг ---
   function go(id){
     const node = byId[id]; if (!node) return;
+    const sp = spaceOf(node);
+    if (sp && sp !== currentSpace){ currentSpace = sp; rebuildNav(); }
     if (location.hash !== "#"+id) location.hash = "#"+id;
     expandTo(node); render(node);
     document.body.classList.remove("nav-open");
     document.getElementById("menu").setAttribute("aria-expanded","false");
   }
   window.go = go;
-  window.addEventListener("hashchange", () => { const id = location.hash.slice(1); if (byId[id]) { const n=byId[id]; expandTo(n); render(n);} });
+  window.addEventListener("hashchange", () => { const id = location.hash.slice(1); if (byId[id]) go(id); });
 
   // --- Поиск ---
   document.getElementById("q").addEventListener("input", e => {
@@ -908,7 +1025,7 @@
   document.addEventListener("keydown", e => { if (e.key==="Escape") { document.body.classList.remove("nav-open"); } });
 
   // старт
-  const start = byId[location.hash.slice(1)] ? location.hash.slice(1) : "0-0"; // Публичная часть
+  const start = byId[location.hash.slice(1)] ? location.hash.slice(1) : kidOf(SPACE_NODES[currentSpace], "Главная");
   go(start);
   </script>
 </body>
