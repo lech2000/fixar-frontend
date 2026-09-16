@@ -353,10 +353,10 @@
     </div>
   </div>
   <div class="scrim" id="scrim" hidden></div>
-  <section class="agent-dock" id="agentdock" aria-label="Агент дела">
+  <section class="agent-dock" id="agentdock" aria-label="Фиксарик в контексте страницы">
     <button class="agent-dock-toggle" id="agentdocktoggle" type="button" aria-expanded="true">✦ Агент <span>Свернуть</span></button>
-    <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите агента о текущем деле"></textarea><button class="btn primary" type="submit">Отправить</button></form>
-    <div class="agent-answer" id="agentdockanswer">Откройте настоящее дело — агент сможет вести его и показывать следующий экран.</div>
+    <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите о текущей странице или деле"></textarea><button class="btn primary" type="submit">Отправить</button></form>
+    <div class="agent-answer" id="agentdockanswer">Я вижу текущий раздел и доступные здесь действия. Переходы сохраняются в вашей личной памяти на 90 дней.</div>
   </section>
 
   <script type="text/plain" id="ia">
@@ -879,10 +879,31 @@
   let ownerTools = { principal:null, checked:false, allowed:false, checking:false };
   let creditState = { principal:null, loading:false, data:null, error:"" };
   let fixarikFunnelOpened = false;
+  let interactionQueue = [], interactionTimer = null;
 
   const store = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
   const put   = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
   const drop  = k => { try { localStorage.removeItem(k); } catch(e){} };
+
+  function interactionSession(){ let id=store("fixar-v2-interaction-session"); if(id)return id; id="web_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,10); put("fixar-v2-interaction-session",id); return id; }
+  function currentPageContext(){
+    const hash=location.hash.slice(1), node=byId[hash.split("~",1)[0]], controls=[];
+    document.querySelectorAll("#view button,#view a[href],#agentdock button").forEach(el=>{ if(el.offsetParent===null||el.disabled||controls.length>=30)return; const name=(el.dataset.act||el.id||el.getAttribute("href")||"действие").slice(0,60), label=(el.textContent||el.getAttribute("aria-label")||"").trim().replace(/\s+/g," ").slice(0,60); controls.push(label?(name+" — "+label):name); });
+    return {space:currentSpace||"",screen:activeReal?"Дело":((node&&node.name)||"Главная"),tab:activeReal?realTab:"",route:hash.indexOf("case/")===0?"case/current":("screen/"+(hash||"home").replace(/[^A-Za-zА-Яа-яЁё0-9_.:/ -]/g,"")),available_actions:controls};
+  }
+  function rememberInteraction(action,target){
+    interactionQueue.push({event_id:"ui_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,9),action,target:String(target||"").replace(/[^A-Za-zА-Яа-яЁё0-9_.:/ -]/g,"").slice(0,120),page:currentPageContext()});
+    if(interactionQueue.length>60)interactionQueue=interactionQueue.slice(-60);
+    clearTimeout(interactionTimer); interactionTimer=setTimeout(flushInteractions,700);
+  }
+  async function flushInteractions(){
+    clearTimeout(interactionTimer); interactionTimer=null;
+    if(!interactionQueue.length||!authState.token||!authState.principal)return;
+    const events=interactionQueue.splice(0,20);
+    try{ await authFetch("POST","/dialog/context/events",{session_id:interactionSession(),events}); }
+    catch(_){ interactionQueue=events.concat(interactionQueue).slice(0,60); }
+    if(interactionQueue.length)interactionTimer=setTimeout(flushInteractions,900);
+  }
 
   function meName(){ return authState.signed_in ? (authState.name || (authState.providers||[]).map(p=>(BRAND[p]||{}).t||p).join(" + ") || "вы вошли") : "Гость"; }
   function meInitials(){ if(!authState.signed_in) return "Г"; const n=(authState.name||"").trim(); if(n){ const p=n.split(/\s+/); return ((p[0]||"")[0]||"")+((p[1]||"")[0]||"").toUpperCase(); } const p=(authState.providers||[])[0]; return ((BRAND[p]||{}).t||"В")[0].toUpperCase(); }
@@ -976,6 +997,7 @@
     loadCredits();
     maybeOpenFixarikFunnel();
     probeOwnerTools().then(()=>{ if(currentSpace==="Разработка" && typeof refreshCurrentView==="function") refreshCurrentView(); });
+    flushInteractions();
   }
 
   function creditNumber(value){ return new Intl.NumberFormat("ru-RU").format(Number(value)||0); }
@@ -1098,7 +1120,7 @@
   let currentSpace = "Семья";
   let listFilter = "Все";
   function spaceOf(node){ let n=node; while(n){ for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } n=n.parent; } return null; }
-  function switchSpace(k){ if(k===currentSpace) return; currentSpace=k; go(kidOf(SPACE_NODES[k],"Главная")); }
+  function switchSpace(k){ if(k===currentSpace) return; rememberInteraction("switch_space",k); currentSpace=k; go(kidOf(SPACE_NODES[k],"Главная")); }
   window.switchSpace = switchSpace;
   function renderSwitch(){
     const signed = authState.signed_in;
@@ -2015,16 +2037,19 @@
         catch(err){ btn.disabled=false; btn.textContent=approve?"Подтвердить изменение":"Отклонить изменение"; toast((err&&err.message)||"Не удалось сохранить решение."); } }; });
   }
   function applyAgentAction(action){
-    if(!activeReal||!action||typeof action!=="object") return false;
-    const allowed={open_plan:"План",open_participants:"Участники",open_journal:"Журнал",open_overview:"Обзор"};
-    if(allowed[action.type]){ realTab=allowed[action.type]; drawRealCase(); return true; }
+    if(!action||typeof action!=="object") return false;
     if(action.type==="switch_space" && SPACE_NODES[action.space]){ switchSpace(action.space); return true; }
+    if(!activeReal) return false;
+    const allowed={open_plan:"План",open_participants:"Участники",open_journal:"Журнал",open_overview:"Обзор",open_deadlines:"Сроки",open_documents:"Документы",open_settings:"Настройки"};
+    if(allowed[action.type]){ realTab=allowed[action.type]; rememberInteraction("open_tab",realTab); drawRealCase(); return true; }
     if(action.type==="open_case" && typeof action.case_id==="string" && action.case_id===activeReal.c.id){ location.hash="#case/"+action.case_id; return true; }
     return false;
   }
   async function askCaseAgent(message){
-    if(!activeReal) throw new Error("Сначала откройте настоящее дело: агент отвечает в его защищённом контексте.");
-    const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)};
+    await ensureSession(); rememberInteraction("agent_ask",activeReal?"case":"page"); await flushInteractions();
+    const page_context=currentPageContext();
+    if(!activeReal){ let talk=store("fixar-v2-page-talk"); if(!talk){ talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10); put("fixar-v2-page-talk",talk); } const general=await authFetch("POST","/dialog/general",{message,talk_id:talk,page_context}); applyAgentAction(general.ui_action); loadCredits(true); return general.reply||"Фиксарик принял сообщение."; }
+    const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),page_context};
     if(binding){ body.domain=binding.domain; body.agent=binding.agent; }
     const r=await authFetch("POST","/dialog",body);
     if(binding){ activeReal.c.domain=binding.domain; activeReal.c.selected_agent_id=binding.agent; try{localStorage.removeItem(practiceCaseStorageKey(activeReal.c.id));}catch(_){} }
@@ -2157,6 +2182,7 @@
   // --- Роутинг ---
   function go(id){
     const node = byId[id]; if (!node) return;
+    activeReal=null; activeCaseId=null;
     const sp = spaceOf(node);
     if (sp && sp !== currentSpace){ currentSpace = sp; rebuildNav(); }
     if ((location.hash.slice(1).split("~")[0]) !== id) location.hash = "#"+id;
@@ -2209,6 +2235,9 @@
   }
   document.getElementById("view").addEventListener("click", e=>{ const b=e.target.closest(".composer button"); if(b){ e.preventDefault(); composerSend(b.closest(".composer")); } });
   document.getElementById("view").addEventListener("keydown", e=>{ if(e.key==="Enter"){ const i=e.target.closest(".composer input"); if(i){ e.preventDefault(); composerSend(i.closest(".composer")); } } });
+  document.addEventListener("click",e=>{ const el=e.target.closest("button,a[href],[data-act]"); if(!el)return; const target=el.dataset.act||el.id||(el.tagName==="A"?"link":"control"); rememberInteraction("click",target); },true);
+  document.addEventListener("submit",e=>{ const form=e.target.closest("form"); if(form)rememberInteraction("submit",form.dataset.act||form.id||"form"); },true);
+  window.addEventListener("hashchange",()=>rememberInteraction("navigate",location.hash.indexOf("#case/")===0?"case":"screen"));
 
   // Аккаунт: триггеры (мобильная шапка + подвал навигации) и загрузка личности
   document.getElementById("acct").addEventListener("click", openAccount);
