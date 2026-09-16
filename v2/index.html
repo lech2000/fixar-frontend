@@ -235,6 +235,52 @@
     }
     @media (min-width:901px){ .topm{ display:none } }
     @media (prefers-reduced-motion:reduce){ *,*::before,*::after{ transition-duration:.01ms!important; animation-duration:.01ms!important; scroll-behavior:auto!important } .tile:hover{ transform:none } }
+
+    /* ── Аккаунт и вход (Фаза 1: реальная личность, тот же субъект, что и в оболочке) ── */
+    .me-av{ cursor:pointer; transition:border-color var(--dur), background var(--dur) }
+    .me-av:hover{ border-color:var(--cyan) }
+    .me-av:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
+    .acct-btn{ margin-left:auto; display:flex; align-items:center; gap:8px; padding:5px 12px 5px 5px;
+      border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer }
+    .acct-btn:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
+    .acct-btn .av{ width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+      background:linear-gradient(145deg,#78ef9f,#1ab25a);color:#052a17;font-weight:800;font-size:11px }
+    .acct-btn .nm{ font-size:13px;font-weight:700;max-width:12ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+    @media (min-width:901px){ .acct-btn{ display:none } }
+    .acct-line{ display:flex; align-items:center; gap:9px; padding:4px 4px 6px }
+    .acct-line .av{ width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;
+      background:linear-gradient(145deg,#78ef9f,#1ab25a);color:#052a17;font-weight:800;font-size:12px }
+    .acct-line .who{ min-width:0 } .acct-line .who b{ display:block; font-size:13px; overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+    .acct-line .who small{ color:var(--muted); font-size:11px }
+    .foot-link.enter{ color:var(--cyan); font-weight:700 }
+
+    .sheet{ position:fixed; inset:0; z-index:80; display:none; align-items:center; justify-content:center; padding:18px }
+    .sheet.open{ display:flex }
+    .sheet-bg{ position:absolute; inset:0; background:rgba(2,10,14,.66); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px) }
+    .sheet-card{ position:relative; width:min(420px,100%); max-height:90vh; overflow:auto; border:1px solid var(--line);
+      border-radius:20px; background:linear-gradient(165deg,var(--panel),var(--panel-2)); box-shadow:0 24px 60px rgba(0,0,0,.5); padding:22px }
+    .sheet-card h2{ margin:0 0 4px; font-size:20px } .sheet-card .lead{ margin:0 0 16px; color:var(--muted); font-size:13px }
+    .sheet-x{ position:absolute; top:12px; right:12px; width:34px;height:34px; border:1px solid var(--line); border-radius:10px;
+      background:transparent; color:var(--muted); cursor:pointer; font-size:18px; line-height:1 }
+    .sheet-x:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
+    .oauth{ display:flex; align-items:center; gap:12px; width:100%; margin:0 0 10px; padding:13px 15px;
+      border:1px solid var(--line); border-radius:13px; background:#081e27; color:var(--text); cursor:pointer; font-size:15px; font-weight:600;
+      transition:border-color var(--dur), transform var(--dur) }
+    .oauth:hover{ border-color:var(--cyan); transform:translateY(-1px) } .oauth:active{ transform:none }
+    .oauth:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
+    .oauth i{ width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;color:#03222c;background:var(--cyan) }
+    .oauth i.g{ background:#fff;color:#111 } .oauth i.y{ background:#fc3f1d;color:#fff } .oauth i.vk{ background:#07f;color:#fff }
+    .oauth[disabled]{ opacity:.55; cursor:progress }
+    .sheet-note{ margin:10px 0 0; color:var(--muted); font-size:12px }
+    .sheet-other{ display:block; margin-top:14px; text-align:center; color:var(--cyan); font-weight:700; font-size:13px }
+    .prov-chips{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 2px }
+    .prov-chip{ font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); color:var(--muted) }
+    .assure{ display:inline-block; margin-top:8px; font-size:12px; color:var(--green) }
+    .btn-out{ width:100%; margin-top:16px; padding:12px; border:1px solid rgba(255,140,140,.4); border-radius:12px;
+      background:rgba(255,140,140,.08); color:#ffb4b4; cursor:pointer; font-weight:700 }
+    .btn-out:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
+    .auth-toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:90; max-width:min(92vw,420px);
+      padding:12px 16px; border:1px solid var(--line); border-radius:12px; background:var(--panel-2); box-shadow:0 12px 30px rgba(0,0,0,.4); font-size:13px }
   </style>
 </head>
 <body>
@@ -253,6 +299,7 @@
         <button class="menu-btn" id="menu" aria-label="Меню" aria-controls="side" aria-expanded="false">☰</button>
         <span class="brand-mark" aria-hidden="true" style="width:30px;height:30px;font-size:18px">✱</span>
         <b>ФиксАР</b>
+        <button class="acct-btn" id="acct" aria-label="Аккаунт" aria-haspopup="dialog"><span class="av" id="acctav">Г</span><span class="nm" id="acctnm">Гость</span></button>
       </div>
       <div class="vwrap" id="vwrap"></div>
     </div>
@@ -756,6 +803,157 @@
   function ancestors(node){ const a=[]; let n=node; while(n && n.parent && n.parent.name!=="__root__"){ a.unshift(n.parent); n=n.parent; } return a; }
   function esc(s){ return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
 
+  /* ═══ ЛИЧНОСТЬ (Фаза 1) ═══════════════════════════════════════════════════
+     v2 садится на ТОТ ЖЕ субъект, что оболочка и «Рабочая версия»: те же ключи
+     хранилища, тот же порядок, та же ротация токена. Это и есть защита «один
+     человек — одна учётка»: свой ключ, свой порядок — иначе на проде уже
+     заводилась вторая запись на того же человека (см. start.js). Порт сделан
+     с rabochaya/app.js дословно; расходиться им нельзя.
+     ЧИТАЕМ на старте, но АНОНИМА НЕ ЗАВОДИМ — предпросмотр не должен плодить
+     пустые учётки на каждый заход. Аноним заводится лениво, только когда
+     человек сам нажал «Войти». */
+  const AUTH_API   = "https://api.agrigate.pro";
+  const AUTH_KEY   = "fixar.token";              // ключ оболочки — общий
+  const AUTH_ROT   = "fixar.session.rotation";
+  const AUTH_KEYS  = ["fixar.token","fixar.start.token","aios_token"];
+  const AUTH_LOGIN_STATE = "fixar.login.state";  // одноразовая метка входа (CSRF)
+  const AUTH_LOGIN_BACK  = "fixar.login.back";   // куда вернуть после входа
+  const AUTH_REDIRECT = "https://agrigate.pro/auth/callback";
+  const AUTH_BACK     = "/v2/";                  // добавлен в белый список /auth/callback
+  const BRAND = { google:{cls:"g",t:"Google"}, yandex:{cls:"y",t:"Яндекс"}, vk:{cls:"vk",t:"VK ID"},
+                  sber:{cls:"s",t:"Сбер ID"}, tbank:{cls:"t",t:"Т-Банк"}, tg:{cls:"tg",t:"Телеграм"} };
+  let authState = { token:null, principal:null, assurance:0, signed_in:false, providers:[], name:null, ready:false };
+
+  const store = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+  const put   = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
+  const drop  = k => { try { localStorage.removeItem(k); } catch(e){} };
+
+  function meName(){ return authState.signed_in ? (authState.name || (authState.providers||[]).map(p=>(BRAND[p]||{}).t||p).join(" + ") || "вы вошли") : "Гость"; }
+  function meInitials(){ if(!authState.signed_in) return "Г"; const n=(authState.name||"").trim(); if(n){ const p=n.split(/\s+/); return ((p[0]||"")[0]||"")+((p[1]||"")[0]||"").toUpperCase(); } const p=(authState.providers||[])[0]; return ((BRAND[p]||{}).t||"В")[0].toUpperCase(); }
+
+  async function authFetch(method, path, body, token){
+    const opts = { method, headers:{ "Content-Type":"application/json" } };
+    const t = token || authState.token; if(t) opts.headers["Authorization"] = "Bearer " + t;
+    if(body!==undefined) opts.body = JSON.stringify(body);
+    const r = await fetch(AUTH_API + path, opts);
+    const txt = await r.text(); let data=null; try{ data = txt?JSON.parse(txt):null; }catch(e){}
+    if(!r.ok){ const e=new Error((data&&data.detail&&(data.detail.message||data.detail.reason))||(typeof (data&&data.detail)==="string"?data.detail:"отказ "+r.status)); e.status=r.status; throw e; }
+    return data;
+  }
+  function newSessionToken(){ if(typeof crypto==="undefined"||!crypto.getRandomValues) return ""; const b=new Uint8Array(32); crypto.getRandomValues(b); let s=""; for(let i=0;i<b.length;i++) s+=b[i].toString(16).padStart(2,"0"); return s; }
+  function pendingRotation(old){ try{ const row=JSON.parse(store(AUTH_ROT)||"null"); return row&&row.old===old&&row.replacement?row:null; }catch(e){ return null; } }
+  function saveRotation(row){ put(AUTH_ROT, JSON.stringify(row)); return pendingRotation(row.old); }
+  function swapSession(old, nw){ AUTH_KEYS.forEach(k=>{ if(store(k)===old) put(k,nw); }); if(authState.token===old) authState.token=nw; }
+  function finishRotation(old, nw){ swapSession(old,nw); const row=pendingRotation(old); if(row&&row.replacement===nw) drop(AUTH_ROT); }
+  async function askSession(token){ const r=await fetch(AUTH_API+"/entry/whoami",{ headers:{ "Authorization":"Bearer "+token } }); if(!r.ok) return null; const who=await r.json(); return who&&who.principal_id?who:null; }
+  async function readSession(token, expect){
+    if(!token) return null;
+    let pending = pendingRotation(token);
+    if(pending){ const rec=await askSession(pending.replacement); if(rec&&rec.principal_id===pending.principal_id){ finishRotation(token,pending.replacement); rec.session_token=pending.replacement; return rec; } }
+    const who = await askSession(token); if(!who) return null;
+    if(expect && who.principal_id!==expect) return null;
+    if(who.session_rotation_required){
+      pending = pending || saveRotation({ old:token, replacement:newSessionToken(), principal_id:who.principal_id });
+      if(!pending||!pending.replacement){ who.session_token=token; return who; }
+      let rr=null;
+      try{ rr=await fetch(AUTH_API+"/entry/session/rotate",{ method:"POST", headers:{ "Authorization":"Bearer "+token, "Content-Type":"application/json" }, body:JSON.stringify({replacement_token:pending.replacement}) }); }catch(e){}
+      if(rr&&rr.ok){ const rot=await rr.json(); finishRotation(token,pending.replacement); token=pending.replacement; who.session_rotation_required=false; who.session_version=rot.session_version; }
+      else { const done=await askSession(pending.replacement); if(done&&done.principal_id===who.principal_id){ finishRotation(token,pending.replacement); done.session_token=pending.replacement; return done; } }
+      if(rr&&rr.status===404){ const nb=store(AUTH_KEY); if(!nb||nb===token) return null; return readSession(nb, who.principal_id); }
+      if(rr&&rr.status===409){ drop(AUTH_ROT); }
+    }
+    who.session_token=token; return who;
+  }
+  function adopt(who){ authState.token=who.session_token||authState.token; authState.principal=who.principal_id; authState.assurance=who.assurance||0; authState.signed_in=!!who.signed_in; authState.providers=who.providers||[]; authState.name=(who.display_name||"").trim()||null; }
+
+  /* Старт: только читаем существующий вход. Ничего не заводим. */
+  async function bootIdentity(){
+    const saved = store(AUTH_KEY);
+    if(saved){ try{ const who=await readSession(saved); if(who&&who.principal_id){ authState.token=who.session_token||saved; adopt(who); } }catch(e){} }
+    authState.ready=true; applyIdentity();
+  }
+  /* Лениво: анонимный вход под общим ключом — точь-в-точь как оболочка (шаг 3). */
+  async function ensureSession(){
+    if(authState.token) return authState.token;
+    const saved=store(AUTH_KEY);
+    if(saved){ try{ const who=await readSession(saved); if(who&&who.principal_id){ authState.token=who.session_token||saved; adopt(who); return authState.token; } }catch(e){} }
+    const me=await authFetch("POST","/entry/anon",{ label:"v2" });
+    authState.token=me.token; authState.principal=me.principal_id; authState.assurance=me.assurance||0;
+    put(AUTH_KEY, me.token);
+    return authState.token;
+  }
+  let _providers=null;
+  async function authProviders(){ if(_providers) return _providers; _providers=await authFetch("GET","/auth/providers"); return _providers; }
+
+  async function startLogin(provider){
+    /* Как в start.js (канонический новый экран): БЕЗ anon_token — это переход
+       в существующую запись, а не неполное слияние. Токен для caller получаем
+       лениво. Метку и адрес возврата кладём ДО ухода: без метки /auth/callback
+       откажет (login CSRF), без адреса — вернёт на «/». */
+    await ensureSession();
+    const r = await authFetch("POST","/auth/start",{ provider, redirect_uri:AUTH_REDIRECT });
+    try{ localStorage.setItem(AUTH_LOGIN_STATE, r.state); localStorage.setItem(AUTH_LOGIN_BACK, AUTH_BACK); }
+    catch(e){ throw new Error("Браузер не даёт запомнить начатый вход (приватный режим?). Без этой проверки продолжать небезопасно."); }
+    location.href = r.authorize_url || r.url;
+  }
+  async function logout(){
+    try{ if(authState.token) await authFetch("POST","/entry/logout",{ token:authState.token }); }catch(e){}
+    drop(AUTH_KEY); drop("fixar.start.token"); drop(AUTH_ROT);
+    location.reload();
+  }
+
+  function applyIdentity(){
+    const av=document.getElementById("acctav"), nm=document.getElementById("acctnm");
+    if(av) av.textContent=meInitials(); if(nm) nm.textContent=meName();
+    if(typeof renderSwitch==="function") renderSwitch();
+    if(typeof renderFoot==="function") renderFoot();
+  }
+
+  /* ── Лист входа: реальные кнопки от /auth/providers, реальный /auth/start ── */
+  let _sheet=null, _sheetReturn=null;
+  function sheetEl(){
+    if(_sheet) return _sheet;
+    _sheet=document.createElement("div"); _sheet.className="sheet"; _sheet.setAttribute("role","dialog"); _sheet.setAttribute("aria-modal","true"); _sheet.setAttribute("aria-label","Аккаунт");
+    _sheet.innerHTML='<div class="sheet-bg" data-x></div><div class="sheet-card" role="document"><button class="sheet-x" data-x aria-label="Закрыть">✕</button><div id="sheetbody"></div></div>';
+    document.body.appendChild(_sheet);
+    _sheet.addEventListener("click", e=>{ if(e.target.hasAttribute("data-x")) closeAccount(); });
+    document.addEventListener("keydown", e=>{ if(!_sheet.classList.contains("open")) return;
+      if(e.key==="Escape"){ e.preventDefault(); closeAccount(); return; }
+      if(e.key==="Tab"){ const f=Array.from(_sheet.querySelectorAll('button,[href],input,[tabindex]:not([tabindex="-1"])')).filter(el=>el.offsetParent!==null); if(!f.length) return; const a=f[0],b=f[f.length-1];
+        if(e.shiftKey&&document.activeElement===a){ e.preventDefault(); b.focus(); } else if(!e.shiftKey&&document.activeElement===b){ e.preventDefault(); a.focus(); } } });
+    return _sheet;
+  }
+  function closeAccount(){ if(!_sheet) return; _sheet.classList.remove("open"); document.body.style.overflow=""; if(_sheetReturn&&_sheetReturn.focus) _sheetReturn.focus(); }
+  async function openAccount(ev){
+    _sheetReturn = (ev&&ev.currentTarget)||document.activeElement;
+    const s=sheetEl(); const body=s.querySelector("#sheetbody");
+    s.classList.add("open"); document.body.style.overflow="hidden";
+    if(authState.signed_in){
+      const via=(authState.providers||[]).map(p=>'<span class="prov-chip">'+esc((BRAND[p]||{}).t||p)+'</span>').join("");
+      body.innerHTML='<h2>'+esc(meName())+'</h2><p class="lead">Вы вошли — это тот же аккаунт и те же дела во всех версиях ФиксАР.</p>'+
+        (via?'<div class="prov-chips">'+via+'</div>':'')+
+        '<span class="assure">Уровень подтверждения: '+(authState.assurance||0)+'</span>'+
+        '<button class="btn-out" id="doLogout">Выйти из аккаунта</button>';
+      const lo=body.querySelector("#doLogout"); lo.focus();
+      lo.onclick=()=>{ lo.disabled=true; lo.textContent="Выхожу…"; logout(); };
+      return;
+    }
+    body.innerHTML='<h2>Войти в ФиксАР</h2><p class="lead">Вход привязывает канал к вашему субъекту: дела и переписка не потеряются. Пока вы гость — можно смотреть, но не подписывать обязательства и не звать людей в дело.</p><div id="oauths"><span class="sheet-note">Загружаю способы входа…</span></div>';
+    let cfg=null; try{ cfg=await authProviders(); }catch(e){ body.querySelector("#oauths").innerHTML='<span class="sheet-note">Способы входа сейчас недоступны. Разговор при этом идёт — дело уже ваше.</span>'; return; }
+    if(!s.classList.contains("open")) return;
+    const ready=Object.keys(cfg.oauth||{}).filter(k=>cfg.oauth[k]&&BRAND[k]);
+    const wrap=body.querySelector("#oauths"); wrap.innerHTML="";
+    ready.forEach((k,i)=>{ const b=document.createElement("button"); b.className="oauth"; b.type="button";
+      b.innerHTML='<i class="'+esc((BRAND[k]||{}).cls||"")+'">'+esc(((BRAND[k]||{}).t||k)[0])+'</i><span>Войти через '+esc((BRAND[k]||{}).t||k)+'</span>';
+      b.onclick=async()=>{ Array.from(wrap.querySelectorAll("button")).forEach(x=>x.disabled=true); b.querySelector("span").textContent="минуту…";
+        try{ await startLogin(k); }catch(e){ Array.from(wrap.querySelectorAll("button")).forEach(x=>x.disabled=false); b.querySelector("span").textContent="Войти через "+((BRAND[k]||{}).t||k); toast((e&&e.message)||"Вход сейчас не работает."); } };
+      wrap.appendChild(b); if(i===0) b.focus(); });
+    const other=[]; if(cfg.email) other.push("почта"); if(cfg.telegram) other.push("Телеграм"); if(cfg.phone) other.push("телефон"); if(cfg.max) other.push("MAX");
+    if(other.length) wrap.insertAdjacentHTML("beforeend",'<a class="sheet-other" href="/start/">Другие способы: '+esc(other.join(", "))+' →</a>');
+    if(!ready.length&&!other.length) wrap.innerHTML='<span class="sheet-note">Способы входа ещё не настроены на сервере.</span>';
+  }
+  function toast(msg){ const t=document.createElement("div"); t.className="auth-toast"; t.setAttribute("role","status"); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>{ if(t.parentNode) t.parentNode.removeChild(t); }, 5200); }
+
   // --- Сайдбар ---
   const nav = document.getElementById("nav");
   function buildNav(node, container){
@@ -796,9 +994,11 @@
   function switchSpace(k){ if(k===currentSpace) return; currentSpace=k; go(kidOf(SPACE_NODES[k],"Главная")); }
   window.switchSpace = switchSpace;
   function renderSwitch(){
+    const signed = authState.signed_in;
     document.getElementById("switch").innerHTML =
       '<div class="me"><div><div class="me-label">Пространство</div><div class="me-space">'+esc(currentSpace)+'</div></div>'+
-      '<span class="me-av" aria-hidden="true">ВЫ</span></div>';
+      '<button class="me-av" id="meav" aria-haspopup="dialog" aria-label="'+(signed?"Аккаунт: "+esc(meName()):"Войти в ФиксАР")+'">'+esc(meInitials())+'</button></div>';
+    const b=document.getElementById("meav"); if(b) b.addEventListener("click", openAccount);
   }
   function renderFoot(){
     const el=document.getElementById("protofoot");
@@ -809,6 +1009,10 @@
       '<div class="nav-div">Сменить пространство</div>'+
       others.map(k=>'<button class="foot-link sp-link" onclick="switchSpace(\''+esc(k)+'\')">'+esc(k)+'</button>').join("")+
       '<div class="nav-div">Аккаунт</div>'+
+      '<div class="acct-line"><span class="av" aria-hidden="true">'+esc(meInitials())+'</span><span class="who"><b>'+esc(meName())+'</b><small>'+(authState.signed_in?'вход подтверждён · уровень '+(authState.assurance||0):'гостевой просмотр')+'</small></span></div>'+
+      (authState.signed_in
+        ? '<button class="foot-link" data-acct="open">Профиль и выход</button>'
+        : '<button class="foot-link enter" data-acct="open">Войти →</button>')+
       (notif?'<button class="foot-link" onclick="go(\''+notif.id+'\')">Уведомления</button>':'')+
       (settings?'<button class="foot-link" onclick="go(\''+settings.id+'\')">Настройки</button>':'')+
       '<div class="nav-div">Прототип · контексты</div>'+
@@ -1308,6 +1512,11 @@
   }
   document.getElementById("view").addEventListener("click", e=>{ const b=e.target.closest(".composer button"); if(b){ e.preventDefault(); composerSend(b.closest(".composer")); } });
   document.getElementById("view").addEventListener("keydown", e=>{ if(e.key==="Enter"){ const i=e.target.closest(".composer input"); if(i){ e.preventDefault(); composerSend(i.closest(".composer")); } } });
+
+  // Аккаунт: триггеры (мобильная шапка + подвал навигации) и загрузка личности
+  document.getElementById("acct").addEventListener("click", openAccount);
+  document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
+  bootIdentity();
 
   // старт
   (function(){ const h=location.hash.slice(1);
