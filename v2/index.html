@@ -1632,6 +1632,13 @@
       '<fieldset class="perms"><legend>Отдельный вопрос об общем корпусе</legend><label class="chk"><input name="share" type="checkbox"> Предложить эту книгу общему корпусу после проверки прав</label><div data-share-fields hidden style="margin-top:10px"><label>Основание<select name="rights_basis"><option value="rights_holder">Я правообладатель</option><option value="open_license">Открытая лицензия</option></select></label><label style="display:block;margin-top:8px">Ссылка на лицензию<input name="license_url" type="url" placeholder="https://…" style="width:100%"></label><p class="rc-hint">Заявка не публикует файл автоматически. До проверки книга остаётся приватной.</p></div></fieldset>'+
       '<div class="cta-row"><button class="btn primary" type="submit">Загрузить и разобрать</button></div><div class="rc-hint" data-book-status>'+esc(activeReal.textbookStatus||"")+'</div></form></div>';
   }
+  function domashkinParentInvitePanel(){
+    if(!isDomashkinCase(activeReal.c) || !activeReal.canDecide) return "";
+    const hasSecondParent=(activeReal.c.participants||[]).some(p=>p.principal_id!==activeReal.c.owner_id&&p.role==="spouse");
+    if(hasSecondParent) return '<div class="rc-strip"><h3>Второй родитель подключён</h3><p class="rc-hint">Он участвует в деле Домашкина и получает уведомления о новых сообщениях. Каждый родитель управляет своими каналами уведомлений самостоятельно.</p></div>';
+    return '<div class="rc-strip"><h3>Пригласить второго родителя</h3><p class="rc-hint">Он сможет читать и обсуждать материалы, назначать семейные действия и подтверждать предложения Домашкина. Персональные сведения открываются явно, без передачи вашего логина от дневника.</p>'+
+      '<form class="pform" data-act="invite-parent"><label class="chk"><input name="pii" type="checkbox" checked> Разрешить видеть персональные сведения в этом деле</label><label class="chk"><input name="decide" type="checkbox" checked> Разрешить подтверждать действия Домашкина</label><p class="rc-hint">После принятия ссылки уведомления о новых сообщениях дела включены по умолчанию. Доступ к самому электронному дневнику остаётся отдельным и проверяется сервером.</p><div class="cta-row"><button class="btn primary" type="submit">Создать семейное приглашение</button></div><div data-parent-invite-out></div></form></div>';
+  }
   function realLinksPanel(){
     const plans={}, links=[];
     (activeReal.events||[]).forEach(ev=>{ const p=eventPayload(ev); if(ev.kind==="plan.branches") (p.branches||[]).forEach((branch,index)=>plans[index]=branch); if(ev.kind==="branch.started"&&p.child_case_id) links.push({id:String(p.child_case_id),title:String(p.title||((plans[p.ord]||{}).title)||"Рабочее дело")}); });
@@ -1697,6 +1704,7 @@
     if(realTab==="Обзор"){
       return '<div class="kv">'+kvRow("Цель",c.goal||"—")+kvRow("Статус",RU_STATE[c.state]||c.state||"—")+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Помощник",assistantName(c))+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+kvRow("Объектов",String((c.subjects||[]).length))+'</div>'+realLinksPanel()+
         (c.needs_word?'<div class="rc-note">По этому делу ждут вашего решения — загляните в Журнал.</div>':'')+
+        domashkinParentInvitePanel()+
         domashkinBookPanel()+
         '<div class="section-t">Написать агенту</div><form class="composer" data-act="ask-agent" style="max-width:620px;display:flex;flex-direction:column"><textarea name="message" required rows="1" style="resize:vertical;min-height:42px" placeholder="Напр., изменилось школьное расписание — что нужно сделать?" aria-label="Сообщение агенту"></textarea><button class="btn primary" type="submit">Отправить</button></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble" style="margin-top:12px">'+esc(activeReal.reply)+'</div>':'')+'</div>'+
         '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="rc-goto" data-tab="Журнал">Открыть журнал</button><button class="btn" data-act="rc-goto" data-tab="Участники">Участники</button></div>';
@@ -1745,7 +1753,7 @@
         return '<div class="prow"><div style="min-width:0"><b>'+esc(p.display_name||"Без имени")+'</b> · '+esc(ROLE_RU[p.role]||p.role||"")+(p.engagement?' · '+esc(ENG_RU[p.engagement]||p.engagement):'')+
           '<div class="perm-tags" style="margin-top:6px">Права: '+rights+'</div><div class="perm-tags" style="margin-top:4px">Видит: '+sees+'</div></div>'+edit+'</div>';
       }).join("");
-      let h='<div class="lst">'+rows+'</div>';
+      let h='<div class="lst">'+rows+'</div>'+domashkinParentInvitePanel();
       if(canDecide){
         h+='<div class="section-t">Пригласить участника</div>'+
           '<form class="pform" data-act="invite">'+
@@ -1783,6 +1791,7 @@
     if(shareInput) shareInput.onchange=()=>{ const fields=shareInput.closest("fieldset").querySelector("[data-share-fields]"); fields.hidden=!shareInput.checked; };
     panel.onclick=async e=>{
       const cp=e.target.closest("[data-copy]"); if(cp){ try{ await navigator.clipboard.writeText(cp.dataset.copy); toast("Ссылка скопирована"); }catch(_){ toast("Скопируйте ссылку вручную"); } return; }
+      const share=e.target.closest("[data-share-link]"); if(share){ const link=share.dataset.shareLink; try{ if(navigator.share) await navigator.share({title:"Приглашение в Домашкина",text:"Подключайтесь к семейному делу Домашкина",url:link}); else { await navigator.clipboard.writeText(link); toast("Ссылка скопирована"); } }catch(error){ if(error&&error.name!=="AbortError") toast("Не удалось открыть отправку — скопируйте ссылку."); } return; }
       const b=e.target.closest("[data-act]"); if(!b) return; const c=activeReal.c; const act=b.dataset.act;
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
       if(act==="open-real-linked"){ realTab="Обзор"; location.hash="#case/"+b.dataset.id; return; }
@@ -1801,6 +1810,17 @@
     };
     panel.onsubmit=async e=>{
       const f=e.target.closest("form[data-act]"); if(!f) return; e.preventDefault(); const c=activeReal.c;
+      if(f.dataset.act==="invite-parent"){
+        const rights=["read","comment"]; if(f.decide.checked) rights.push("decide");
+        const may_see=["normal"]; if(f.pii.checked) may_see.push("pii");
+        const btn=f.querySelector('button[type="submit"]'), out=f.querySelector("[data-parent-invite-out]"); btn.disabled=true; btn.textContent="Создаю…";
+        try{ const r=await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/invites",{role:"spouse",rights,may_see,engagement:"partner",note:"Семейное дело Домашкина: школа, задания и согласованные действия"});
+          const link=location.origin+"/?invite="+encodeURIComponent(r.code);
+          out.innerHTML='<div class="invite-box">Ссылка действует '+esc(String(r.expires_in_hours||72))+' ч. Второй родитель увидит условия до принятия.<code>'+esc(link)+'</code><div class="cta-row"><button class="btn small" type="button" data-copy="'+attr(link)+'">Копировать</button><button class="btn small" type="button" data-share-link="'+attr(link)+'">Отправить</button></div><p class="rc-hint">После принятия новые сообщения дела будут приходить через подключённые им каналы уведомлений.</p></div>';
+          btn.disabled=false; btn.textContent="Создать новую ссылку";
+        }catch(err){ btn.disabled=false; btn.textContent="Создать семейное приглашение"; toast((err&&err.message)||"Не удалось создать приглашение."); }
+        return;
+      }
       if(f.dataset.act==="invite"){
         const rights=[...f.querySelectorAll('input[name="right"]:checked')].map(x=>x.value); if(rights.indexOf("read")<0) rights.unshift("read");
         const may_see=[...f.querySelectorAll('input[name="see"]:checked')].map(x=>x.value); if(may_see.indexOf("normal")<0) may_see.unshift("normal");
