@@ -1002,7 +1002,8 @@
     const data=creditState.data;
     if(!data){ toast(creditState.error||"Баланс загружается…"); loadCredits(true); return; }
     const gift=creditGiftAvailable(data)?'<p class="rc-note">До <b>'+creditNumber(data.gift_size)+'</b> стартовых кредитов сервер начислит при первом платном действии. Чтение баланса ничего не начисляет.</p>':'';
-    modalOpen("Кредиты",'<p class="lead">Текущий остаток: <b>'+creditNumber(data.balance)+'</b></p>'+gift+
+    const basic=Number(data.balance||0)<=0&&!creditGiftAvailable(data)?'<p class="rc-note">Кредиты закончились, но обслуживание продолжается в базовом режиме: младшая локальная модель и GigaChat, только если разрешения дела допускают российское облако.</p>':'';
+    modalOpen("Кредиты",'<p class="lead">Текущий остаток: <b>'+creditNumber(data.balance)+'</b></p>'+gift+basic+
       '<div class="prow"><span>Подарочные</span><b>'+creditNumber(data.gift_balance)+'</b></div><div class="prow"><span>Заработанные</span><b>'+creditNumber(data.earned_balance)+'</b></div><div class="prow"><span>Купленные</span><b>'+creditNumber(data.paid_balance)+'</b></div>');
   }
 
