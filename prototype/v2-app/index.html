@@ -1133,6 +1133,10 @@
   let PRACTICE={principal:"",loaded:false,loading:false,items:[],selectedId:"",error:""};
   const practiceTitle = item => item.kind_title||item.title||item.domain_title||item.domain||"Кабинет";
   function practiceStorageKey(){ return "fixar-v2-practice:"+(authState.principal||"guest"); }
+  function selectedPractice(){ return PRACTICE.items.find(item=>item.id===PRACTICE.selectedId)||null; }
+  function practiceCaseStorageKey(caseId){ return "fixar-v2-practice-case:"+(authState.principal||"guest")+":"+caseId; }
+  function rememberPracticeCase(caseId,practice){ try{ localStorage.setItem(practiceCaseStorageKey(caseId),JSON.stringify({domain:practice.domain,agent:practice.agent})); }catch(_){} }
+  function practiceCaseBinding(caseData){ if(!caseData||caseData.scope!=="pro"||caseData.domain)return null; try{ const value=JSON.parse(localStorage.getItem(practiceCaseStorageKey(caseData.id))||"null"); return value&&value.domain&&value.agent?value:null; }catch(_){return null;} }
   async function loadPracticeCabinets(force){
     if(!authState.token||!authState.principal){ PRACTICE={principal:"",loaded:true,loading:false,items:[],selectedId:"",error:""}; return; }
     if(PRACTICE.loading||(!force&&PRACTICE.loaded&&PRACTICE.principal===authState.principal)) return;
@@ -1546,7 +1550,7 @@
   }
   const caseMeta = c => ((c.participants||[]).length)+" уч. · обновлено "+fmtWhen(c.updated_at);
   function eventPayload(ev){ const p=ev&&ev.payload; if(typeof p!=="string") return p||{}; try{return JSON.parse(p)||{};}catch(_){return{};} }
-  const assistantName = c => (c&&c.scope)==="home" ? "Домашкин" : "Фиксарик";
+  const assistantName = c => { if(c&&c.selected_agent_id){ const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id); return practice?practiceTitle(practice):c.selected_agent_id; } return (c&&c.scope)==="home" ? "Домашкин" : "Фиксарик"; };
   function realLinksPanel(){
     const plans={}, links=[];
     (activeReal.events||[]).forEach(ev=>{ const p=eventPayload(ev); if(ev.kind==="plan.branches") (p.branches||[]).forEach((branch,index)=>plans[index]=branch); if(ev.kind==="branch.started"&&p.child_case_id) links.push({id:String(p.child_case_id),title:String(p.title||((plans[p.ord]||{}).title)||"Рабочее дело")}); });
@@ -1741,19 +1745,26 @@
   }
   async function askCaseAgent(message){
     if(!activeReal) throw new Error("Сначала откройте настоящее дело: агент отвечает в его защищённом контексте.");
-    const r=await authFetch("POST","/dialog",{case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)});
+    const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)};
+    if(binding){ body.domain=binding.domain; body.agent=binding.agent; }
+    const r=await authFetch("POST","/dialog",body);
+    if(binding){ activeReal.c.domain=binding.domain; activeReal.c.selected_agent_id=binding.agent; try{localStorage.removeItem(practiceCaseStorageKey(activeReal.c.id));}catch(_){} }
     activeReal.reply=r.reply||"Агент принял сообщение."; applyAgentAction(r.ui_action); return activeReal.reply;
   }
   function openCreateCase(){
-    modalOpen("Новое семейное дело",
-      '<p class="lead">Создаётся настоящее дело в вашем аккаунте ФиксАР (пространство «Семья»). Вы — владелец; участников можно пригласить позже.</p>'+
-      '<form id="ccf" class="pform"><label style="display:block">Название<input name="title" required placeholder="Напр., Переезд семьи" style="width:100%"></label>'+
+    const practice=currentSpace==="Практика"?selectedPractice():null;
+    if(currentSpace==="Практика"&&!practice){ toast("Сначала выберите кабинет в разделе «Практика»."); return; }
+    const isPractice=!!practice, space=isPractice?"Практика":"Семья", defaultTitle=isPractice?"Новое дело кабинета":"Семейное дело", placeholder=isPractice?"Напр., Договор клиента":"Напр., Переезд семьи";
+    modalOpen(isPractice?"Новое дело кабинета":"Новое семейное дело",
+      '<p class="lead">Создаётся настоящее дело в пространстве «'+esc(space)+'». Вы — владелец; участников можно пригласить позже.'+(isPractice?' Агент и база знаний будут взяты из выбранного кабинета «'+esc(practiceTitle(practice))+'».':'')+'</p>'+
+      '<form id="ccf" class="pform"><label style="display:block">Название<input name="title" required placeholder="'+esc(placeholder)+'" style="width:100%"></label>'+
       '<label style="display:block;margin-top:10px">Цель (необязательно)<input name="goal" placeholder="Чего хотим достичь" style="width:100%"></label>'+
       '<div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело</button></div></form>',
       body=>{ const f=body.querySelector("#ccf"); f.title.focus(); f.onsubmit=async e=>{ e.preventDefault(); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Создаю…";
-        try{ await ensureSession(); const c=await authFetch("POST","/cases",{title:(f.title.value||"").trim()||"Семейное дело",goal:(f.goal.value||"").trim()});
-          try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:"home"}); }catch(_){}
-          REAL.loaded=false; modalClose(); realTab="Обзор"; currentSpace="Семья"; rebuildNav(); renderRealCase(c.id);
+        try{ await ensureSession(); const c=await authFetch("POST","/cases",{title:(f.title.value||"").trim()||defaultTitle,goal:(f.goal.value||"").trim(),...(isPractice?{side:"offer_help"}:{})});
+          try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:isPractice?"pro":"home"}); }catch(_){}
+          if(isPractice) rememberPracticeCase(c.id,practice);
+          REAL.loaded=false; modalClose(); realTab="Обзор"; currentSpace=space; rebuildNav(); renderRealCase(c.id);
         }catch(err){ btn.disabled=false; btn.textContent="Создать дело"; toast((err&&err.message)||"Не удалось создать дело."); } }; });
   }
   window.openCreateCase=openCreateCase;
