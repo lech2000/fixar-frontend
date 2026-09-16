@@ -129,6 +129,7 @@
           <p class="hint" id="peduConnectStatus" role="status" aria-live="polite">
             Вход ещё не начат.
           </p>
+          <button class="btn secondary" id="peduSkipAlways" type="button">Пропустить дневник</button>
           <!-- ВЫГРУЗКА ЗАДАНИЙ — ОТДЕЛЬНОЕ РЕШЕНИЕ С ЦЕНОЙ. Сохранённый вход сам
                по себе заданий не приносит: их приносит синхронизация
                (POST /browser/school-sync, дом ключей «площадка»), а она платная
@@ -196,6 +197,7 @@
             способом вы уже входили, мы переведём вас в ту самую запись, а
             начатое здесь перенесём следом.</p>
           <div class="bar" id="pilotIdentityButtons"></div>
+          <div class="bar"><button class="btn ghost" id="skipIdentityConfirmation" type="button">Пропустить подтверждение</button></div>
           <p class="hint" id="pilotIdentityStatus" role="status" aria-live="polite"></p>
         </div>
       </div>
@@ -810,9 +812,16 @@
         показатьСтупень(button.getAttribute("data-pilot-step"), true);
       });
     });
-    $("pilotBack").addEventListener("click", function(){
+  $("pilotBack").addEventListener("click", function(){
       var index = Math.max(0, номерСтупени(ТЕКУЩАЯ_СТУПЕНЬ) - 1);
       показатьСтупень(СТУПЕНИ_ПИЛОТА[index].code, true);
+    });
+    $("peduSkipAlways").addEventListener("click", function(){
+      ПЕДУ_ПРОСМОТРЕН = true;
+      запомнитьВозвратПилота();
+      обновитьЛестницу();
+      показатьСтупень(СТУПЕНИ_ПИЛОТА[Math.min(СТУПЕНИ_ПИЛОТА.length - 1,
+        номерСтупени("pedu") + 1)].code, true);
     });
     $("pilotNext").addEventListener("click", async function(){
       if (ТЕКУЩАЯ_СТУПЕНЬ === "pedu"){
@@ -1281,6 +1290,11 @@
     var on = модулиВыбрано.indexOf("homework") >= 0;
     отметитьШаг("module_selected", "agent", on ? "success" : "skipped",
       on ? ["homework_module"] : []);
+  });
+  $("skipIdentityConfirmation").addEventListener("click", function(){
+    $("pilotIdentityChoices").hidden = true;
+    $("pilotIdentityStatus").textContent = "Подтверждение пропущено: данные ребёнка и дневник останутся закрыты до входа.";
+    показатьСтупень("learning_profile", true);
   });
 
   function строкаГраницы(текст){

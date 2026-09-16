@@ -26,6 +26,7 @@
     ввести: document.getElementById("ввести"),
     энтер: document.getElementById("энтер"),
     назад: document.getElementById("назад"),
+    ниже: document.getElementById("ниже"),
     готово: document.getElementById("готово"),
     закрыть: document.getElementById("закрыть"),
     состояние: document.getElementById("состояние"),
@@ -139,6 +140,7 @@
 
   э.энтер.addEventListener("click", function () { ход({ kind: "key", key: "Enter" }); });
   э.назад.addEventListener("click", function () { ход({ kind: "back" }); });
+  э.ниже.addEventListener("click", function () { ход({ kind: "key", key: "PageDown" }); });
 
   э.готово.addEventListener("click", function () {
     э.готово.disabled = true;

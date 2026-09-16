@@ -78,6 +78,9 @@
   var КУДА = [
     "/",
     "/start/",
+    // Предпросмотр v2 (Фаза 1): его лист входа кладёт сюда fixar.login.back,
+    // и без этой строки возврат ушёл бы на «/» — в старую оболочку.
+    "/v2/",
     "/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin",
     // Та же настройка для семьи из Telegram (с 14.09.2026: Домашкин без MAX).
     "/fixclo/?preset=education.domashkin&channel=tg&pilot=domashkin"

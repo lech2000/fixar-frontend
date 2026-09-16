@@ -194,6 +194,10 @@
     .pform{ margin-top:12px;display:flex;flex-direction:column;gap:12px;max-width:680px }
     .pf-row{ display:grid;grid-template-columns:1fr 1fr;gap:12px } .pf-row label,.pform>label{ display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted) }
     .pform input,.pform select{ padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:#081e27;color:var(--text);outline:none;font:inherit } .pform input:focus,.pform select:focus{ border-color:var(--cyan) }
+    .book-upload{ margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(155deg,var(--panel),var(--panel-2)) }
+    .book-upload h3{ margin:0 0 4px;font-size:16px }.book-upload p{ margin:0;color:var(--muted);font-size:13px }
+    .book-file{ display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border:1px dashed rgba(98,230,242,.4);border-radius:12px;background:rgba(98,230,242,.05);cursor:pointer;color:var(--text) }
+    .book-file input{ position:absolute;width:1px;height:1px;opacity:0;pointer-events:none }.book-file-name{ color:var(--muted);font-size:12.5px;overflow-wrap:anywhere }
     .perms{ border:1px solid var(--line);border-radius:12px;padding:12px 14px } .perms legend{ padding:0 6px;color:var(--muted);font-size:12px }
     .chk{ display:flex;align-items:center;gap:8px;color:var(--text);font-size:13.5px;padding:4px 0 } .chk input{ width:16px;height:16px }
     .toggles{ display:flex;flex-direction:column;gap:8px }
@@ -878,6 +882,7 @@
     if(!r.ok){ const e=new Error((data&&data.detail&&(data.detail.message||data.detail.reason))||(typeof (data&&data.detail)==="string"?data.detail:"отказ "+r.status)); e.status=r.status; throw e; }
     return data;
   }
+  function fileAsBase64(file){ return new Promise((resolve,reject)=>{ const reader=new FileReader(); reader.onerror=()=>reject(new Error("Не удалось прочитать файл.")); reader.onload=()=>resolve(String(reader.result||"").split(",",2)[1]||""); reader.readAsDataURL(file); }); }
   function newSessionToken(){ if(typeof crypto==="undefined"||!crypto.getRandomValues) return ""; const b=new Uint8Array(32); crypto.getRandomValues(b); let s=""; for(let i=0;i<b.length;i++) s+=b[i].toString(16).padStart(2,"0"); return s; }
   function pendingRotation(old){ try{ const row=JSON.parse(store(AUTH_ROT)||"null"); return row&&row.old===old&&row.replacement?row:null; }catch(e){ return null; } }
   function saveRotation(row){ put(AUTH_ROT, JSON.stringify(row)); return pendingRotation(row.old); }
@@ -1182,7 +1187,7 @@
     const quick=friendly?(()=>{ const items=currentSpace==="Семья"
       ? [["Семейный диалог","Спросить Домашкина"],["Общие дела","Открыть дела"],["Сроки и изменения","Ближайшие даты"]]
       : [["Диалог с ФиксАР","Спросить Фиксарика"],["Мои активные дела","Открыть дела"],["Сроки и изменения","Ближайшие даты"]];
-      return '<div class="quick-jumps" aria-label="Быстрые переходы">'+items.map(item=>{ const id=kidOf(node,item[0]); return id?'<button class="quick-jump" type="button" onclick="go(\''+id+'\')"><b>'+esc(item[1])+'</b><span>'+esc(item[0])+' →</span></button>':''; }).join("")+'</div>';
+      return '<div class="quick-jumps" aria-label="Быстрые переходы">'+items.map((item,index)=>{ const id=kidOf(node,item[0]); const action=currentSpace==="Семья"&&index===0?'onclick="openFamilyDialog()"':'onclick="go(\''+id+'\')"'; return id?'<button class="quick-jump" type="button" '+action+'><b>'+esc(item[1])+'</b><span>'+esc(item[0])+' →</span></button>':''; }).join("")+'</div>';
     })():"";
     const cards = node.children.map(b=>{
       const c = d[b.name] || {}; const isDialog = /диалог|помощник/i.test(b.name);
@@ -1543,7 +1548,7 @@
 
   let REAL={loaded:false,loading:false,cases:[],error:null};
   let activeReal=null, realTab="Обзор";
-  const REAL_TABS=["Обзор","Журнал","План","Участники","Настройки"];
+  const REAL_TABS=["Обзор","Журнал","План","Документы","Участники","Настройки"];
   function hasSession(){ return !!authState.token; }
   function realMode(){ return hasSession() && !!SPACE_SCOPE[currentSpace]; }
 
@@ -1562,9 +1567,34 @@
     if(space==="Практика")return REAL.cases.filter(c=>(c.scope||"")==="pro");
     return [];
   }
+  async function openFamilyDialog(message){
+    if(!authState.token){ openAccount(); return; }
+    await ensureSession(); await loadRealCases(true);
+    let dialog=REAL.cases.find(c=>c.scope==="home"&&c.title==="Семейный диалог с Домашкиным"&&c.state==="active");
+    if(!dialog){
+      dialog=await authFetch("POST","/cases",{title:"Семейный диалог с Домашкиным",goal:"Семейные вопросы, школа и ближайшие изменения",side:"need_help"});
+      await authFetch("POST","/cases/"+encodeURIComponent(dialog.id)+"/scope",{scope:"home"});
+      await authFetch("PUT","/cases/"+encodeURIComponent(dialog.id)+"/routing",{domain:"household",selected_agent_id:"chores",reason:"семейный диалог Домашкина",expect_domain:"",expect_selected_agent_id:""});
+      REAL.loaded=false;
+    }
+    currentSpace="Семья"; rebuildNav(); realTab="Обзор"; location.hash="#case/"+dialog.id;
+    await renderRealCase(dialog.id); if(message) await askCaseAgent(message);
+  }
+  window.openFamilyDialog=openFamilyDialog;
   const caseMeta = c => ((c.participants||[]).length)+" уч. · обновлено "+fmtWhen(c.updated_at);
   function eventPayload(ev){ const p=ev&&ev.payload; if(typeof p!=="string") return p||{}; try{return JSON.parse(p)||{};}catch(_){return{};} }
   const assistantName = c => { if(c&&c.selected_agent_id){ const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id); return practice?practiceTitle(practice):c.selected_agent_id; } return (c&&c.scope)==="home" ? "Домашкин" : "Фиксарик"; };
+  const isDomashkinCase = c => !!c && (c.scope==="home" || c.domain==="household" || c.selected_agent_id==="chores" || /домашкин/i.test(c.title||""));
+  function domashkinBookPanel(){
+    if(!isDomashkinCase(activeReal.c) || !activeReal.isOwner) return "";
+    const children=activeReal.children||[];
+    if(!children.length) return '<div class="book-upload"><h3>Загрузить учебник</h3><p>Сначала добавьте профиль ребёнка в настройках Домашкина. Детские данные читаются только после подтверждённого входа.</p><div class="cta-row"><a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>';
+    return '<div class="book-upload"><h3>Загрузить учебник</h3><p>PDF останется приватным и будет использоваться Домашкиным только для выбранного ребёнка.</p><form class="pform" data-act="textbook-upload">'+
+      '<div class="pf-row"><label>Ребёнок<select name="child" required>'+children.map(child=>'<option value="'+attr(child.id)+'">'+esc(child.display_name||"Ребёнок")+(child.grade?' · '+esc(String(child.grade))+' класс':'')+'</option>').join("")+'</select></label><label>Предмет<input name="subject" required maxlength="80" placeholder="Математика"></label></div>'+
+      '<label class="book-file"><input name="book" type="file" accept="application/pdf,.pdf" required><span class="btn small">Скрепка · выбрать PDF</span><span class="book-file-name">Файл не выбран</span></label>'+
+      '<fieldset class="perms"><legend>Отдельный вопрос об общем корпусе</legend><label class="chk"><input name="share" type="checkbox"> Предложить эту книгу общему корпусу после проверки прав</label><div data-share-fields hidden style="margin-top:10px"><label>Основание<select name="rights_basis"><option value="rights_holder">Я правообладатель</option><option value="open_license">Открытая лицензия</option></select></label><label style="display:block;margin-top:8px">Ссылка на лицензию<input name="license_url" type="url" placeholder="https://…" style="width:100%"></label><p class="rc-hint">Заявка не публикует файл автоматически. До проверки книга остаётся приватной.</p></div></fieldset>'+
+      '<div class="cta-row"><button class="btn primary" type="submit">Загрузить и разобрать</button></div><div class="rc-hint" data-book-status>'+esc(activeReal.textbookStatus||"")+'</div></form></div>';
+  }
   function realLinksPanel(){
     const plans={}, links=[];
     (activeReal.events||[]).forEach(ev=>{ const p=eventPayload(ev); if(ev.kind==="plan.branches") (p.branches||[]).forEach((branch,index)=>plans[index]=branch); if(ev.kind==="branch.started"&&p.child_case_id) links.push({id:String(p.child_case_id),title:String(p.title||((plans[p.ord]||{}).title)||"Рабочее дело")}); });
@@ -1588,11 +1618,13 @@
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const events=await loadAllEvents(id);
-      let runs=[],patches=[];
+      let runs=[],patches=[],drafts=[],children=[];
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
+      try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
+      if(isDomashkinCase(c)){ try{ const cc=await authFetch("GET","/homework/children"); children=Array.isArray(cc)?cc:[]; }catch(_){} }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, drafts, children, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
     }catch(e){
@@ -1626,6 +1658,7 @@
     if(realTab==="Обзор"){
       return '<div class="kv">'+kvRow("Цель",c.goal||"—")+kvRow("Статус",RU_STATE[c.state]||c.state||"—")+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Помощник",assistantName(c))+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+kvRow("Объектов",String((c.subjects||[]).length))+'</div>'+realLinksPanel()+
         (c.needs_word?'<div class="rc-note">По этому делу ждут вашего решения — загляните в Журнал.</div>':'')+
+        domashkinBookPanel()+
         '<div class="section-t">Написать агенту</div><form class="composer" data-act="ask-agent" style="max-width:620px;display:flex;flex-direction:column"><textarea name="message" required rows="1" style="resize:vertical;min-height:42px" placeholder="Напр., изменилось школьное расписание — что нужно сделать?" aria-label="Сообщение агенту"></textarea><button class="btn primary" type="submit">Отправить</button></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble" style="margin-top:12px">'+esc(activeReal.reply)+'</div>':'')+'</div>'+
         '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="rc-goto" data-tab="Журнал">Открыть журнал</button><button class="btn" data-act="rc-goto" data-tab="Участники">Участники</button></div>';
     }
@@ -1651,6 +1684,10 @@
         command='<div class="rc-note">Чтобы поручить работу агенту, подтвердите вход до уровня 2. Это защищает запуск, который может тратить кредиты и создавать предложения изменений.</div>';
       }
       return h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command;
+    }
+    if(realTab==="Документы"){
+      const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<div class="cta-row"><button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>'+(d.shared?'<button class="btn small" data-act="draft-external" data-id="'+attr(d.id)+'">Ссылка</button>':'')+'</div>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
+      return '<div class="section-t">Документы дела</div><div class="lst">'+docs+'</div>'+(isOwner?'<div class="section-t">Новый документ</div><form class="pform" data-act="draft-create"><label style="display:block">Название<input name="title" required style="width:100%" placeholder="Например, новое расписание"></label><label style="display:block;margin-top:10px">Текст<textarea name="body" required rows="10" style="width:100%;resize:vertical" placeholder="Начните писать — каждая сохранённая правка станет новой версией."></textarea></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить версию</button></div></form>':'<p class="rc-note">Новые версии документа создаёт владелец дела; выданные документы доступны вам для просмотра.</p>');
     }
     if(realTab==="Участники"){
       const rows=(c.participants||[]).map(p=>{
@@ -1689,11 +1726,17 @@
   }
   function bindRealPanel(){
     const panel=document.getElementById("rcpanel"); if(!panel) return;
+    const bookInput=panel.querySelector('form[data-act="textbook-upload"] input[name="book"]');
+    if(bookInput) bookInput.onchange=()=>{ const name=bookInput.files&&bookInput.files[0]&&bookInput.files[0].name; const out=bookInput.closest("label").querySelector(".book-file-name"); if(out) out.textContent=name||"Файл не выбран"; };
+    const shareInput=panel.querySelector('form[data-act="textbook-upload"] input[name="share"]');
+    if(shareInput) shareInput.onchange=()=>{ const fields=shareInput.closest("fieldset").querySelector("[data-share-fields]"); fields.hidden=!shareInput.checked; };
     panel.onclick=async e=>{
       const cp=e.target.closest("[data-copy]"); if(cp){ try{ await navigator.clipboard.writeText(cp.dataset.copy); toast("Ссылка скопирована"); }catch(_){ toast("Скопируйте ссылку вручную"); } return; }
       const b=e.target.closest("[data-act]"); if(!b) return; const c=activeReal.c; const act=b.dataset.act;
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
       if(act==="open-real-linked"){ realTab="Обзор"; location.hash="#case/"+b.dataset.id; return; }
+      if(act==="draft-share"){ b.disabled=true; try{ await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/share",{}); renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось выдать документ."); } return; }
+      if(act==="draft-external"){ b.disabled=true; try{ const r=await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/external-share",{}); const link=location.origin+"/document/"+encodeURIComponent(r.token); await navigator.clipboard.writeText(link); toast("Внешняя ссылка скопирована. Просмотр доступен 7 дней; редактирование — после регистрации и приглашения."); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось создать ссылку."); } return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
@@ -1717,6 +1760,29 @@
       if(f.dataset.act==="scope"){ const v=f.querySelector('input[name="scope"]:checked'); if(!v) return; const btn=f.querySelector("button"); btn.disabled=true;
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:v.value}); REAL.loaded=false; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; toast((err&&err.message)||"Не удалось сменить пространство."); } return; }
+      if(f.dataset.act==="draft-create"){ const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Сохраняю…";
+        try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/drafts",{title:(f.title.value||"").trim(),body:(f.body.value||"").trim(),basis:"текст владельца из v2",kind:"document"}); realTab="Документы"; renderRealCase(c.id); }
+        catch(err){ btn.disabled=false; btn.textContent="Сохранить версию"; toast((err&&err.message)||"Не удалось сохранить документ."); } return; }
+      if(f.dataset.act==="textbook-upload"){
+        const file=f.book.files&&f.book.files[0], btn=f.querySelector('button[type="submit"]'), status=f.querySelector("[data-book-status]");
+        if(!file)return; if(file.size>64*1024*1024){ status.textContent="Файл больше 64 МБ."; return; }
+        if(f.share.checked && f.rights_basis.value==="open_license" && !f.license_url.value.trim()){ status.textContent="Укажите ссылку на открытую лицензию."; return; }
+        btn.disabled=true; btn.classList.add("thinking"); btn.textContent="Загружаю…"; status.textContent="Книга сохраняется в приватном хранилище…";
+        try{
+          const content_b64=await fileAsBase64(file);
+          const saved=await authFetch("POST","/vault/documents",{title:file.name||"Учебник",content_b64,mime:file.type||"application/pdf",kind:"file",sensitivity:"pii",source_case_id:c.id});
+          const documentId=saved&&saved.document&&saved.document.id; if(!documentId)throw new Error("Хранилище не вернуло номер документа.");
+          await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/materials",{kind:"file",mime:file.type||"application/pdf",title:file.name||"Учебник",storage_ref:"vault:"+documentId,sensitivity:"pii"});
+          const textbook=await authFetch("POST","/homework/textbooks",{child_id:f.child.value,vault_document_id:documentId,subject:f.subject.value.trim(),title:file.name||"Учебник",sensitivity:"pii"});
+          status.textContent="Извлекаю текст учебника…";
+          const extracted=await authFetch("POST","/homework/textbooks/"+encodeURIComponent(textbook.id)+"/extract",{});
+          let message=extracted.status==="ready"?"Учебник загружен и готов для разбора заданий.":"Учебник сохранён, но для этого PDF потребуется уточнение или распознавание.";
+          if(f.share.checked){ await authFetch("POST","/homework/textbooks/"+encodeURIComponent(textbook.id)+"/share-proposals",{rights_basis:f.rights_basis.value,license_url:f.license_url.value.trim(),attested:true}); message+=" Заявка в общий корпус отправлена на проверку прав."; }
+          activeReal.textbookStatus=message; status.textContent=message; f.reset(); const fields=f.querySelector("[data-share-fields]"); if(fields)fields.hidden=true; const name=f.querySelector(".book-file-name"); if(name)name.textContent="Файл не выбран";
+        }catch(err){ status.textContent=(err&&err.message)||"Не удалось загрузить учебник."; }
+        finally{ btn.disabled=false; btn.classList.remove("thinking"); btn.textContent="Загрузить и разобрать"; }
+        return;
+      }
       if(f.dataset.act==="ask-agent"){
         const input=f.querySelector('[name="message"]'), btn=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; btn.disabled=true; btn.classList.add("thinking"); btn.setAttribute("aria-busy","true");
         try{ await askCaseAgent(message); input.value=""; drawRealCase(); }
@@ -1905,8 +1971,9 @@
   });
 
   // Композер (демо): «Отправить» добавляет реплику и канонический ответ — кнопка не «мёртвая»
-  function composerSend(comp){
+  async function composerSend(comp){
     const inp=comp.querySelector("input"); const v=(inp.value||"").trim(); if(!v) return;
+    if(currentSpace==="Семья"){ await openFamilyDialog(v); return; }
     const mk=(cls,html)=>{ const d=document.createElement("div"); d.className="bubble"+(cls?" "+cls:""); d.innerHTML=html; return d; };
     comp.parentElement.insertBefore(mk("user", esc(v)), comp); inp.value="";
     setTimeout(()=>{ comp.parentElement.insertBefore(mk("", "Это демо-экран: в рабочей версии запрос уйдёт агенту дела. <small>ФиксАР · сейчас</small>"), comp); comp.scrollIntoView({block:"nearest"}); }, 300);
