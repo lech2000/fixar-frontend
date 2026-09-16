@@ -886,6 +886,13 @@
     if(!r.ok){ const e=new Error((data&&data.detail&&(data.detail.message||data.detail.reason))||(typeof (data&&data.detail)==="string"?data.detail:"отказ "+r.status)); e.status=r.status; throw e; }
     return data;
   }
+  async function authDownload(path, filename){
+    const headers={}; if(authState.token) headers.Authorization="Bearer "+authState.token;
+    const response=await fetch(AUTH_API+path,{headers});
+    if(!response.ok){ let detail="отказ "+response.status; try{ const data=await response.json(); detail=(data&&data.detail&&(data.detail.message||data.detail.reason))||(data&&data.detail)||detail; }catch(_){} const error=new Error(String(detail)); error.status=response.status; throw error; }
+    const blob=await response.blob(), url=URL.createObjectURL(blob), link=document.createElement("a");
+    link.href=url; link.download=filename||"material"; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }
   function fileAsBase64(file){ return new Promise((resolve,reject)=>{ const reader=new FileReader(); reader.onerror=()=>reject(new Error("Не удалось прочитать файл.")); reader.onload=()=>resolve(String(reader.result||"").split(",",2)[1]||""); reader.readAsDataURL(file); }); }
   function newSessionToken(){ if(typeof crypto==="undefined"||!crypto.getRandomValues) return ""; const b=new Uint8Array(32); crypto.getRandomValues(b); let s=""; for(let i=0;i<b.length;i++) s+=b[i].toString(16).padStart(2,"0"); return s; }
   function pendingRotation(old){ try{ const row=JSON.parse(store(AUTH_ROT)||"null"); return row&&row.old===old&&row.replacement?row:null; }catch(e){ return null; } }
@@ -1203,7 +1210,7 @@
       : [["Диалог с ФиксАР","Спросить Фиксарика"],["Мои активные дела","Открыть дела"],["Сроки и изменения","Ближайшие даты"]];
       return '<div class="quick-jumps" aria-label="Быстрые переходы">'+items.map((item,index)=>{ const id=kidOf(node,item[0]); const action=currentSpace==="Семья"&&index===0?'onclick="openFamilyDialog()"':'onclick="go(\''+id+'\')"'; return id?'<button class="quick-jump" type="button" '+action+'><b>'+esc(item[1])+'</b><span>'+esc(item[0])+' →</span></button>':''; }).join("")+'</div>';
     })():"";
-    const cards = node.children.map(b=>{
+    const cards = !hasSession()?node.children.map(b=>{
       const c = d[b.name] || {}; const isDialog = /диалог|помощник/i.test(b.name);
       const role = isDialog?"b-dialog":(/сегодня/i.test(b.name)?"b-today":(/сроки/i.test(b.name)?"b-deadlines":(/сводка/i.test(b.name)?"b-summary":"b-list")));
       let body;
@@ -1222,9 +1229,10 @@
       return '<article class="card '+role+'"'+(isDialog?' style="grid-row:span 2"':'')+'>'+
         '<div class="ch"><p class="eyebrow">'+esc(currentSpace)+'</p><h2>'+esc(b.name)+'</h2></div>'+
         '<div class="cb">'+body+'</div></article>';
-    }).join("");
+    }).join(""):"";
     const settings=(currentSpace==="Личное"||currentSpace==="Семья")?'<div class="rc-strip"><h3>Помощники</h3><p class="rc-hint">Настройки открываются в проверенных экранах прежней версии: согласия, каналы и детские данные остаются там под серверной проверкой прав.</p><div class="cta-row"><a class="btn" href="/fixclo/">Настроить Фиксарика</a><a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>':'';
-    return '<div class="'+(friendly?'friendly-home':'')+'">'+(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"")+(realMode()?realDashStrip():'')+quick+settings+'<div class="dash">'+cards+'</div></div>';
+    const honest=hasSession()?'<div class="rc-strip"><h3>Сводка пространства</h3><p class="rc-hint">Показываем только подтверждённые данные аккаунта. Общие сроки, метрики и рекомендации появятся здесь после подключения календаря и уведомлений.</p></div>':'';
+    return '<div class="'+(friendly?'friendly-home':'')+'">'+(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"")+(realMode()?realDashStrip():'')+quick+settings+honest+(cards?'<div class="dash">'+cards+'</div>':'')+'</div>';
   }
 
   function ownerToolsPanel(){
@@ -1245,11 +1253,13 @@
   const LIST_FILTERS = [ {n:"Все",f:()=>true},{n:"Мои",f:s=>s!=="Завершено"},{n:"Требуют меня",f:s=>s==="Ожидает человека"},{n:"Агенты работают",f:s=>s==="В работе"},{n:"Завершённые",f:s=>s==="Завершено"} ];
   function listItemsFor(node){
     if(realMode()) return realCasesForSpace(currentSpace).map(c=>({title:c.title||"Без названия",status:statusNorm(RU_STATE[c.state]||"в работе"),meta:caseMeta(c),id:c.id,real:true}));
+    if(hasSession()) return [];
     const d=SPACE_DATA[currentSpace]||{}; const raw=(d.projects && /проект|пак/i.test(node.name))?d.projects:(d.cases||[]); return raw.map(it=>({title:it[0],status:statusNorm(it[1]),meta:it[2],seed:it[3]})); }
   function listRowsHtml(node){
     const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
     const items = listItemsFor(node);
     if(realMode() && items.length===0) return emptyState("🗂","Пока нет дел","Создайте настоящее дело — вы станете его владельцем.","Создать дело","data-act=\"create-case\"");
+    if(hasSession() && items.length===0) return emptyState("🧭","Раздел ещё подключается","Здесь не показываются демонстрационные проекты вместо данных вашего аккаунта.","","");
     const shown = items.filter(it=>cur.f(it.status));
     return shown.length ? shown.map(it=>'<button class="lrow" data-open="1" '+(it.real?'data-real="1" data-id="'+attr(it.id)+'"':'data-seed="'+attr(it.seed||"")+'"')+' data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'"><span><h4>'+esc(it.title)+'</h4><p>'+esc(it.meta||"")+'</p></span>'+statusChip(it.status)+'<span class="when">открыть →</span></button>').join("")
       : emptyState("🔍","Ничего в этом фильтре","Смените фильтр — или создайте новое дело.","Сбросить фильтр","data-act=\"reset-filter\" data-node=\""+node.id+"\"");
@@ -1294,7 +1304,7 @@
   function packCard(p){ return '<button class="pcard" onclick="go(\''+PACK_NODE.id+'\')">'+
     '<div style="display:flex;gap:10px;align-items:center"><span class="pico">'+esc(p.ic)+'</span><span class="chip">'+esc(p.c)+'</span></div>'+
     '<h3>'+esc(p.n)+'</h3><p>'+esc(p.d)+'</p>'+
-    '<div class="pmeta"><span class="stars">★ '+p.r+'</span><span>'+p.i+' установок</span></div>'+
+    '<div class="pmeta"><span>пример интерфейса</span><span>каталог подключается</span></div>'+
     '<span class="popen">Открыть пак →</span></button>'; }
 
   function screenLanding(node){
@@ -1322,14 +1332,14 @@
       '<div class="section-t">Что умеет</div><div class="feat">'+
       feat.map(f=>'<article class="card" onclick="go(\''+f.id+'\')"><div class="ch"><h2 style="font-size:16px">'+esc(f.name)+'</h2></div>'+
         '<div class="cb">'+esc(FD[f.name]||"Открыть подробности.")+'</div></article>').join('')+'</div>'+
-      '<div class="section-t">Популярные паки</div><div class="pgrid">'+PACKS.slice(0,4).map(packCard).join('')+'</div>'+
+      '<div class="section-t">Примеры паков</div><div class="pgrid">'+PACKS.slice(0,4).map(packCard).join('')+'</div>'+
       '<div class="section-t">&nbsp;</div><div class="stub"><span class="tag">Начать</span><p>Возьмите готовый пак или создайте пространство под свои дела — агенты подхватят.</p>'+
       '<div class="cta-row"><button class="btn primary" onclick="go(\''+kidId(node,"Начать работу")+'\')">Начать работу</button></div></div>';
   }
 
   function screenCatalog(node){
     return crumbsBlock(node)+
-      '<div class="vhead"><p class="eyebrow">Публичная часть</p><h1>Каталог решений</h1><p>Готовые паки под ваши дела — установите и начните.</p></div>'+
+      '<div class="vhead"><p class="eyebrow">Публичная часть · пример</p><h1>Каталог решений</h1><p>Предварительный вид каталога. Реальная установка и показатели паков ещё подключаются.</p></div>'+
       '<div class="tabs" data-cat>'+node.children.map((c,i)=>'<button class="tab'+(i===0?' active':'')+'" data-tab="'+esc(c.name)+'">'+esc(c.name)+'</button>').join('')+'</div>'+
       '<div class="pgrid" id="pgrid">'+PACKS.map(packCard).join('')+'</div>';
   }
@@ -1339,16 +1349,14 @@
     const conns=["Telegram","Электронный дневник","Google Календарь","Почта"];
     let b = crumbsBlock(node)+
       '<div class="pack-head"><span class="big">С</span><div style="flex:1;min-width:220px">'+
-      '<p class="eyebrow">Публичная часть · Страница пака</p><h1 style="font-size:30px;margin:2px 0 6px">Семейные дела</h1>'+
-      '<div class="pmeta"><span class="stars">★ 4.8</span><span>1 248 отзывов</span><span>12k установок</span><span>Разработчик: lech2000</span></div></div>'+
-      '<button class="btn primary" style="align-self:center">Установить</button></div>';
+      '<p class="eyebrow">Публичная часть · пример карточки</p><h1 style="font-size:30px;margin:2px 0 6px">Семейные дела</h1>'+
+      '<div class="pmeta"><span>Показатели и отзывы демонстрационные</span></div></div>'+
+      '<button class="btn primary" style="align-self:center" disabled>Установка подключается</button></div>';
     node.children.forEach(s=>{ b+='<div class="section-t">'+esc(s.name)+'</div>';
       if(/разрешен/i.test(s.name)) b+='<div>'+perms.map(x=>'<div class="perm"><span class="dot"></span><b>'+esc(x)+'</b><span>по запросу</span></div>').join('')+'</div>';
       else if(/коннектор/i.test(s.name)) b+='<div class="tabs">'+conns.map(x=>'<span class="tab">'+esc(x)+'</span>').join('')+'</div>';
-      else if(/отзыв|рейтинг/i.test(s.name)) b+='<div class="feat">'+
-        '<article class="card"><div class="cb"><b style="color:var(--text)">Мария</b> · ★★★★★<br>Наконец все семейные дела в одном месте.</div></article>'+
-        '<article class="card"><div class="cb"><b style="color:var(--text)">Игорь</b> · ★★★★☆<br>Дневник и сроки — удобно, агент напоминает.</div></article></div>';
-      else if(/разработчик/i.test(s.name)) b+='<div class="perm"><span class="pico" style="width:32px;height:32px">L</span><b>lech2000</b><span>6 паков · ★ 4.8</span></div>';
+      else if(/отзыв|рейтинг/i.test(s.name)) b+='<p class="rc-hint">Настоящие рейтинг и отзывы появятся после подключения registry.</p>';
+      else if(/разработчик/i.test(s.name)) b+='<div class="perm"><span class="pico" style="width:32px;height:32px">L</span><b>Пример разработчика</b><span>профиль подключается</span></div>';
       else b+='<p style="color:var(--muted);max-width:72ch;margin:4px 0 0">Раздел «'+esc(s.name)+'»: содержательный текст пака в дизайне v2.</p>';
     });
     return b;
@@ -1645,13 +1653,14 @@
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const events=await loadAllEvents(id);
-      let runs=[],patches=[],drafts=[],children=[];
+      let runs=[],patches=[],drafts=[],children=[],materials=[],hiddenMaterials=0;
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
       try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
+      try{ const mm=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/materials"); materials=Array.isArray(mm&&mm.materials)?mm.materials:[]; hiddenMaterials=Number(mm&&mm.hidden)||0; }catch(_){}
       if(isDomashkinCase(c)){ try{ const cc=await authFetch("GET","/homework/children"); children=Array.isArray(cc)?cc:[]; }catch(_){} }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, drafts, children, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, drafts, materials, hiddenMaterials, children, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
     }catch(e){
@@ -1714,7 +1723,10 @@
     }
     if(realTab==="Документы"){
       const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<div class="cta-row"><button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>'+(d.shared?'<button class="btn small" data-act="draft-external" data-id="'+attr(d.id)+'">Ссылка</button>':'')+'</div>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
-      return '<div class="section-t">Документы дела</div><div class="lst">'+docs+'</div>'+(isOwner?'<div class="section-t">Новый документ</div><form class="pform" data-act="draft-create"><label style="display:block">Название<input name="title" required style="width:100%" placeholder="Например, новое расписание"></label><label style="display:block;margin-top:10px">Текст<textarea name="body" required rows="10" style="width:100%;resize:vertical" placeholder="Начните писать — каждая сохранённая правка станет новой версией."></textarea></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить версию</button></div></form>':'<p class="rc-note">Новые версии документа создаёт владелец дела; выданные документы доступны вам для просмотра.</p>');
+      const materialRows=(activeReal.materials||[]).map(m=>{ const mayChange=canDecide||m.uploaded_by===authState.principal; return '<div class="prow"><div><b>'+esc(m.title||"Материал")+'</b><div class="rc-hint">'+esc(m.mime||m.kind||"файл")+' · '+esc(SEE_RU[m.sensitivity]||m.sensitivity||"обычное")+' · '+esc(m.extract_status==="ok"?"разобран":(m.extract_status==="failed"?"не разобран":"обработка ожидается"))+'</div></div><div class="cta-row"><button class="btn small" data-act="material-download" data-id="'+attr(m.id)+'" data-name="'+attr(m.title||"material")+'">Скачать</button>'+(mayChange?'<button class="btn small" data-act="material-sensitivity" data-id="'+attr(m.id)+'" data-sensitivity="'+attr(m.sensitivity||"normal")+'">Доступ</button>':'')+'</div></div>'; }).join("")||'<p class="rc-hint">Приложенных файлов пока нет.</p>';
+      const hidden=activeReal.hiddenMaterials?'<p class="rc-note">Ещё материалов скрыто вашим уровнем доступа: '+activeReal.hiddenMaterials+'. Их названия не раскрываются.</p>':'';
+      const upload=activeReal.canComment?'<div class="section-t">Приложить файл</div><form class="pform" data-act="material-upload"><label class="book-file"><input name="material" type="file" required><span class="btn small">Скрепка · выбрать файл</span><span class="book-file-name">Файл не выбран</span></label><label style="display:block;margin-top:10px">Какие сведения содержит файл<select name="sensitivity" style="width:100%">'+SEE_ALL.map(s=>'<option value="'+s+'">'+esc(SEE_RU[s])+'</option>').join("")+'</select></label><p class="rc-hint">Категория определяет, кто из участников увидит материал. Её можно изменить позже.</p><div class="cta-row"><button class="btn primary" type="submit">Загрузить в дело</button></div><div class="rc-hint" data-material-status></div></form>':'<p class="rc-note">Прикладывать материалы может участник с правом комментирования.</p>';
+      return '<div class="section-t">Материалы дела</div><div class="lst">'+materialRows+'</div>'+hidden+upload+'<div class="section-t">Совместные документы</div><div class="lst">'+docs+'</div>'+(isOwner?'<div class="section-t">Новый документ</div><form class="pform" data-act="draft-create"><label style="display:block">Название<input name="title" required style="width:100%" placeholder="Например, новое расписание"></label><label style="display:block;margin-top:10px">Текст<textarea name="body" required rows="10" style="width:100%;resize:vertical" placeholder="Начните писать — каждая сохранённая правка станет новой версией."></textarea></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить версию</button></div></form>':'<p class="rc-note">Новые версии документа создаёт владелец дела; выданные документы доступны вам для просмотра.</p>');
     }
     if(realTab==="Участники"){
       const rows=(c.participants||[]).map(p=>{
@@ -1753,6 +1765,8 @@
   }
   function bindRealPanel(){
     const panel=document.getElementById("rcpanel"); if(!panel) return;
+    const materialInput=panel.querySelector('form[data-act="material-upload"] input[name="material"]');
+    if(materialInput) materialInput.onchange=()=>{ const name=materialInput.files&&materialInput.files[0]&&materialInput.files[0].name; const out=materialInput.closest("label").querySelector(".book-file-name"); if(out) out.textContent=name||"Файл не выбран"; };
     const bookInput=panel.querySelector('form[data-act="textbook-upload"] input[name="book"]');
     if(bookInput) bookInput.onchange=()=>{ const name=bookInput.files&&bookInput.files[0]&&bookInput.files[0].name; const out=bookInput.closest("label").querySelector(".book-file-name"); if(out) out.textContent=name||"Файл не выбран"; };
     const shareInput=panel.querySelector('form[data-act="textbook-upload"] input[name="share"]');
@@ -1764,6 +1778,8 @@
       if(act==="open-real-linked"){ realTab="Обзор"; location.hash="#case/"+b.dataset.id; return; }
       if(act==="draft-share"){ b.disabled=true; try{ await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/share",{}); renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось выдать документ."); } return; }
       if(act==="draft-external"){ b.disabled=true; try{ const r=await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/external-share",{}); const link=location.origin+"/document/"+encodeURIComponent(r.token); await navigator.clipboard.writeText(link); toast("Внешняя ссылка скопирована. Просмотр доступен 7 дней; редактирование — после регистрации и приглашения."); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось создать ссылку."); } return; }
+      if(act==="material-download"){ b.disabled=true; try{ await authDownload("/cases/"+encodeURIComponent(c.id)+"/materials/"+encodeURIComponent(b.dataset.id)+"/content",b.dataset.name); }catch(err){ toast(err.status===403?"Для скачивания подтвердите вход до уровня 2.":((err&&err.message)||"Не удалось скачать файл.")); }finally{ b.disabled=false; } return; }
+      if(act==="material-sensitivity"){ openMaterialSensitivity(c.id,b.dataset.id,b.dataset.sensitivity); return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
@@ -1790,6 +1806,14 @@
       if(f.dataset.act==="draft-create"){ const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Сохраняю…";
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/drafts",{title:(f.title.value||"").trim(),body:(f.body.value||"").trim(),basis:"текст владельца из v2",kind:"document"}); realTab="Документы"; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; btn.textContent="Сохранить версию"; toast((err&&err.message)||"Не удалось сохранить документ."); } return; }
+      if(f.dataset.act==="material-upload"){
+        const file=f.material.files&&f.material.files[0], btn=f.querySelector('button[type="submit"]'), status=f.querySelector("[data-material-status]");
+        if(!file)return; if(file.size>64*1024*1024){ status.textContent="Файл больше 64 МБ."; return; }
+        btn.disabled=true; btn.classList.add("thinking"); btn.textContent="Загружаю…"; status.textContent="Сохраняю файл в приватном хранилище…";
+        try{ const kind=(file.type||"").startsWith("image/")?"image":"file", sensitivity=f.sensitivity.value, content_b64=await fileAsBase64(file); const saved=await authFetch("POST","/vault/documents",{title:file.name||"Материал",content_b64,mime:file.type||"application/octet-stream",kind,sensitivity,source_case_id:c.id}); const documentId=saved&&saved.document&&saved.document.id; if(!documentId)throw new Error("Хранилище не вернуло номер документа."); await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/materials",{kind,mime:file.type||"application/octet-stream",title:file.name||"Материал",storage_ref:"vault:"+documentId,sensitivity}); realTab="Документы"; renderRealCase(c.id); }
+        catch(err){ status.textContent=(err&&err.message)||"Не удалось приложить файл."; btn.disabled=false; btn.classList.remove("thinking"); btn.textContent="Загрузить в дело"; }
+        return;
+      }
       if(f.dataset.act==="textbook-upload"){
         const file=f.book.files&&f.book.files[0], btn=f.querySelector('button[type="submit"]'), status=f.querySelector("[data-book-status]");
         if(!file)return; if(file.size>64*1024*1024){ status.textContent="Файл больше 64 МБ."; return; }
@@ -1816,6 +1840,9 @@
         catch(err){ toast((err&&err.message)||"Агент пока не ответил. Повторите позже."); btn.disabled=false; btn.classList.remove("thinking"); btn.removeAttribute("aria-busy"); } return;
       }
     };
+  }
+  function openMaterialSensitivity(caseId,materialId,current){
+    modalOpen("Доступ к материалу",'<p class="lead">Выберите категорию сведений. Материал увидят только участники, которым разрешена эта категория.</p><form id="material-sensitivity" class="pform"><label>Категория<select name="sensitivity" style="width:100%">'+SEE_ALL.map(s=>'<option value="'+s+'"'+(s===current?' selected':'')+'>'+esc(SEE_RU[s])+'</option>').join("")+'</select></label><label style="display:block;margin-top:10px">Причина изменения<input name="reason" maxlength="300" placeholder="Например, документ содержит персональные данные" style="width:100%"></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить</button></div></form>',body=>{ const form=body.querySelector("#material-sensitivity"); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"); button.disabled=true; button.textContent="Сохраняю…"; try{ await authFetch("PUT","/cases/"+encodeURIComponent(caseId)+"/materials/"+encodeURIComponent(materialId)+"/sensitivity",{sensitivity:form.sensitivity.value,reason:(form.reason.value||"").trim()}); modalClose(); realTab="Документы"; renderRealCase(caseId); }catch(error){ button.disabled=false; button.textContent="Сохранить"; toast((error&&error.message)||"Не удалось изменить доступ."); } }; });
   }
   function openMaySee(caseId,pid){
     const p=(activeReal.c.participants||[]).find(x=>x.principal_id===pid)||{}; const cur=p.may_see||["normal"];
@@ -1945,7 +1972,7 @@
       head += '<p>Раздел «'+esc(node.name)+'» · '+node.children.length+' пункт(ов).</p></div>';
       vwrap.innerHTML = head+tileGrid(node);
     } else {
-      head += '</div><div class="stub"><span class="tag">Экран · дизайн v2</span><p>«'+esc(node.name)+'» — конечный экран в дизайне v2 (форма, список или карточка).</p></div>';
+      head += '</div><div class="stub"><span class="tag">Ещё не подключено</span><p>Раздел «'+esc(node.name)+'» есть в целевой архитектуре, но его данные и действия ещё не перенесены в v2. Демонстрационные записи вместо ваших данных не показываются.</p></div>';
       vwrap.innerHTML = head;
     }
     vwrap.parentElement.scrollTop = 0;
