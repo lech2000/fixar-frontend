@@ -1018,8 +1018,9 @@
     const signed = authState.signed_in;
     document.getElementById("switch").innerHTML =
       '<div class="me"><div><div class="me-label">Пространство</div><div class="me-space">'+esc(currentSpace)+'</div></div>'+
-      '<button class="me-av" id="meav" aria-haspopup="dialog" aria-label="'+(signed?"Аккаунт: "+esc(meName()):"Войти в ФиксАР")+'">'+esc(meInitials())+'</button></div>';
+      '<button class="btn small" id="spacepick" type="button">Сменить</button><button class="me-av" id="meav" aria-haspopup="dialog" aria-label="'+(signed?"Аккаунт: "+esc(meName()):"Войти в ФиксАР")+'">'+esc(meInitials())+'</button></div>';
     const b=document.getElementById("meav"); if(b) b.addEventListener("click", openAccount);
+    const p=document.getElementById("spacepick"); if(p) p.addEventListener("click", openSpacePicker);
   }
   function renderFoot(){
     const el=document.getElementById("protofoot");
@@ -1041,6 +1042,10 @@
       '<button class="foot-link dim" onclick="location.hash=\'#demo/states\'">Состояния экранов</button>';
   }
   function rebuildNav(){ nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
+  function openSpacePicker(){
+    const choices=Object.keys(SPACE_NODES).map(k=>'<button class="tile" type="button" data-space="'+attr(k)+'"><span><h3>'+esc(k)+'</h3><p>'+esc(k===currentSpace?"выбрано":"перейти в пространство")+'</p></span><span class="chev" aria-hidden="true">→</span></button>').join("");
+    modalOpen("Выберите пространство",'<div class="tiles" id="spacechoices">'+choices+'</div>',body=>{ body.querySelector("#spacechoices").onclick=e=>{ const b=e.target.closest("[data-space]"); if(!b)return; modalClose(); switchSpace(b.dataset.space); }; });
+  }
   rebuildNav();
 
   function expandTo(node){
@@ -1492,7 +1497,7 @@
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
     }catch(e){
@@ -1526,6 +1531,7 @@
     if(realTab==="Обзор"){
       return '<div class="kv">'+kvRow("Цель",c.goal||"—")+kvRow("Статус",RU_STATE[c.state]||c.state||"—")+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+kvRow("Объектов",String((c.subjects||[]).length))+'</div>'+
         (c.needs_word?'<div class="rc-note">По этому делу ждут вашего решения — загляните в Журнал.</div>':'')+
+        '<div class="section-t">Написать агенту</div><form class="composer" data-act="ask-agent" style="max-width:620px"><input name="message" required placeholder="Напр., изменилось школьное расписание — что нужно сделать?" aria-label="Сообщение агенту"><button type="submit" aria-label="Отправить">→</button></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble" style="margin-top:12px">'+esc(activeReal.reply)+'</div>':'')+'</div>'+
         '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="rc-goto" data-tab="Журнал">Открыть журнал</button><button class="btn" data-act="rc-goto" data-tab="Участники">Участники</button></div>';
     }
     if(realTab==="Журнал"){
@@ -1542,8 +1548,10 @@
       const runs=(activeReal.runs||[]).map(runCard).join("");
       const patches=(activeReal.patches||[]).map(patchCard).join("");
       let command='';
-      if(canDecide && authState.assurance>=2){
+      if(canDecide && authState.assurance>=2 && c.selected_agent_id && c.template_version){
         command='<div class="section-t">Поручить агенту</div><p class="rc-hint">Агент возьмёт только закреплённый план этого дела. Существенные изменения всё равно появятся отдельным запросом на подтверждение.</p><button class="btn primary" data-act="grant-agent">Дать поручение агенту</button>';
+      } else if(canDecide && !(c.selected_agent_id && c.template_version)) {
+        command='<div class="rc-note">Сначала опишите агенту задачу на вкладке «Обзор». После назначения собеседника появится безопасное поручение по закреплённому плану.</div>';
       } else if(canDecide) {
         command='<div class="rc-note">Чтобы поручить работу агенту, подтвердите вход до уровня 2. Это защищает запуск, который может тратить кредиты и создавать предложения изменений.</div>';
       }
@@ -1613,6 +1621,11 @@
       if(f.dataset.act==="scope"){ const v=f.querySelector('input[name="scope"]:checked'); if(!v) return; const btn=f.querySelector("button"); btn.disabled=true;
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:v.value}); REAL.loaded=false; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; toast((err&&err.message)||"Не удалось сменить пространство."); } return; }
+      if(f.dataset.act==="ask-agent"){
+        const input=f.querySelector('input[name="message"]'), btn=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; btn.disabled=true;
+        try{ const r=await authFetch("POST","/dialog",{case_id:c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)}); activeReal.reply=r.reply||"Агент принял сообщение."; input.value=""; drawRealCase(); }
+        catch(err){ toast((err&&err.message)||"Агент пока не ответил. Повторите позже."); btn.disabled=false; } return;
+      }
     };
   }
   function openMaySee(caseId,pid){
