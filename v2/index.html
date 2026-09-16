@@ -1131,6 +1131,11 @@
   };
 
   let PRACTICE={principal:"",loaded:false,loading:false,items:[],selectedId:"",error:""};
+  const FIXAR_PRACTICES=[
+    {domain:"household",agent:"chores",title:"Дом и быт",limits:"Разбор, план и черновики; опасные работы выполняет специалист."},
+    {domain:"realty",agent:"guest_helper",title:"Недвижимость",limits:"Разбор и подготовка; FixAR не представляет стороны и не ведёт расчёты."},
+    {domain:"education",agent:"tutor_planner",title:"Обучение",limits:"Планирование и материалы; решения об ученике остаются за человеком."}
+  ];
   const practiceTitle = item => item.kind_title||item.title||item.domain_title||item.domain||"Кабинет";
   function practiceStorageKey(){ return "fixar-v2-practice:"+(authState.principal||"guest"); }
   function selectedPractice(){ return PRACTICE.items.find(item=>item.id===PRACTICE.selectedId)||null; }
@@ -1160,6 +1165,15 @@
     const choices=[]; (packs.packs||[]).forEach(pack=>(pack.practice&&pack.practice.kinds||[]).forEach(kind=>{ if(!enabled[pack.id+"/"+kind.id]) choices.push({domain:pack.id,kind:kind.id,title:(pack.title||pack.id)+" — "+(kind.title||kind.id)}); }));
     if(!choices.length){ toast("Все доступные кабинеты уже открыты."); return; }
     modalOpen("Добавить кабинет",'<p class="lead">Выберите направление. Новый кабинет создаётся только в вашем аккаунте и не даёт доступа к чужим делам.</p><div class="tiles" id="practicechoices">'+choices.map(choice=>'<button class="tile" type="button" data-domain="'+attr(choice.domain)+'" data-kind="'+attr(choice.kind)+'" data-title="'+attr(choice.title)+'"><span><h3>'+esc(choice.title)+'</h3><p>Открыть кабинет</p></span><span class="chev" aria-hidden="true">→</span></button>').join("")+'</div>',body=>{ body.querySelector("#practicechoices").onclick=async event=>{ const button=event.target.closest("[data-domain]"); if(!button)return; button.disabled=true; try{ const item=await authFetch("POST","/practice",{domain:button.dataset.domain,kind:button.dataset.kind,title:button.dataset.title}); await loadPracticeCabinets(true); PRACTICE.selectedId=item.id||PRACTICE.selectedId; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} modalClose(); refreshCurrentView(); }catch(error){ button.disabled=false; toast((error&&error.message)||"Кабинет не добавлен."); } }; });
+  }
+
+  function openFixarCase(){
+    if(!authState.token){ openAccount(); return; }
+    const choices=FIXAR_PRACTICES.map(item=>'<button class="tile" type="button" data-fixar-domain="'+attr(item.domain)+'"><span><h3>FixAR · '+esc(item.title)+'</h3><p>'+esc(item.limits)+'</p></span><span class="chev" aria-hidden="true">→</span></button>').join("");
+    modalOpen("Практика FixAR",'<p class="lead">Выберите направление. Дело останется вашим: FixAR не становится его участником, не видит другие дела и использует только контекст этого дела и общие справочные материалы.</p><div class="tiles" id="fixarchoices">'+choices+'</div>',body=>{ body.querySelector("#fixarchoices").onclick=event=>{ const button=event.target.closest("[data-fixar-domain]"); if(!button)return; const practice=FIXAR_PRACTICES.find(item=>item.domain===button.dataset.fixarDomain); if(practice)openFixarConsent(practice); }; });
+  }
+  function openFixarConsent(practice){
+    modalOpen("Согласие на работу FixAR",'<p class="lead"><b>FixAR · '+esc(practice.title)+'</b></p><p>'+esc(practice.limits)+'</p><p class="rc-note">Отправляя дело в практику, вы поручаете FixAR помогать только в этом деле. Он не действует от вашего имени, не подписывает документы, не совершает платежи и просит подтверждение перед каждым внешним действием.</p><form id="fixarconsent" class="pform"><label style="display:flex;gap:9px;align-items:flex-start"><input name="consent" type="checkbox" required> <span>Понимаю границы AI-практики FixAR и согласен(на) на помощь в этом деле.</span></label><label style="display:block;margin-top:12px">Название дела<input name="title" required placeholder="Например, изменить расписание занятий" style="width:100%"></label><label style="display:block;margin-top:10px">Цель (необязательно)<input name="goal" placeholder="Что должно получиться" style="width:100%"></label><div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело с FixAR</button></div></form>',body=>{ const form=body.querySelector("#fixarconsent"); form.title.focus(); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"); button.disabled=true; button.textContent="Создаю…"; try{ const created=await authFetch("POST","/cases",{title:form.title.value.trim(),goal:form.goal.value.trim(),side:"need_help"}); await authFetch("PUT","/cases/"+encodeURIComponent(created.id)+"/routing",{domain:practice.domain,selected_agent_id:practice.agent,reason:"fixar-practice:v1:"+practice.domain,expect_domain:"",expect_selected_agent_id:""}); REAL.loaded=false; modalClose(); realTab="Обзор"; currentSpace="Личное"; rebuildNav(); renderRealCase(created.id); }catch(error){ button.disabled=false; button.textContent="Создать дело с FixAR"; toast((error&&error.message)||"Не удалось создать дело."); } }; });
   }
 
   function dashboard(node){
@@ -1772,7 +1786,8 @@
     const rc=realCasesForSpace(currentSpace); const top=rc.slice(0,4);
     const rows=top.length?top.map(c=>'<div class="rc-row" data-id="'+attr(c.id)+'"><b>'+esc(c.title||"Без названия")+'</b>'+statusChip(statusNorm(RU_STATE[c.state]||"в работе"))+'<span class="when">'+esc(fmtWhen(c.updated_at))+'</span></div>').join("")
       :'<p class="rc-hint">У вас пока нет настоящих дел в этом пространстве.</p>';
-    return '<div class="rc-strip"><h3>Ваши дела · '+esc(currentSpace)+' ('+rc.length+')</h3>'+rows+'<div class="cta-row" style="margin-top:10px"><button class="btn primary" data-act="create-case">Создать дело</button></div></div>';
+    const fixar=(currentSpace==="Личное"||currentSpace==="Семья")?'<button class="btn" data-act="fixar-case">Начать с FixAR</button>':'';
+    return '<div class="rc-strip"><h3>Ваши дела · '+esc(currentSpace)+' ('+rc.length+')</h3>'+rows+'<div class="cta-row" style="margin-top:10px"><button class="btn primary" data-act="create-case">Создать дело</button>'+fixar+'</div></div>';
   }
   function refreshCurrentView(){ const h=location.hash.slice(1); if(h.indexOf("case/")===0||h==="demo/states") return; const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; const node=byId[id]; if(node) render(node); }
 
@@ -1903,7 +1918,7 @@
   document.getElementById("acct").addEventListener("click", openAccount);
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
-  document.getElementById("view").addEventListener("click", e=>{ const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
+  document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
   const agentDock=document.getElementById("agentdock"), agentDockToggle=document.getElementById("agentdocktoggle");
   function setAgentDockCompact(compact){ agentDock.classList.toggle("compact",compact); agentDockToggle.setAttribute("aria-expanded",String(!compact)); agentDockToggle.querySelector("span").textContent=compact?"Открыть":"Свернуть"; try{ localStorage.setItem("fixar-v2-agent-dock-compact",compact?"1":"0"); }catch(_){} }
   let savedDock; try{ savedDock=localStorage.getItem("fixar-v2-agent-dock-compact"); }catch(_){} setAgentDockCompact(savedDock===null?window.matchMedia("(max-width: 760px)").matches:savedDock==="1");
