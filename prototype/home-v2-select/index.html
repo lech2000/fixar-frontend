@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071c26">
+  <title>ФиксАР — выбор пространства</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+
+      --bg: #06151d;
+      --panel: rgba(10, 35, 45, 0.88);
+      --line: rgba(156, 222, 229, 0.18);
+
+      --text: #f1f7f7;
+      --muted: #9bb5bb;
+
+      --cyan: #62e6f2;   /* акцент группы «Для работы» */
+      --green: #6ce497;  /* акцент группы «Для жизни» */
+      --focus: #8fe9f4;  /* кольцо фокуса (≥3:1) */
+
+      --radius: 22px;
+      --dur: 160ms;
+      --ease: cubic-bezier(.2, 0, 0, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font: 16px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+
+      background:
+        radial-gradient(circle at 78% 6%, rgba(20, 81, 92, 0.5), transparent 34rem),
+        radial-gradient(circle at 4% 92%, rgba(54, 51, 107, 0.4), transparent 30rem),
+        linear-gradient(145deg, #06151d, #09242d 54%, #071720);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .shell {
+      width: min(960px, 100%);
+      margin: auto;
+      padding: 28px clamp(16px, 4vw, 40px) 48px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 34px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #78ef9f, #1ab25a);
+      box-shadow: 0 0 24px rgba(67, 224, 130, 0.27);
+      font-size: 25px;
+    }
+
+    .brand { font-size: 20px; font-weight: 850; }
+
+    .intro { margin: 0 0 8px; }
+
+    .intro h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .intro p {
+      margin: 10px 0 0;
+      max-width: 54ch;
+      color: var(--muted);
+    }
+
+    .group { margin-top: 28px; }
+
+    .group > h2 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .group.life > h2 { color: var(--green); }
+    .group.work > h2 { color: var(--cyan); }
+
+    .tiles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .tile {
+      display: grid;
+      grid-template-columns: 52px 1fr 20px;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(155deg, var(--panel), rgba(7, 27, 36, 0.93));
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
+      transition:
+        border-color var(--dur) var(--ease),
+        transform var(--dur) var(--ease);
+    }
+
+    .tile:hover { transform: translateY(-2px); }
+    .tile:active { transform: translateY(0) scale(.995); }
+
+    .tile:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 3px;
+    }
+
+    .ico {
+      display: grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .ico svg { width: 24px; height: 24px; }
+
+    .tile h3 { margin: 0 0 3px; font-size: 18px; }
+    .tile p { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .chev {
+      color: var(--muted);
+      transition: transform var(--dur) var(--ease), color var(--dur) var(--ease);
+    }
+
+    .tile:hover .chev { transform: translateX(3px); }
+
+    /* Акцент задаёт ГРУППА — цвет + иконка + подпись, не только цвет */
+    .group.life .ico { color: var(--green); }
+    .group.life .tile:hover { border-color: rgba(108, 228, 151, 0.45); }
+    .group.life .tile:hover .chev { color: var(--green); }
+
+    .group.work .ico { color: var(--cyan); }
+    .group.work .tile:hover { border-color: rgba(98, 230, 242, 0.45); }
+    .group.work .tile:hover .chev { color: var(--cyan); }
+
+    .foot { margin-top: 30px; color: var(--muted); font-size: 13px; }
+
+    @media (max-width: 620px) {
+      .tiles { grid-template-columns: 1fr; }
+      .tile { padding: 16px; gap: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+      .tile:hover { transform: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <span class="brand-mark" aria-hidden="true">✱</span>
+      <span class="brand">ФиксАР</span>
+    </header>
+
+    <div class="intro">
+      <h1>С чего начнём?</h1>
+      <p>
+        Выберите пространство. Переключиться можно в любой момент — дела и
+        документы каждого пространства хранятся отдельно.
+      </p>
+    </div>
+
+    <section class="group life" aria-labelledby="g-life">
+      <h2 id="g-life">Для жизни</h2>
+      <div class="tiles">
+        <a class="tile" href="#/lichnoe">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+          </span>
+          <span>
+            <h3>Личное</h3>
+            <p>Ваши дела, документы и напоминания — только для вас</p>
+          </span>
+          <span class="chev" aria-hidden="true">→</span>
+        </a>
+
+        <a class="tile" href="#/semya">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg>
+          </span>
+          <span>
+            <h3>Семья</h3>
+            <p>Общее пространство: дела, документы и сроки вместе</p>
+          </span>
+          <span class="chev" aria-hidden="true">→</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="group work" aria-labelledby="g-work">
+      <h2 id="g-work">Для работы</h2>
+      <div class="tiles">
+        <a class="tile" href="#/praktika">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/></svg>
+          </span>
+          <span>
+            <h3>Практика</h3>
+            <p>Клиенты, приём и ведение дел вашей практики</p>
+          </span>
+          <span class="chev" aria-hidden="true">→</span>
+        </a>
+
+        <a class="tile" href="#/razrabotka">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8l-4 4 4 4"/><path d="M16 8l4 4-4 4"/><path d="M13 6l-2 12"/></svg>
+          </span>
+          <span>
+            <h3>Разработка</h3>
+            <p>Проекты, задачи и код — рабочее пространство разработчика</p>
+          </span>
+          <span class="chev" aria-hidden="true">→</span>
+        </a>
+      </div>
+    </section>
+
+    <p class="foot">Не то? Пространство можно добавить или переименовать позже в настройках.</p>
+  </main>
+</body>
+</html>
