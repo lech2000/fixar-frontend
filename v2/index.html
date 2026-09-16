@@ -263,6 +263,13 @@
       background:linear-gradient(145deg,#78ef9f,#1ab25a);color:#052a17;font-weight:800;font-size:11px }
     .acct-btn .nm{ font-size:13px;font-weight:700;max-width:12ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
     @media (min-width:901px){ .acct-btn{ display:none } }
+    .credit-pill{ display:inline-flex; align-items:center; justify-content:center; gap:5px; border:1px solid rgba(255,200,106,.38);
+      border-radius:999px; padding:6px 10px; background:rgba(255,200,106,.08); color:var(--amber); cursor:pointer; font-size:12px; font-weight:750; white-space:nowrap }
+    .credit-pill:hover{ border-color:var(--amber); background:rgba(255,200,106,.13) }
+    .credit-pill:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
+    .switch .credit-pill{ width:100%; margin-top:8px }
+    @media (min-width:901px){ .topm .credit-pill{ display:none } }
+    @media (max-width:430px){ .topm .credit-pill{ padding:5px 8px; font-size:11px } .acct-btn .nm{ display:none } .acct-btn{ padding-right:5px } }
     .acct-line{ display:flex; align-items:center; gap:9px; padding:4px 4px 6px }
     .acct-line .av{ width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;
       background:linear-gradient(145deg,#78ef9f,#1ab25a);color:#052a17;font-weight:800;font-size:12px }
@@ -339,6 +346,7 @@
         <button class="menu-btn" id="menu" aria-label="Меню" aria-controls="side" aria-expanded="false">☰</button>
         <span class="brand-mark" aria-hidden="true" style="width:30px;height:30px;font-size:18px">✱</span>
         <b>ФиксАР</b>
+        <button class="credit-pill" id="mobilecredits" type="button" hidden>кредиты —</button>
         <button class="acct-btn" id="acct" aria-label="Аккаунт" aria-haspopup="dialog"><span class="av" id="acctav">Г</span><span class="nm" id="acctnm">Гость</span></button>
       </div>
       <div class="vwrap" id="vwrap"></div>
@@ -869,6 +877,8 @@
                   sber:{cls:"s",t:"Сбер ID"}, tbank:{cls:"t",t:"Т-Банк"}, tg:{cls:"tg",t:"Телеграм"} };
   let authState = { token:null, principal:null, assurance:0, signed_in:false, providers:[], name:null, ready:false };
   let ownerTools = { principal:null, checked:false, allowed:false, checking:false };
+  let creditState = { principal:null, loading:false, data:null, error:"" };
+  let fixarikFunnelOpened = false;
 
   const store = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
   const put   = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
@@ -963,7 +973,37 @@
     if(typeof renderFoot==="function") renderFoot();
     const badge=document.getElementById("pvbadge"); if(badge) badge.textContent = hasSession()?"предпросмотр v2 · ваши данные":"предпросмотр v2 · демо-данные";
     if(typeof loadRealCases==="function" && hasSession()){ loadRealCases(true).then(()=>{ if(typeof refreshCurrentView==="function") refreshCurrentView(); }); }
+    loadCredits();
+    maybeOpenFixarikFunnel();
     probeOwnerTools().then(()=>{ if(currentSpace==="Разработка" && typeof refreshCurrentView==="function") refreshCurrentView(); });
+  }
+
+  function creditNumber(value){ return new Intl.NumberFormat("ru-RU").format(Number(value)||0); }
+  function creditGiftAvailable(data){ return !!data && Number(data.gifts_count||0)<Number(data.gift_max_per_principal||0) && Number(data.gift_size||0)>0; }
+  function renderCredits(){
+    const nodes=[document.getElementById("sidecredits"),document.getElementById("mobilecredits")].filter(Boolean);
+    nodes.forEach(node=>{
+      node.hidden=!authState.token||!authState.principal;
+      if(node.hidden)return;
+      node.textContent=creditState.loading?"кредиты …":creditState.data?("кредиты "+creditNumber(creditState.data.balance)):"кредиты —";
+      node.title=creditState.data&&creditGiftAvailable(creditState.data)?("Стартовый подарок +"+creditNumber(creditState.data.gift_size)+" при первом платном действии"):"Открыть баланс кредитов";
+      node.onclick=openCredits;
+    });
+  }
+  async function loadCredits(force){
+    if(!authState.token||!authState.principal){ creditState={principal:null,loading:false,data:null,error:""}; renderCredits(); return; }
+    if(creditState.loading||(!force&&creditState.principal===authState.principal&&creditState.data)){ renderCredits(); return; }
+    creditState={principal:authState.principal,loading:true,data:creditState.principal===authState.principal?creditState.data:null,error:""}; renderCredits();
+    try{ creditState.data=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/credits"); }
+    catch(error){ creditState.error=(error&&error.message)||"Баланс временно недоступен."; }
+    creditState.loading=false; renderCredits();
+  }
+  function openCredits(){
+    const data=creditState.data;
+    if(!data){ toast(creditState.error||"Баланс загружается…"); loadCredits(true); return; }
+    const gift=creditGiftAvailable(data)?'<p class="rc-note">До <b>'+creditNumber(data.gift_size)+'</b> стартовых кредитов сервер начислит при первом платном действии. Чтение баланса ничего не начисляет.</p>':'';
+    modalOpen("Кредиты",'<p class="lead">Текущий остаток: <b>'+creditNumber(data.balance)+'</b></p>'+gift+
+      '<div class="prow"><span>Подарочные</span><b>'+creditNumber(data.gift_balance)+'</b></div><div class="prow"><span>Заработанные</span><b>'+creditNumber(data.earned_balance)+'</b></div><div class="prow"><span>Купленные</span><b>'+creditNumber(data.paid_balance)+'</b></div>');
   }
 
   async function probeOwnerTools(){
@@ -1063,9 +1103,11 @@
     const signed = authState.signed_in;
     document.getElementById("switch").innerHTML =
       '<div class="me"><div><div class="me-label">Пространство</div><div class="me-space">'+esc(currentSpace)+'</div></div>'+
-      '<button class="btn small" id="spacepick" type="button">Сменить</button><button class="me-av" id="meav" aria-haspopup="dialog" aria-label="'+(signed?"Аккаунт: "+esc(meName()):"Войти в ФиксАР")+'">'+esc(meInitials())+'</button></div>';
+      '<button class="btn small" id="spacepick" type="button">Сменить</button><button class="me-av" id="meav" aria-haspopup="dialog" aria-label="'+(signed?"Аккаунт: "+esc(meName()):"Войти в ФиксАР")+'">'+esc(meInitials())+'</button></div>'+
+      '<button class="credit-pill" id="sidecredits" type="button" hidden>кредиты —</button>';
     const b=document.getElementById("meav"); if(b) b.addEventListener("click", openAccount);
     const p=document.getElementById("spacepick"); if(p) p.addEventListener("click", openSpacePicker);
+    renderCredits();
   }
   function renderFoot(){
     const el=document.getElementById("protofoot");
@@ -1985,7 +2027,7 @@
     if(binding){ body.domain=binding.domain; body.agent=binding.agent; }
     const r=await authFetch("POST","/dialog",body);
     if(binding){ activeReal.c.domain=binding.domain; activeReal.c.selected_agent_id=binding.agent; try{localStorage.removeItem(practiceCaseStorageKey(activeReal.c.id));}catch(_){} }
-    activeReal.reply=r.reply||"Агент принял сообщение."; applyAgentAction(r.ui_action); return activeReal.reply;
+    activeReal.reply=r.reply||"Агент принял сообщение."; applyAgentAction(r.ui_action); loadCredits(true); return activeReal.reply;
   }
   function openCreateCase(){
     const practice=currentSpace==="Практика"?selectedPractice():null;
@@ -2028,6 +2070,36 @@
     if(onMount) onMount(_m.querySelector("#mbody"));
   }
   function modalClose(){ if(_m){ _m.classList.remove("open"); document.body.style.overflow=""; } if(_mReturn&&_mReturn.focus) _mReturn.focus(); }
+
+  function maybeOpenFixarikFunnel(){
+    if(fixarikFunnelOpened||!authState.ready)return;
+    const query=new URLSearchParams(location.search);
+    if(query.get("from")!=="fixarik"||query.get("new_case")!=="1")return;
+    if(!authState.token||!authState.principal){ openAccount(); return; }
+    fixarikFunnelOpened=true;
+    history.replaceState(null,"",location.pathname+location.hash);
+    const channel=query.get("channel")==="tg"?"Telegram":"MAX";
+    currentSpace="Личное"; rebuildNav();
+    modalOpen("Первое дело с Фиксариком",
+      '<p class="lead">Вход через '+channel+' завершён. Опишите реальную задачу — она станет защищённым личным делом, а Фиксарик сразу подготовит первый разбор.</p>'+
+      '<form id="fixarikfunnel" class="pform"><label style="display:block">Название дела<input name="title" required maxlength="160" placeholder="Например, Организовать переезд" style="width:100%"></label>'+
+      '<label style="display:block;margin-top:10px">Что нужно сделать<textarea name="problem" required rows="5" maxlength="6000" placeholder="Опишите результат, срок и важные ограничения" style="width:100%;resize:vertical"></textarea></label>'+
+      '<p class="rc-note">До 10 000 стартовых кредитов сервер начислит при первом платном действии. Просмотр баланса ничего не начисляет.</p>'+
+      '<label class="chk" style="display:flex;gap:9px;align-items:flex-start;margin-top:12px"><input name="consent" type="checkbox" required> <span>Создать личное дело и передать этот текст Фиксарику для первого разбора. Разбор может расходовать стартовые кредиты; внешние действия без отдельного подтверждения запрещены.</span></label>'+
+      '<div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело и начать разбор</button></div></form>',
+      body=>{ const form=body.querySelector("#fixarikfunnel"); form.title.focus(); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"), title=form.title.value.trim(), problem=form.problem.value.trim(); if(!title||!problem)return; button.disabled=true; button.classList.add("thinking"); button.textContent="Создаю дело…";
+        let created=null;
+        try{
+          created=await authFetch("POST","/cases",{title,goal:problem,side:"need_help"});
+          try{ await authFetch("POST","/cases/"+encodeURIComponent(created.id)+"/scope",{scope:"personal"}); }catch(_){}
+          REAL.loaded=false; modalClose(); realTab="Обзор"; location.hash="#case/"+created.id;
+          await renderRealCase(created.id);
+          try{ await askCaseAgent(problem); drawRealCase(); }
+          catch(error){ activeReal.reply="Дело создано, но первый разбор пока не получен: "+((error&&error.message)||"агент недоступен"); drawRealCase(); }
+          await loadRealCases(true); loadCredits(true);
+        }catch(error){ button.disabled=false; button.classList.remove("thinking"); button.textContent="Создать дело и начать разбор"; toast((error&&error.message)||"Не удалось создать дело."); }
+      }; });
+  }
 
   // ===== P5: состояния — загрузка / пусто / ошибка =====
   let loadToken = 0;
