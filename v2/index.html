@@ -1668,7 +1668,7 @@
       return h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command;
     }
     if(realTab==="Документы"){
-      const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
+      const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<div class="cta-row"><button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>'+(d.shared?'<button class="btn small" data-act="draft-external" data-id="'+attr(d.id)+'">Ссылка</button>':'')+'</div>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
       return '<div class="section-t">Документы дела</div><div class="lst">'+docs+'</div>'+(isOwner?'<div class="section-t">Новый документ</div><form class="pform" data-act="draft-create"><label style="display:block">Название<input name="title" required style="width:100%" placeholder="Например, новое расписание"></label><label style="display:block;margin-top:10px">Текст<textarea name="body" required rows="10" style="width:100%;resize:vertical" placeholder="Начните писать — каждая сохранённая правка станет новой версией."></textarea></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить версию</button></div></form>':'<p class="rc-note">Новые версии документа создаёт владелец дела; выданные документы доступны вам для просмотра.</p>');
     }
     if(realTab==="Участники"){
@@ -1714,6 +1714,7 @@
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
       if(act==="open-real-linked"){ realTab="Обзор"; location.hash="#case/"+b.dataset.id; return; }
       if(act==="draft-share"){ b.disabled=true; try{ await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/share",{}); renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось выдать документ."); } return; }
+      if(act==="draft-external"){ b.disabled=true; try{ const r=await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/external-share",{}); const link=location.origin+"/document/"+encodeURIComponent(r.token); await navigator.clipboard.writeText(link); toast("Внешняя ссылка скопирована. Просмотр доступен 7 дней; редактирование — после регистрации и приглашения."); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось создать ссылку."); } return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
