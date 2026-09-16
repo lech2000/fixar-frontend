@@ -156,6 +156,14 @@
     .flow-arrow{ position:absolute;right:-9px;top:50%;transform:translateY(-50%);color:var(--muted);z-index:1;font-size:18px }
     @media (max-width:900px){ .flow{ grid-template-columns:1fr } .flow-arrow{ display:none } }
     @media (max-width:760px){ .crumbs{ display:none } .vhead .eyebrow{ font-size:10px } }
+    .me{ display:flex;align-items:center;gap:10px;padding:2px 14px 12px } .me-label{ color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase } .me-space{ font-size:16px;font-weight:800 }
+    .me-av{ margin-left:auto;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--panel);font-weight:700;font-size:12px }
+    .foot-link.dim{ opacity:.55;font-size:12px } .sp-link{ color:var(--text) } .sp-link:hover{ color:var(--cyan) }
+    body.nav-open{ overflow:hidden }
+    @media (max-width:900px){
+      .dash>.card{ grid-row:auto !important }
+      .b-today{ order:1 } .b-dialog{ order:2 } .b-deadlines{ order:3 } .b-list{ order:4 } .b-summary{ order:5 }
+    }
 
     /* Мобилка */
     .menu-btn{ display:none }
@@ -729,23 +737,28 @@
   const kidOf = (node,name) => { const k=node&&node.children.find(c=>c.name===name); return k?k.id:(node?node.id:"0"); };
   let currentSpace = "Семья";
   function spaceOf(node){ let n=node; while(n){ for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } n=n.parent; } return null; }
+  function switchSpace(k){ if(k===currentSpace) return; currentSpace=k; go(kidOf(SPACE_NODES[k],"Главная")); }
+  window.switchSpace = switchSpace;
   function renderSwitch(){
-    const el=document.getElementById("switch");
-    el.innerHTML='<div class="sw-label">Пространство</div><div class="sw-row">'+
-      Object.keys(SPACE_NODES).map(k=>'<button class="sw'+(k===currentSpace?" on":"")+'" data-sp="'+esc(k)+'">'+esc(k)+'</button>').join("")+'</div>';
-    el.querySelectorAll(".sw").forEach(b=>b.addEventListener("click",()=>{ if(b.dataset.sp===currentSpace)return; currentSpace=b.dataset.sp; go(kidOf(SPACE_NODES[currentSpace],"Главная")); }));
+    document.getElementById("switch").innerHTML =
+      '<div class="me"><div><div class="me-label">Пространство</div><div class="me-space">'+esc(currentSpace)+'</div></div>'+
+      '<span class="me-av" aria-hidden="true">ВЫ</span></div>';
   }
   function renderFoot(){
     const el=document.getElementById("protofoot");
+    const others=Object.keys(SPACE_NODES).filter(k=>k!==currentSpace);
+    const notif=findNode("Центр уведомлений"), settings=findNode("Настройки");
     const ctx=[["Публичная часть","Публичная часть"],["Первый запуск","Первый запуск"],["Структура дела","Внутренняя структура любого дела"],["Юридические","Юридические документы"]];
-    el.innerHTML='<div class="nav-div">Прототип · контексты</div>'+ctx.map(c=>{ const n=findNode(c[1]); return n?'<button class="foot-link" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("");
+    el.innerHTML =
+      '<div class="nav-div">Сменить пространство</div>'+
+      others.map(k=>'<button class="foot-link sp-link" onclick="switchSpace(\''+esc(k)+'\')">'+esc(k)+'</button>').join("")+
+      '<div class="nav-div">Аккаунт</div>'+
+      (notif?'<button class="foot-link" onclick="go(\''+notif.id+'\')">Уведомления</button>':'')+
+      (settings?'<button class="foot-link" onclick="go(\''+settings.id+'\')">Настройки</button>':'')+
+      '<div class="nav-div">Прототип · контексты</div>'+
+      ctx.map(c=>{ const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("");
   }
-  function rebuildNav(){
-    nav.innerHTML="";
-    buildNav(SPACE_NODES[currentSpace], nav);
-    if (ACCOUNT_NODES.length){ const dv=document.createElement("div"); dv.className="nav-div"; dv.textContent="Аккаунт"; nav.appendChild(dv); buildNav({ children: ACCOUNT_NODES }, nav); }
-    renderSwitch(); renderFoot();
-  }
+  function rebuildNav(){ nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
   rebuildNav();
 
   function expandTo(node){
@@ -815,6 +828,7 @@
     const d = SPACE_DATA[currentSpace] || {};
     const cards = node.children.map(b=>{
       const c = d[b.name] || {}; const isDialog = /диалог|помощник/i.test(b.name);
+      const role = isDialog?"b-dialog":(/сегодня/i.test(b.name)?"b-today":(/сроки/i.test(b.name)?"b-deadlines":(/сводка/i.test(b.name)?"b-summary":"b-list")));
       let body;
       if (isDialog){
         body='<div class="bubble">'+esc(c.dialog||"Чем помочь по вашим делам?")+'</div>'+
@@ -828,7 +842,7 @@
       } else {
         body='<div class="row"><b>'+esc(b.name)+'</b><span class="when">открыть</span></div>';
       }
-      return '<article class="card"'+(isDialog?' style="grid-row:span 2"':'')+'>'+
+      return '<article class="card '+role+'"'+(isDialog?' style="grid-row:span 2"':'')+'>'+
         '<div class="ch"><p class="eyebrow">'+esc(currentSpace)+'</p><h2>'+esc(b.name)+'</h2></div>'+
         '<div class="cb">'+body+'</div></article>';
     }).join("");
@@ -1000,8 +1014,7 @@
     if (sp && sp !== currentSpace){ currentSpace = sp; rebuildNav(); }
     if (location.hash !== "#"+id) location.hash = "#"+id;
     expandTo(node); render(node);
-    document.body.classList.remove("nav-open");
-    document.getElementById("menu").setAttribute("aria-expanded","false");
+    closeNav();
   }
   window.go = go;
   window.addEventListener("hashchange", () => { const id = location.hash.slice(1); if (byId[id]) go(id); });
@@ -1016,13 +1029,22 @@
     });
   });
 
-  // --- Мобильное меню ---
-  const menu = document.getElementById("menu"), scrim = document.getElementById("scrim");
+  // --- Мобильное меню (drawer): вне/Escape закрывают, скролл блокируется, фокус ловится и возвращается ---
+  const menu = document.getElementById("menu"), scrim = document.getElementById("scrim"), side = document.getElementById("side");
   scrim.hidden = false;
-  menu.addEventListener("click", () => { const open = !document.body.classList.contains("nav-open");
-    document.body.classList.toggle("nav-open", open); menu.setAttribute("aria-expanded", String(open)); });
-  scrim.addEventListener("click", () => { document.body.classList.remove("nav-open"); menu.setAttribute("aria-expanded","false"); });
-  document.addEventListener("keydown", e => { if (e.key==="Escape") { document.body.classList.remove("nav-open"); } });
+  function focusables(){ return Array.from(side.querySelectorAll('input,button,[href],[tabindex]:not([tabindex="-1"])')).filter(el=>el.offsetParent!==null); }
+  function openNav(){ document.body.classList.add("nav-open"); menu.setAttribute("aria-expanded","true"); const f=focusables()[0]; if(f) f.focus(); }
+  function closeNav(){ const was=document.body.classList.contains("nav-open"); document.body.classList.remove("nav-open"); menu.setAttribute("aria-expanded","false"); if(was && menu.offsetParent) menu.focus(); }
+  window.closeNav = closeNav;
+  menu.addEventListener("click", () => document.body.classList.contains("nav-open") ? closeNav() : openNav());
+  scrim.addEventListener("click", closeNav);
+  document.addEventListener("keydown", e => {
+    if (!document.body.classList.contains("nav-open")) return;
+    if (e.key === "Escape"){ e.preventDefault(); closeNav(); return; }
+    if (e.key === "Tab"){ const f=focusables(); if(!f.length) return; const first=f[0], last=f[f.length-1];
+      if (e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); } }
+  });
 
   // старт
   const start = byId[location.hash.slice(1)] ? location.hash.slice(1) : kidOf(SPACE_NODES[currentSpace], "Главная");
