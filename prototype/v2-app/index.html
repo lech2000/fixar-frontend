@@ -143,7 +143,12 @@
     .foot-link{ display:block;width:100%;text-align:left;padding:6px 8px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:12.5px;border-radius:7px } .foot-link:hover{ color:var(--cyan);background:rgba(255,255,255,.03) }
     .chip.warn{ background:rgba(255,200,106,.14);color:var(--amber) }
     .minmetrics{ display:flex;flex-wrap:wrap;gap:18px } .minmetrics>div>b{ display:block;font-size:18px;color:var(--text) } .minmetrics>div>span{ color:var(--muted);font-size:12px }
-    .lbar{ display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 }
+    .lbar{ display:flex;flex-wrap:nowrap;gap:8px;align-items:center;margin:14px 0 }
+    .lbar.sticky{ position:sticky;top:0;z-index:5;background:linear-gradient(180deg,rgba(6,20,27,.97),rgba(6,20,27,.9));backdrop-filter:blur(6px);padding:8px 0;margin:6px 0 12px }
+    .filter-bar{ flex:1 1 auto;min-width:0;display:flex;gap:8px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch } .filter-bar::-webkit-scrollbar{ display:none }
+    .filter-bar .tab{ white-space:nowrap;display:inline-flex;align-items:center;gap:6px }
+    .tcount{ background:rgba(255,255,255,.08);border-radius:999px;padding:1px 7px;font-size:11px;color:var(--muted) } .filter-bar .tab.active .tcount{ background:rgba(6,32,42,.5);color:var(--text) }
+    .create-btn{ margin-left:auto;white-space:nowrap;flex:0 0 auto }
     .lst{ border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:linear-gradient(155deg,var(--panel),var(--panel-2)) }
     .lrow{ display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:14px 16px;border:0;border-bottom:1px solid var(--line-soft);cursor:pointer;color:inherit;text-align:left;width:100%;background:none }
     .lrow:last-child{ border-bottom:0 } .lrow:hover{ background:rgba(98,230,242,.05) }
@@ -747,7 +752,7 @@
         caret.addEventListener("click", e => { e.stopPropagation();
           const open = kids.hidden; kids.hidden = !open; caret.setAttribute("aria-expanded", String(open)); });
       }
-      label.addEventListener("click", () => go(child.id));
+      label.addEventListener("click", () => { listFilter="Все"; go(child.id); });
       child._row = row; child._caret = caret; child._kids = kids;
     });
   }
@@ -761,6 +766,7 @@
   const ACCOUNT_NODES = [findNode("Общие разделы аккаунта"), findNode("Настройки"), findNode("Помощь")].filter(Boolean);
   const kidOf = (node,name) => { const k=node&&node.children.find(c=>c.name===name); return k?k.id:(node?node.id:"0"); };
   let currentSpace = "Семья";
+  let listFilter = "Все";
   function spaceOf(node){ let n=node; while(n){ for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } n=n.parent; } return null; }
   function switchSpace(k){ if(k===currentSpace) return; currentSpace=k; go(kidOf(SPACE_NODES[k],"Главная")); }
   window.switchSpace = switchSpace;
@@ -875,15 +881,21 @@
   }
 
   function isListNode(node){ return node.children.length>=3 && node.children.some(c=>/^Все |^Активные$|Завершённые|Черновики|Опубликованные|^Новые$|^Мои /.test(c.name)); }
+  function statusNorm(s){ if(/заверш|закрыт|опубликов/i.test(s)) return "Завершено"; if(/^нов|обращ|черновик|иде[яю]/i.test(s)) return "Новое"; if(/ждёт|ожида|подпис|наблюд|взросл|модерац|тестиров/i.test(s)) return "Ожидает человека"; return "В работе"; }
+  const LIST_FILTERS = [ {n:"Все",f:()=>true},{n:"Мои",f:s=>s!=="Завершено"},{n:"Требуют меня",f:s=>s==="Ожидает человека"},{n:"Агенты работают",f:s=>s==="В работе"},{n:"Завершённые",f:s=>s==="Завершено"} ];
+  function applyFilter(nodeId,name){ listFilter=name; try{ history.replaceState(null,"","#"+nodeId+"~"+encodeURIComponent(name)); }catch(e){} render(byId[nodeId]); }
+  window.applyFilter = applyFilter;
   function renderList(node){
     const d = SPACE_DATA[currentSpace] || {};
-    const items = (d.projects && /проект|пак/i.test(node.name)) ? d.projects : (d.cases || []);
+    const raw = (d.projects && /проект|пак/i.test(node.name)) ? d.projects : (d.cases || []);
+    const items = raw.map(it=>({title:it[0], status:statusNorm(it[1]), meta:it[2], seed:it[3]}));
     const create = node.children.find(c=>/^Создать|^Добавить/.test(c.name));
-    const filters = node.children.filter(c=>c!==create);
-    const caseId = (findNode("Внутренняя структура любого дела")||{id:node.id}).id;
-    return '<div class="lbar"><div class="tabs">'+filters.map((f,i)=>'<button class="tab'+(i===0?" active":"")+'">'+esc(f.name)+'</button>').join("")+'</div>'+
-      (create?'<button class="btn primary" style="margin-left:auto" onclick="go(\''+create.id+'\')">'+esc(create.name)+'</button>':'')+'</div>'+
-      '<div class="lst">'+ (items.length? items.map(it=>'<button class="lrow" data-open="1" data-title="'+attr(it[0])+'" data-status="'+attr(it[1])+'" data-seed="'+attr(it[3]||"")+'"><span><h4>'+esc(it[0])+'</h4><p>'+esc(it[2]||"")+'</p></span><span class="chip">'+esc(it[1])+'</span><span class="when">открыть →</span></button>').join("") : '<div style="padding:18px;color:var(--muted)">Пока пусто.</div>') +'</div>';
+    const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
+    const shown = items.filter(it=>cur.f(it.status));
+    const chips = LIST_FILTERS.map(x=>{ const cnt=items.filter(it=>x.f(it.status)).length; return '<button class="tab'+(x.n===cur.n?" active":"")+'" data-filter="'+attr(x.n)+'" data-node="'+node.id+'">'+esc(x.n)+'<span class="tcount">'+cnt+'</span></button>'; }).join("");
+    return '<div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div>'+
+      (create?'<button class="btn primary create-btn" onclick="go(\''+create.id+'\')">'+esc(create.name)+'</button>':'')+'</div>'+
+      '<div class="lst" id="lst">'+ (shown.length? shown.map(it=>'<button class="lrow" data-open="1" data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'" data-seed="'+attr(it.seed||"")+'"><span><h4>'+esc(it.title)+'</h4><p>'+esc(it.meta||"")+'</p></span>'+statusChip(it.status)+'<span class="when">открыть →</span></button>').join("") : '<div style="padding:18px;color:var(--muted)">Ничего в этом фильтре.</div>') +'</div>';
   }
 
   // --- Богатые экраны (нативные button/<a>, фокус, без эмодзи-иконок) ---
@@ -1012,6 +1024,8 @@
       ct.querySelectorAll('.ct').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
       vwrap.querySelector('#casepanel').innerHTML = casePanel(byId[btn.dataset.ctab]); });
     vwrap.querySelectorAll('.lrow[data-open]').forEach(r=>r.addEventListener('click',()=>openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed)));
+    const fb=vwrap.querySelector('.filter-bar');
+    if(fb) fb.addEventListener('click',e=>{ const b=e.target.closest('[data-filter]'); if(b) applyFilter(b.dataset.node,b.dataset.filter); });
   }
 
   // ===== P1: настоящее дело (интерактивно, состояние в памяти) =====
@@ -1157,7 +1171,7 @@
     if (isMain){
       inner += '<p>Ваше пространство «'+esc(currentSpace)+'»: важное, дела и сроки под наблюдением агентов.</p></div>'+dashboard(node);
     } else if (isListNode(node)){
-      inner += '<p>'+esc(node.name)+' · '+node.children.length+' фильтр(ов)</p></div>'+renderList(node);
+      inner += '<p>Фильтр по состоянию · клик открывает дело.</p></div>'+renderList(node);
     } else if (node.children.length){
       inner += '<p>Раздел «'+esc(node.name)+'» · '+node.children.length+' пункт(ов).</p></div>'+tileGrid(node);
     } else {
@@ -1173,7 +1187,7 @@
     const node = byId[id]; if (!node) return;
     const sp = spaceOf(node);
     if (sp && sp !== currentSpace){ currentSpace = sp; rebuildNav(); }
-    if (location.hash !== "#"+id) location.hash = "#"+id;
+    if ((location.hash.slice(1).split("~")[0]) !== id) location.hash = "#"+id;
     expandTo(node); render(node);
     closeNav();
   }
@@ -1181,7 +1195,8 @@
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
     if (h.indexOf("case/")===0){ const cid=h.slice(5); if(!CASES[cid] && CASE_SEEDS[cid]) CASES[cid]=cloneCase(CASE_SEEDS[cid]); if(CASES[cid]){ activeCaseId=cid; caseTab="Обзор"; renderCase(); } return; }
-    if (byId[h]) go(h);
+    const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; listFilter = t>=0 ? decodeURIComponent(h.slice(t+1)) : "Все";
+    if (byId[id]) go(id);
   });
 
   // --- Поиск ---
@@ -1212,8 +1227,11 @@
   });
 
   // старт
-  const start = byId[location.hash.slice(1)] ? location.hash.slice(1) : kidOf(SPACE_NODES[currentSpace], "Главная");
-  go(start);
+  (function(){ const h=location.hash.slice(1);
+    if (h.indexOf("case/")===0){ const cid=h.slice(5); if(!CASES[cid] && CASE_SEEDS[cid]) CASES[cid]=cloneCase(CASE_SEEDS[cid]); if(CASES[cid]){ activeCaseId=cid; renderCase(); return; } }
+    const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; if(t>=0) listFilter=decodeURIComponent(h.slice(t+1));
+    go(byId[id] ? id : kidOf(SPACE_NODES[currentSpace],"Главная"));
+  })();
   </script>
 </body>
 </html>
