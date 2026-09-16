@@ -1584,11 +1584,13 @@
   let REAL={loaded:false,loading:false,cases:[],error:null};
   let activeReal=null, realTab="Обзор";
   const REAL_TABS=["Обзор","Журнал","План","Сроки","Документы","Участники","Настройки"];
+  const realTabs = c => isDomashkinCase(c) ? ["Обзор","Школа","Журнал","План","Сроки","Документы","Участники","Настройки"] : REAL_TABS;
   function hasSession(){ return !!authState.token; }
   function realMode(){ return hasSession() && !!SPACE_SCOPE[currentSpace]; }
 
   function fmtWhen(iso){ if(!iso) return ""; const d=new Date(iso); if(isNaN(d.getTime())) return ""; const M=["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"]; const now=new Date(); const hh=String(d.getHours()).padStart(2,"0"),mm=String(d.getMinutes()).padStart(2,"0"); return d.toDateString()===now.toDateString()?("сегодня "+hh+":"+mm):(d.getDate()+" "+M[d.getMonth()]+", "+hh+":"+mm); }
   function calendarInputValue(date){ const d=date||new Date(Date.now()+24*60*60*1000), pad=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes()); }
+  function dateInputValue(date){ const d=date||new Date(), pad=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
   const CALENDAR_KIND={deadline:"Срок",hearing:"Заседание",meeting:"Встреча",reminder:"Напоминание"};
   async function loadRealCases(force){
     if(!authState.token||!authState.principal){ REAL.cases=[]; REAL.loaded=true; return; }
@@ -1662,15 +1664,19 @@
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const events=await loadAllEvents(id);
-      let runs=[],patches=[],drafts=[],children=[],materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
+      let runs=[],patches=[],drafts=[],children=[],childrenError="",personalAgents=[],materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
       try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
       try{ const mm=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/materials"); materials=Array.isArray(mm&&mm.materials)?mm.materials:[]; hiddenMaterials=Number(mm&&mm.hidden)||0; }catch(_){}
       if(c.owner_id===authState.principal){ try{ const ce=await authFetch("GET","/calendar?case_id="+encodeURIComponent(id)+"&days=730&past=365"); calendarEvents=Array.isArray(ce&&ce.events)?ce.events:[]; }catch(error){ calendarError=(error&&error.message)||"Календарь временно недоступен."; } }
-      if(isDomashkinCase(c)){ try{ const cc=await authFetch("GET","/homework/children"); children=Array.isArray(cc)?cc:[]; }catch(_){} }
+      if(isDomashkinCase(c)&&c.owner_id===authState.principal){
+        try{ const cc=await authFetch("GET","/homework/children"); children=Array.isArray(cc)?cc:[]; }catch(error){ childrenError=(error&&error.message)||"Не удалось проверить профили детей."; }
+        try{ const aa=await authFetch("GET","/personal-agents"); personalAgents=Array.isArray(aa&&aa.agents)?aa.agents:[]; }catch(_){}
+      }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, drafts, materials, hiddenMaterials, calendarEvents, calendarError, children, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, drafts, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, school:null, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      if(isDomashkinCase(c)&&activeReal.isOwner&&children.length) await loadSchoolDay(children[0].id,dateInputValue(new Date(Date.now()+24*60*60*1000)),false);
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
     }catch(e){
@@ -1680,12 +1686,13 @@
   }
   function drawRealCase(){
     const c=activeReal.c; const sp=SPACE_NODES[currentSpace];
+    const tabsForCase=realTabs(c); if(tabsForCase.indexOf(realTab)<0) realTab="Обзор";
     vwrap.innerHTML=
       '<div class="crumbs"><a href="#'+(sp?sp.id:"0")+'">'+esc(currentSpace)+'</a><span class="sep">›</span><span>'+esc(c.title||"Дело")+'</span></div>'+
       '<p class="eyebrow" style="color:var(--cyan)">Дело · настоящие данные</p>'+
       '<h1 style="margin:2px 0 0;font-size:28px">'+esc(c.title||"Без названия")+'</h1>'+
       '<div class="pmeta" style="margin-top:10px">'+statusChip(RU_STATE[c.state]||c.state||"—")+'<span>Владелец: '+esc(ownerName())+'</span><span>Участников: '+((c.participants||[]).length)+'</span>'+(c.needs_word?'<span class="chip warn">нужно ваше слово</span>':'')+'</div>'+
-      '<div class="case-tabs" id="rctabs">'+REAL_TABS.map(t=>'<button class="ct'+(t===realTab?" active":"")+'" data-rtab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
+      '<div class="case-tabs" id="rctabs">'+tabsForCase.map(t=>'<button class="ct'+(t===realTab?" active":"")+'" data-rtab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
       '<div id="rcpanel">'+realTabPanel()+'</div>';
     vwrap.parentElement.scrollTop=0;
     const tabs=document.getElementById("rctabs"); if(tabs) tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; realTab=b.dataset.rtab; document.getElementById("rcpanel").innerHTML=realTabPanel(); tabs.querySelectorAll(".ct").forEach(x=>x.classList.toggle("active",x.dataset.rtab===realTab)); bindRealPanel(); };
@@ -1699,6 +1706,36 @@
     const detail=p.value===undefined?"Содержание доступно только решающему участнику.":JSON.stringify(p.value);
     return '<div class="rc-strip"><h3>Нужно подтверждение · '+esc(p.op||"изменение")+'</h3><p class="rc-hint">Агент предлагает изменение уровня '+esc(String(p.risk||"—"))+'.</p><p class="rc-hint">'+esc(detail)+'</p>'+ (activeReal.canDecide?'<div class="cta-row"><button class="btn primary" data-act="patch-approve" data-patch="'+attr(p.id)+'">Подтвердить</button><button class="btn" data-act="patch-reject" data-patch="'+attr(p.id)+'">Отклонить</button></div>':'<p class="rc-note">Подтвердить или отклонить может участник с правом «решения».</p>')+'</div>';
   }
+  async function loadSchoolDay(childId,date,redraw=true){
+    if(!activeReal)return;
+    activeReal.school={childId,date,loading:true,schedule:[],assignments:[],error:""}; if(redraw)drawRealCase();
+    try{
+      const base="/homework/children/"+encodeURIComponent(childId);
+      const values=await Promise.all([authFetch("GET",base+"/schedule?lesson_date="+encodeURIComponent(date)),authFetch("GET",base+"/assignments?for_lessons_on="+encodeURIComponent(date)+"&limit=50")]);
+      activeReal.school={childId,date,loading:false,schedule:Array.isArray(values[0])?values[0]:[],assignments:Array.isArray(values[1])?values[1]:[],error:""};
+    }catch(error){ activeReal.school={childId,date,loading:false,schedule:[],assignments:[],error:(error&&error.message)||"Не удалось загрузить школьный день."}; }
+    if(redraw)drawRealCase();
+  }
+  function homeworkSummary(assignment){
+    const summary=assignment&&assignment.summary; if(!summary)return "";
+    if(typeof summary==="string")return summary;
+    const value=summary.task_summary; return typeof value==="string"?value:((value&&value.text)||"");
+  }
+  function schoolPanel(){
+    if(!activeReal.isOwner) return '<div class="rc-note">Приглашённый родитель видит обсуждение и выданные материалы дела. Доступ к дневнику ребёнка подключается отдельно после серверной проверки прав.</div>';
+    if(activeReal.childrenError) return errorBox(activeReal.childrenError,'data-act="school-retry"');
+    if(!activeReal.children.length) return '<div class="rc-strip"><h3>Сначала подключите ребёнка</h3><p class="rc-hint">Расписание и задания не подставляются из демо: Домашкин покажет их только после подтверждённой привязки дневника.</p><div class="cta-row"><a class="btn primary" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>';
+    const school=activeReal.school||{childId:activeReal.children[0].id,date:dateInputValue(new Date(Date.now()+24*60*60*1000)),loading:true,schedule:[],assignments:[],error:""};
+    const controls='<form class="pform" data-act="school-day"><div class="pf-row"><label>Ребёнок<select name="child">'+activeReal.children.map(child=>'<option value="'+attr(child.id)+'"'+(child.id===school.childId?' selected':'')+'>'+esc(child.display_name||"Ребёнок")+'</option>').join("")+'</select></label><label>День<input name="date" type="date" required value="'+attr(school.date)+'"></label></div><div class="cta-row"><button class="btn primary" type="submit">Показать день</button><button class="btn small" type="button" data-act="school-date" data-offset="0">Сегодня</button><button class="btn small" type="button" data-act="school-date" data-offset="1">Завтра</button></div></form>';
+    if(school.loading)return controls+'<div class="rc-strip"><p class="rc-hint">Домашкин сверяет расписание и задания…</p></div>';
+    if(school.error)return controls+errorBox(school.error,'data-act="school-retry"');
+    const bySubject={}; school.assignments.forEach(a=>{bySubject[String(a.subject||"").trim()]=a;});
+    const lessons=school.schedule.map(lesson=>{ const assignment=bySubject[String(lesson.subject||"").trim()], summary=homeworkSummary(assignment); let action=""; if(assignment&&assignment.case_id) action='<button class="btn small" data-act="open-real-linked" data-id="'+attr(assignment.case_id)+'">Открыть дело</button>'; else if(assignment&&domashkinHomeworkAgent()) action='<button class="btn small" data-act="analyze-homework" data-id="'+attr(assignment.id)+'">Разобрать в отдельном деле</button>'; return '<div class="prow"><div><b>'+esc((lesson.lesson_number?lesson.lesson_number+". ":"")+(lesson.subject||"Урок"))+'</b><div class="rc-hint">'+esc([lesson.start_time,lesson.end_time].filter(Boolean).join("–")+(lesson.room?' · каб. '+lesson.room:''))+'</div>'+(assignment?'<div style="margin-top:7px">'+esc(assignment.task_text||"Задание без текста")+'</div>':'<div class="rc-hint" style="margin-top:7px">Задание к этому уроку не найдено.</div>')+(summary?'<div class="rc-note" style="margin-top:7px">'+esc(summary)+'</div>':'')+'</div>'+action+'</div>'; }).join("");
+    const extra=school.assignments.filter(a=>!school.schedule.some(l=>String(l.subject||"").trim()===String(a.subject||"").trim())).map(a=>'<div class="prow"><div><b>'+esc(a.subject||"Задание")+'</b><div>'+esc(a.task_text||"Задание без текста")+'</div></div>'+(a.case_id?'<button class="btn small" data-act="open-real-linked" data-id="'+attr(a.case_id)+'">Открыть дело</button>':'')+'</div>').join("");
+    const empty=!lessons&&!extra?'<div class="rc-note">На выбранный день расписание ещё не загружено. Домашкин не угадывает уроки; проверьте синхронизацию дневника.</div>':'';
+    return controls+'<div class="section-t">Уроки и задания</div><div class="lst">'+lessons+extra+'</div>'+empty+(!domashkinHomeworkAgent()?'<div class="rc-note">Для автоматического разбора включите личного Домашкина с модулем домашних заданий.</div>':'');
+  }
+  function domashkinHomeworkAgent(){ return (activeReal.personalAgents||[]).find(agent=>agent.state==="active"&&(agent.modules||[]).indexOf("homework")>=0); }
   function realTabPanel(){
     const c=activeReal.c, canDecide=activeReal.canDecide, isOwner=activeReal.isOwner;
     if(realTab==="Обзор"){
@@ -1713,6 +1750,7 @@
       if(!activeReal.events.length) return emptyState("📓","Записей пока нет","Журнал наполнится, когда по делу пойдёт работа.","","");
       return '<div class="rc-hint">Что происходило по делу — новые записи сверху. Действия агентов помечены.</div>'+activeReal.events.slice().reverse().map(eventLine).join("");
     }
+    if(realTab==="Школа") return schoolPanel();
     if(realTab==="План"){
       const steps=c.on_request_steps||[]; let h="";
       if(c.self_steps) h+='<p class="rc-hint">Автоматических шагов: '+c.self_steps+'</p>';
@@ -1800,6 +1838,15 @@
       if(act==="material-download"){ b.disabled=true; try{ await authDownload("/cases/"+encodeURIComponent(c.id)+"/materials/"+encodeURIComponent(b.dataset.id)+"/content",b.dataset.name); }catch(err){ toast(err.status===403?"Для скачивания подтвердите вход до уровня 2.":((err&&err.message)||"Не удалось скачать файл.")); }finally{ b.disabled=false; } return; }
       if(act==="material-sensitivity"){ openMaterialSensitivity(c.id,b.dataset.id,b.dataset.sensitivity); return; }
       if(act==="calendar-retry"){ renderRealCase(c.id); return; }
+      if(act==="school-retry"){ if(activeReal.school) loadSchoolDay(activeReal.school.childId,activeReal.school.date); else renderRealCase(c.id); return; }
+      if(act==="school-date"){ const date=new Date(); date.setDate(date.getDate()+Number(b.dataset.offset||0)); const child=(activeReal.school&&activeReal.school.childId)||(activeReal.children[0]&&activeReal.children[0].id); if(child)loadSchoolDay(child,dateInputValue(date)); return; }
+      if(act==="analyze-homework"){
+        const agent=domashkinHomeworkAgent(); if(!agent){ toast("Сначала включите личного Домашкина."); return; }
+        b.disabled=true; b.classList.add("thinking"); b.textContent="Разбираю…";
+        try{ const result=await authFetch("POST","/homework/assignments/"+encodeURIComponent(b.dataset.id)+"/analyze",{personal_agent_id:agent.agent_id}); if(!result.case_id)throw new Error("Разбор сохранён без отдельного дела"); try{ await authFetch("POST","/cases/"+encodeURIComponent(result.case_id)+"/scope",{scope:"home"}); }catch(_){} REAL.loaded=false; realTab="Обзор"; location.hash="#case/"+result.case_id; await renderRealCase(result.case_id); }
+        catch(err){ b.disabled=false; b.classList.remove("thinking"); b.textContent="Разобрать в отдельном деле"; toast((err&&err.message)||"Не удалось разобрать задание."); }
+        return;
+      }
       if(act==="calendar-cancel"){ if(!window.confirm("Отменить это событие? Запись останется в истории календаря."))return; b.disabled=true; try{ await authFetch("POST","/calendar/"+encodeURIComponent(b.dataset.id)+"/cancel",{}); realTab="Сроки"; renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось отменить событие."); } return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
@@ -1821,6 +1868,7 @@
         }catch(err){ btn.disabled=false; btn.textContent="Создать семейное приглашение"; toast((err&&err.message)||"Не удалось создать приглашение."); }
         return;
       }
+      if(f.dataset.act==="school-day"){ await loadSchoolDay(f.child.value,f.date.value); return; }
       if(f.dataset.act==="invite"){
         const rights=[...f.querySelectorAll('input[name="right"]:checked')].map(x=>x.value); if(rights.indexOf("read")<0) rights.unshift("read");
         const may_see=[...f.querySelectorAll('input[name="see"]:checked')].map(x=>x.value); if(may_see.indexOf("normal")<0) may_see.unshift("normal");
