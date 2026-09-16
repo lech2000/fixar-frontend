@@ -160,6 +160,31 @@
     .me-av{ margin-left:auto;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--panel);font-weight:700;font-size:12px }
     .foot-link.dim{ opacity:.55;font-size:12px } .sp-link{ color:var(--text) } .sp-link:hover{ color:var(--cyan) }
     body.nav-open{ overflow:hidden }
+    /* Экран дела (P1) */
+    .kv{ border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:linear-gradient(155deg,var(--panel),var(--panel-2)) }
+    .kvr{ display:grid;grid-template-columns:200px 1fr;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line-soft) } .kvr:last-child{ border-bottom:0 }
+    .kvr .k{ color:var(--muted);font-size:13px } .kvr .v{ font-size:14px }
+    .thread2{ display:flex;flex-direction:column;gap:10px;max-width:640px } .thread2 .bubble{ max-width:100% }
+    .done-mark{ margin-top:8px;color:var(--green);font-size:12.5px;font-weight:600 }
+    .stage{ margin-bottom:14px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:linear-gradient(155deg,var(--panel),var(--panel-2)) }
+    .stage-h{ padding:12px 16px;font-weight:700;border-bottom:1px solid var(--line-soft);font-size:14px }
+    .task{ display:grid;grid-template-columns:14px 1fr auto;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line-soft) } .task:last-child{ border-bottom:0 }
+    .tstat{ width:11px;height:11px;border-radius:50% } .tstat.done{ background:var(--green) } .tstat.waiting{ background:var(--amber) } .tstat.todo{ background:rgba(156,222,229,.35) }
+    .tmain b{ font-size:14px } .tmain span{ display:block;color:var(--muted);font-size:12px }
+    .btn.small{ padding:7px 12px;font-size:12.5px }
+    .prow{ display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid var(--line-soft) } .prow:last-child{ border-bottom:0 } .prow b{ font-size:14px }
+    .perm-tags{ display:flex;flex-wrap:wrap;gap:6px;margin-top:6px } .ptag{ padding:3px 8px;border-radius:999px;background:rgba(98,230,242,.08);color:#bfeef4;font-size:11px }
+    .pform{ margin-top:12px;display:flex;flex-direction:column;gap:12px;max-width:680px }
+    .pf-row{ display:grid;grid-template-columns:1fr 1fr;gap:12px } .pf-row label,.pform>label{ display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted) }
+    .pform input,.pform select{ padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:#081e27;color:var(--text);outline:none;font:inherit } .pform input:focus,.pform select:focus{ border-color:var(--cyan) }
+    .perms{ border:1px solid var(--line);border-radius:12px;padding:12px 14px } .perms legend{ padding:0 6px;color:var(--muted);font-size:12px }
+    .chk{ display:flex;align-items:center;gap:8px;color:var(--text);font-size:13.5px;padding:4px 0 } .chk input{ width:16px;height:16px }
+    .toggles{ display:flex;flex-direction:column;gap:8px }
+    .toggle{ display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;font-size:13.5px;text-align:left }
+    .toggle .knob{ flex:0 0 40px;width:40px;height:22px;border-radius:999px;background:rgba(255,255,255,.12);position:relative;transition:background var(--dur) }
+    .toggle .knob::after{ content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#cfe;transition:transform var(--dur) }
+    .toggle.on .knob{ background:var(--cyan) } .toggle.on .knob::after{ transform:translateX(18px);background:#06202a }
+    @media (max-width:760px){ .kvr{ grid-template-columns:1fr;gap:2px } .pf-row{ grid-template-columns:1fr } }
     @media (max-width:900px){
       .dash>.card{ grid-row:auto !important }
       .b-today{ order:1 } .b-dialog{ order:2 } .b-deadlines{ order:3 } .b-list{ order:4 } .b-summary{ order:5 }
@@ -756,7 +781,7 @@
       (notif?'<button class="foot-link" onclick="go(\''+notif.id+'\')">Уведомления</button>':'')+
       (settings?'<button class="foot-link" onclick="go(\''+settings.id+'\')">Настройки</button>':'')+
       '<div class="nav-div">Прототип · контексты</div>'+
-      ctx.map(c=>{ const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("");
+      ctx.map(c=>{ if(c[0]==="Структура дела") return '<button class="foot-link dim" onclick="openCaseRow(\'\',\'\',\'shkola-raspisanie\')">'+esc(c[0])+'</button>'; const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("");
   }
   function rebuildNav(){ nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
   rebuildNav();
@@ -804,7 +829,7 @@
       "Общие дела": {rows:[["Ремонт в ванной","","в работе"],["Поездка на каникулы","","планируется"],["Страховка квартиры","","ждёт взрослого"]]},
       "Сроки и изменения": {rows:[["Изменилось расписание Миши","завтра 09:00",""],["Передать показания","25 сен",""],["Родительское собрание","1 окт",""]]},
       "Семейная сводка": {metrics:[["2","взрослых · 1 ребёнок"],["5","общих дел"],["0","просрочек"]]},
-      cases:[["Ремонт в ванной","в работе","3 задачи · 2 участника"],["Школа Миши — успеваемость","под наблюдением","обновлено сегодня"],["Поездка на осенние каникулы","планируется","создано 3 дня назад"],["Страховка квартиры","ждёт взрослого","срок 5 окт"]]
+      cases:[["Ремонт в ванной","в работе","3 задачи · 2 участника"],["Школа Миши — изменение расписания","под наблюдением","обновлено сегодня","shkola-raspisanie"],["Поездка на осенние каникулы","планируется","создано 3 дня назад"],["Страховка квартиры","ждёт взрослого","срок 5 окт"]]
     },
     "Практика": {
       "Рабочий диалог": {dialog:"3 новых обращения, одно похоже на срочное (наследство). Квалифицировать и подготовить ответы?"},
@@ -858,7 +883,7 @@
     const caseId = (findNode("Внутренняя структура любого дела")||{id:node.id}).id;
     return '<div class="lbar"><div class="tabs">'+filters.map((f,i)=>'<button class="tab'+(i===0?" active":"")+'">'+esc(f.name)+'</button>').join("")+'</div>'+
       (create?'<button class="btn primary" style="margin-left:auto" onclick="go(\''+create.id+'\')">'+esc(create.name)+'</button>':'')+'</div>'+
-      '<div class="lst">'+ (items.length? items.map(it=>'<button class="lrow" onclick="go(\''+caseId+'\')"><span><h4>'+esc(it[0])+'</h4><p>'+esc(it[2]||"")+'</p></span><span class="chip">'+esc(it[1])+'</span><span class="when">открыть →</span></button>').join("") : '<div style="padding:18px;color:var(--muted)">Пока пусто.</div>') +'</div>';
+      '<div class="lst">'+ (items.length? items.map(it=>'<button class="lrow" data-open="1" data-title="'+attr(it[0])+'" data-status="'+attr(it[1])+'" data-seed="'+attr(it[3]||"")+'"><span><h4>'+esc(it[0])+'</h4><p>'+esc(it[2]||"")+'</p></span><span class="chip">'+esc(it[1])+'</span><span class="when">открыть →</span></button>').join("") : '<div style="padding:18px;color:var(--muted)">Пока пусто.</div>') +'</div>';
   }
 
   // --- Богатые экраны (нативные button/<a>, фокус, без эмодзи-иконок) ---
@@ -986,6 +1011,141 @@
     if(ct) ct.addEventListener('click',e=>{ const btn=e.target.closest('.ct'); if(!btn)return;
       ct.querySelectorAll('.ct').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
       vwrap.querySelector('#casepanel').innerHTML = casePanel(byId[btn.dataset.ctab]); });
+    vwrap.querySelectorAll('.lrow[data-open]').forEach(r=>r.addEventListener('click',()=>openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed)));
+  }
+
+  // ===== P1: настоящее дело (интерактивно, состояние в памяти) =====
+  const attr = s => esc(String(s)).replace(/"/g,"&quot;");
+  const PERM_LABELS = { docs:"Может видеть документы", tasks:"Может добавлять задачи", confirm:"Может подтверждать действия агента", invite:"Может приглашать участников" };
+  const CASE_TABS = ["Обзор","Диалог","План","Участники","Документы","Сроки","Агенты","Настройки"];
+  const CASE_SEEDS = {
+    "shkola-raspisanie": {
+      id:"shkola-raspisanie", space:"Семья",
+      title:"Школа Миши — изменение расписания",
+      goal:"Учесть новое расписание и не пропустить контрольную по математике",
+      status:"в работе", nextStep:"Подтвердить действие агента: перенести напоминание",
+      responsible:"Мама (вы)", deadline:"завтра, 09:00", visibility:"Участники дела", progress:65, agentWatch:true, requireConfirm:true,
+      participants:[
+        {name:"Мама (вы)", contact:"вы", role:"Владелец", actions:["docs","tasks","confirm","invite"], notify:true, invite:"принято"},
+        {name:"Папа", contact:"Telegram", role:"Взрослый", actions:["docs","tasks","confirm"], notify:true, invite:"принято"},
+        {name:"Миша", contact:"—", role:"Ребёнок", actions:["tasks"], notify:true, invite:"—"}
+      ],
+      plan:[
+        {name:"Разобраться с изменением", tasks:[{name:"Получить новое расписание из дневника", status:"done", who:"Агент"},{name:"Сверить с контрольной по математике", status:"done", who:"Агент"}]},
+        {name:"Подготовиться к контрольной", tasks:[{name:"Перенести напоминание на новое время", status:"waiting", who:"Агент → ждёт подтверждения"},{name:"Напомнить Мише вечером", status:"todo", who:"Агент"},{name:"Подтвердить готовность домашки", status:"todo", who:"Миша"}]}
+      ],
+      dialog:[
+        {who:"agent", text:"Дневник прислал новое расписание: математика во вторник в 9:00 вместо среды. Завтра — контрольная."},
+        {who:"agent", propose:true, text:"Предлагаю перенести напоминание Мише на понедельник 19:00 и добавить контрольную в семейный календарь. Подтвердить?"}
+      ],
+      docs:[["Скрин расписания","из дневника · сегодня"],["Темы к контрольной","прикрепил Миша"]],
+      deadlines:[["Контрольная по математике","завтра 09:00","срочно"],["Родительское собрание","1 окт",""]],
+      agents:[["Школьный агент","наблюдает за дневником","активен"],["Напоминалка","готовит напоминания","ждёт подтверждения"]]
+    }
+  };
+  let CASES = {}, activeCaseId = null, caseTab = "Обзор";
+  const hashStr = s => { let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); };
+  const cloneCase = o => JSON.parse(JSON.stringify(o));
+  function genericCase(title,status){
+    return { id:"gen-"+hashStr(title||"case"), space:currentSpace, title:title||"Дело", goal:"—", status:status||"в работе",
+      nextStep:"Определить следующий шаг", responsible:"вы", deadline:"—", visibility:"Участники дела", progress:25, agentWatch:true, requireConfirm:true,
+      participants:[{name:"вы", contact:"вы", role:"Владелец", actions:["docs","tasks","confirm","invite"], notify:true, invite:"принято"}],
+      plan:[{name:"Начало", tasks:[{name:"Разобраться в задаче", status:"todo", who:"вы"}]}],
+      dialog:[{who:"agent", text:"Готов помочь с этим делом. С чего начнём?"}],
+      docs:[], deadlines:[], agents:[["Агент дела","наблюдает","активен"]] };
+  }
+  function openCaseRow(title,status,seed){
+    const cs = cloneCase((seed && CASE_SEEDS[seed]) || genericCase(title,status));
+    CASES[cs.id]=cs; activeCaseId=cs.id; caseTab="Обзор";
+    if (location.hash !== "#case/"+cs.id) location.hash = "#case/"+cs.id; else renderCase();
+  }
+  window.openCaseRow = openCaseRow;
+
+  const statusChip = s => '<span class="chip'+(/сроч|просроч|ждёт|ожида|архив/i.test(s)?" warn":"")+'">'+esc(s)+'</span>';
+  const kvRow = (k,v) => '<div class="kvr"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>';
+  const toggleRow = (label,on,act) => '<button type="button" class="toggle'+(on?" on":"")+'" data-act="'+act+'" aria-pressed="'+on+'"><span class="knob"></span>'+esc(label)+'</button>';
+  const activeCase = () => CASES[activeCaseId];
+
+  function caseTabPanel(cs,tab){
+    if (tab==="Обзор") return '<div class="kv">'+kvRow("Цель",cs.goal)+kvRow("Статус",cs.status)+kvRow("Следующий шаг",cs.nextStep)+kvRow("Ответственный",cs.responsible)+kvRow("Срок",cs.deadline)+kvRow("Видимость",cs.visibility)+'</div>'+
+      '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="goto-settings">Изменить дело</button><button class="btn" data-act="goto-plan">Открыть план</button></div>';
+    if (tab==="Диалог") return '<div class="thread2">'+cs.dialog.map((m,i)=> m.who==="agent"
+      ? '<div class="bubble">'+esc(m.text)+ (m.propose && !m.done ? '<div class="cta-row" style="margin-top:10px"><button class="btn primary" data-act="agent-yes" data-i="'+i+'">Подтвердить</button><button class="btn" data-act="agent-no" data-i="'+i+'">Отклонить</button></div>' : (m.done?'<div class="done-mark">✓ подтверждено</div>':'')) +'</div>'
+      : '<div class="bubble user">'+esc(m.text)+'</div>').join("")+'</div>'+
+      '<div class="composer" style="max-width:620px;margin-top:12px"><input placeholder="Сообщение по делу…" aria-label="Сообщение"><button aria-label="Отправить">→</button></div>';
+    if (tab==="План") return cs.plan.map((st,si)=>'<div class="stage"><div class="stage-h">'+esc(st.name)+'</div>'+
+      st.tasks.map((t,ti)=>'<div class="task"><span class="tstat '+t.status+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(t.name)+'</b><span>'+esc(t.who||"")+'</span></div>'+
+        (t.status==="done"?'<span class="chip">готово</span>':'<button class="btn small" data-act="task-done" data-s="'+si+'" data-t="'+ti+'">Отметить готово</button>')+'</div>').join("")+'</div>').join("");
+    if (tab==="Участники") return '<div class="lst">'+cs.participants.map(p=>'<div class="prow"><div><b>'+esc(p.name)+'</b> · '+esc(p.role)+
+      '<div class="perm-tags">'+(p.actions||[]).map(a=>'<span class="ptag">'+esc(PERM_LABELS[a]||a)+'</span>').join("")+(p.notify?'<span class="ptag">🔔 уведомления</span>':'')+'</div></div><span class="chip">'+esc(p.invite)+'</span></div>').join("")+'</div>'+
+      '<div class="section-t">Добавить участника</div>'+
+      '<form class="pform" data-act="add-part">'+
+        '<div class="pf-row"><label>Имя<input name="name" required></label><label>Контакт<input name="contact" placeholder="Telegram / телефон / email"></label>'+
+        '<label>Роль<select name="role"><option>Взрослый</option><option>Ребёнок</option><option>Помощник</option></select></label></div>'+
+        '<fieldset class="perms"><legend>Что разрешено</legend>'+Object.keys(PERM_LABELS).map(k=>'<label class="chk"><input type="checkbox" name="perm" value="'+k+'"> '+esc(PERM_LABELS[k])+'</label>').join("")+'</fieldset>'+
+        '<label class="chk"><input type="checkbox" name="notify" checked> Получает уведомления</label>'+
+        '<div class="cta-row"><button class="btn primary" type="submit">Пригласить</button></div></form>';
+    if (tab==="Документы") return cs.docs.length? '<div class="lst">'+cs.docs.map(d=>'<div class="prow"><div><b>'+esc(d[0])+'</b></div><span class="when">'+esc(d[1])+'</span></div>').join("")+'</div>' : '<div class="stub"><span class="tag">Документы</span><p>Пока нет документов. Их приложат участники или агент.</p></div>';
+    if (tab==="Сроки") return cs.deadlines.length? '<div class="lst">'+cs.deadlines.map(d=>'<div class="prow"><div><b>'+esc(d[0])+'</b></div>'+(d[2]?statusChip(d[2]):'<span class="when">'+esc(d[1])+'</span>')+'</div>').join("")+'</div>' : '<div class="stub"><span class="tag">Сроки</span><p>Сроков пока нет.</p></div>';
+    if (tab==="Агенты") return '<div class="lst">'+cs.agents.map(a=>'<div class="prow"><div><b>'+esc(a[0])+'</b><span> · '+esc(a[1])+'</span></div><span class="chip">'+esc(a[2])+'</span></div>').join("")+'</div>'+
+      '<div class="section-t">Границы агентов</div><div class="toggles">'+toggleRow("Разрешить наблюдение за делом",cs.agentWatch,"toggle-watch")+toggleRow("Спрашивать подтверждение перед действием",cs.requireConfirm,"toggle-confirm")+'</div>';
+    if (tab==="Настройки") return '<form class="pform" data-act="save-case">'+
+      '<div class="pf-row"><label>Название<input name="title" value="'+attr(cs.title)+'"></label><label>Цель<input name="goal" value="'+attr(cs.goal)+'"></label></div>'+
+      '<div class="pf-row"><label>Ответственный<select name="responsible">'+cs.participants.map(p=>'<option'+(p.name===cs.responsible?' selected':'')+'>'+esc(p.name)+'</option>').join("")+'</select></label><label>Срок<input name="deadline" value="'+attr(cs.deadline)+'"></label></div>'+
+      '<fieldset class="perms"><legend>Кто видит дело</legend>'+["Только я","Участники дела","По ссылке"].map(v=>'<label class="chk"><input type="radio" name="visibility" value="'+attr(v)+'"'+(cs.visibility===v?' checked':'')+'> '+esc(v)+'</label>').join("")+'</fieldset>'+
+      '<div class="toggles">'+toggleRow("Наблюдение агента",cs.agentWatch,"toggle-watch")+toggleRow("Требовать подтверждение перед действием",cs.requireConfirm,"toggle-confirm")+'</div>'+
+      '<div class="cta-row"><button class="btn primary" type="submit">Сохранить</button><button class="btn" type="button" data-act="archive">Архивировать дело</button></div></form>';
+    return "";
+  }
+
+  function renderCase(){
+    const cs = activeCase(); if(!cs) return;
+    const sp = SPACE_NODES[cs.space] || SPACE_NODES[currentSpace];
+    vwrap.innerHTML =
+      '<div class="crumbs"><a href="#'+(sp?sp.id:"0")+'">'+esc(cs.space)+'</a><span class="sep">›</span><span>'+esc(cs.title)+'</span></div>'+
+      '<p class="eyebrow" style="color:var(--cyan)">Дело · '+esc(cs.space)+'</p>'+
+      '<h1 style="margin:2px 0 0;font-size:28px">'+esc(cs.title)+'</h1>'+
+      '<div class="pmeta" style="margin-top:10px">'+statusChip(cs.status)+'<span>Следующий шаг: '+esc(cs.nextStep)+'</span><span>Ответственный: '+esc(cs.responsible)+'</span><span>Срок: '+esc(cs.deadline)+'</span><span>Прогресс '+cs.progress+'%</span></div>'+
+      '<div class="case-tabs" id="ctabs">'+CASE_TABS.map(t=>'<button class="ct'+(t===caseTab?" active":"")+'" data-tab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
+      '<div id="casepanel">'+caseTabPanel(cs,caseTab)+'</div>';
+    vwrap.parentElement.scrollTop = 0;
+    bindCase();
+  }
+
+  function bumpProgress(cs){ const all=cs.plan.flatMap(s=>s.tasks); const done=all.filter(t=>t.status==="done").length; cs.progress=Math.round(done/all.length*100); }
+  function bindCase(){
+    const tabs=document.getElementById("ctabs"); if(!tabs) return;
+    tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; caseTab=b.dataset.tab; renderCase(); };
+    const panel=document.getElementById("casepanel");
+    panel.onclick=e=>{
+      const b=e.target.closest("[data-act]"); if(!b)return; const cs=activeCase(); const act=b.dataset.act;
+      if(act==="goto-settings"){ caseTab="Настройки"; renderCase(); }
+      else if(act==="goto-plan"){ caseTab="План"; renderCase(); }
+      else if(act==="task-done"){ cs.plan[+b.dataset.s].tasks[+b.dataset.t].status="done"; bumpProgress(cs); renderCase(); }
+      else if(act==="toggle-watch"){ cs.agentWatch=!cs.agentWatch; renderCase(); }
+      else if(act==="toggle-confirm"){ cs.requireConfirm=!cs.requireConfirm; renderCase(); }
+      else if(act==="archive"){ if(window.confirm("Архивировать дело? Оно уйдёт в архив, но не удалится.")){ cs.status="в архиве"; renderCase(); } }
+      else if(act==="agent-no"){ const m=cs.dialog[+b.dataset.i]; m.propose=false; cs.dialog.push({who:"user",text:"Пока не надо."}); renderCase(); }
+      else if(act==="agent-yes"){
+        const m=cs.dialog[+b.dataset.i]; m.done=true;
+        cs.dialog.push({who:"user",text:"Подтверждаю."});
+        cs.dialog.push({who:"agent",text:"Готово: напоминание перенесено на понедельник 19:00, контрольная добавлена в семейный календарь."});
+        const t=cs.plan.flatMap(s=>s.tasks).find(x=>x.status==="waiting"); if(t){ t.status="done"; t.who="Агент"; }
+        cs.nextStep="Напомнить Мише вечером"; bumpProgress(cs); renderCase();
+      }
+    };
+    panel.onsubmit=e=>{
+      const f=e.target.closest("form[data-act]"); if(!f)return; e.preventDefault(); const cs=activeCase();
+      if(f.dataset.act==="add-part"){
+        const perms=[...f.querySelectorAll('input[name="perm"]:checked')].map(x=>x.value);
+        cs.participants.push({ name:f.name.value.trim()||"Участник", contact:f.contact.value.trim()||"—", role:f.role.value, actions:perms, notify:f.notify.checked, invite:"приглашение отправлено" });
+        caseTab="Участники"; renderCase();
+      } else if(f.dataset.act==="save-case"){
+        cs.title=f.title.value.trim()||cs.title; cs.goal=f.goal.value.trim()||"—"; cs.responsible=f.responsible.value;
+        cs.deadline=f.deadline.value.trim()||"—"; const v=f.querySelector('input[name="visibility"]:checked'); if(v)cs.visibility=v.value;
+        renderCase();
+      }
+    };
   }
 
   function render(node){
@@ -1005,6 +1165,7 @@
     }
     vwrap.innerHTML = inner;
     vwrap.parentElement.scrollTop = 0;
+    bindScreen();
   }
 
   // --- Роутинг ---
@@ -1017,7 +1178,11 @@
     closeNav();
   }
   window.go = go;
-  window.addEventListener("hashchange", () => { const id = location.hash.slice(1); if (byId[id]) go(id); });
+  window.addEventListener("hashchange", () => {
+    const h = location.hash.slice(1);
+    if (h.indexOf("case/")===0){ const cid=h.slice(5); if(!CASES[cid] && CASE_SEEDS[cid]) CASES[cid]=cloneCase(CASE_SEEDS[cid]); if(CASES[cid]){ activeCaseId=cid; caseTab="Обзор"; renderCase(); } return; }
+    if (byId[h]) go(h);
+  });
 
   // --- Поиск ---
   document.getElementById("q").addEventListener("input", e => {
