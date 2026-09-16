@@ -1543,7 +1543,7 @@
 
   let REAL={loaded:false,loading:false,cases:[],error:null};
   let activeReal=null, realTab="Обзор";
-  const REAL_TABS=["Обзор","Журнал","План","Участники","Настройки"];
+  const REAL_TABS=["Обзор","Журнал","План","Документы","Участники","Настройки"];
   function hasSession(){ return !!authState.token; }
   function realMode(){ return hasSession() && !!SPACE_SCOPE[currentSpace]; }
 
@@ -1602,11 +1602,12 @@
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const events=await loadAllEvents(id);
-      let runs=[],patches=[];
+      let runs=[],patches=[],drafts=[];
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
+      try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, drafts, reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
     }catch(e){
@@ -1666,6 +1667,10 @@
       }
       return h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command;
     }
+    if(realTab==="Документы"){
+      const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
+      return '<div class="section-t">Документы дела</div><div class="lst">'+docs+'</div>'+(isOwner?'<div class="section-t">Новый документ</div><form class="pform" data-act="draft-create"><label style="display:block">Название<input name="title" required style="width:100%" placeholder="Например, новое расписание"></label><label style="display:block;margin-top:10px">Текст<textarea name="body" required rows="10" style="width:100%;resize:vertical" placeholder="Начните писать — каждая сохранённая правка станет новой версией."></textarea></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить версию</button></div></form>':'<p class="rc-note">Новые версии документа создаёт владелец дела; выданные документы доступны вам для просмотра.</p>');
+    }
     if(realTab==="Участники"){
       const rows=(c.participants||[]).map(p=>{
         const rights=(p.rights&&p.rights.length?p.rights:["read"]).map(r=>'<span class="rtag">'+esc(RIGHT_RU[r]||r)+'</span>').join("");
@@ -1708,6 +1713,7 @@
       const b=e.target.closest("[data-act]"); if(!b) return; const c=activeReal.c; const act=b.dataset.act;
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
       if(act==="open-real-linked"){ realTab="Обзор"; location.hash="#case/"+b.dataset.id; return; }
+      if(act==="draft-share"){ b.disabled=true; try{ await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/share",{}); renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось выдать документ."); } return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
@@ -1731,6 +1737,9 @@
       if(f.dataset.act==="scope"){ const v=f.querySelector('input[name="scope"]:checked'); if(!v) return; const btn=f.querySelector("button"); btn.disabled=true;
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:v.value}); REAL.loaded=false; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; toast((err&&err.message)||"Не удалось сменить пространство."); } return; }
+      if(f.dataset.act==="draft-create"){ const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Сохраняю…";
+        try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/drafts",{title:(f.title.value||"").trim(),body:(f.body.value||"").trim(),basis:"текст владельца из v2",kind:"document"}); realTab="Документы"; renderRealCase(c.id); }
+        catch(err){ btn.disabled=false; btn.textContent="Сохранить версию"; toast((err&&err.message)||"Не удалось сохранить документ."); } return; }
       if(f.dataset.act==="ask-agent"){
         const input=f.querySelector('[name="message"]'), btn=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; btn.disabled=true; btn.classList.add("thinking"); btn.setAttribute("aria-busy","true");
         try{ await askCaseAgent(message); input.value=""; drawRealCase(); }
