@@ -106,6 +106,7 @@
     .btn{ display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:13px;border:1px solid var(--line);
       background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;font-weight:650;font-size:14px;transition:border-color var(--dur),filter var(--dur) }
     .btn:hover{ border-color:var(--cyan) } .btn.primary{ background:var(--cyan);color:#06202a;border-color:transparent } .btn.primary:hover{ filter:brightness(1.06) }
+    .btn.thinking,.btn.thinking:disabled{ cursor:wait;opacity:1;background:linear-gradient(110deg,#62e6f2 20%,#d9fbff 45%,#62e6f2 70%);background-size:220% 100%;animation:shimmer 1.15s linear infinite;color:#06202a }
     .hero{ padding:8px 0 2px } .hero h1{ margin:6px 0 0;font-size:clamp(30px,4.4vw,52px);letter-spacing:-.035em;line-height:1.03 }
     .hero .lead{ margin:14px 0 0;max-width:62ch;color:var(--muted);font-size:17px }
     .cta-row{ display:flex;flex-wrap:wrap;gap:10px;margin-top:22px }
@@ -1315,7 +1316,7 @@
   const CASE_TABS = ["Обзор","Диалог","План","Участники","Документы","Сроки","Агенты","Настройки"];
   const CASE_SEEDS = {
     "shkola-raspisanie": {
-      id:"shkola-raspisanie", space:"Семья",
+      id:"shkola-raspisanie", space:"Семья", assistant:"Домашкин",
       title:"Школа Миши — изменение расписания",
       goal:"Учесть новое расписание и не пропустить контрольную по математике",
       status:"в работе", nextStep:"Подтвердить действие агента: перенести напоминание",
@@ -1335,23 +1336,35 @@
       ],
       docs:[["Скрин расписания","из дневника · сегодня"],["Темы к контрольной","прикрепил Миша"]],
       deadlines:[["Контрольная по математике","завтра 09:00","срочно"],["Родительское собрание","1 окт",""]],
-      agents:[["Школьный агент","наблюдает за дневником","активен"],["Напоминалка","готовит напоминания","ждёт подтверждения"]]
+      agents:[["Домашкин","ведёт отдельное рабочее дело","в работе"]],
+      linkedCases:[{id:"domashkin-raspisanie",title:"Домашкин — изменение расписания",assistant:"Домашкин",status:"в работе"}]
+    },
+    "domashkin-raspisanie": {
+      id:"domashkin-raspisanie", space:"Семья", assistantWork:"Домашкин", parentCaseId:"shkola-raspisanie",
+      title:"Домашкин — изменение расписания", goal:"Выполнить подтверждённые действия по школьному расписанию", status:"в работе", nextStep:"Ждёт подтверждения переноса напоминания",
+      responsible:"Домашкин", deadline:"сегодня", visibility:"Участники исходного дела", progress:50, agentWatch:true, requireConfirm:true,
+      participants:[{name:"Мама (вы)",contact:"вы",role:"Владелец",actions:["docs","tasks","confirm","invite"],notify:true,invite:"принято"}],
+      plan:[{name:"Поручение",tasks:[{name:"Сверить новое расписание",status:"done",who:"Домашкин"},{name:"Подготовить перенос напоминания",status:"waiting",who:"Домашкин → ждёт подтверждения"}]}],
+      dialog:[{who:"agent",text:"Я выделил изменения расписания и подготовил перенос напоминания. Исходное семейное дело остаётся у вас; это — моё рабочее дело."},{who:"agent",propose:true,text:"Перенести напоминание Мише на понедельник 19:00 и добавить контрольную в семейный календарь. Подтвердить?"}],
+      docs:[],deadlines:[["Контрольная по математике","завтра 09:00","срочно"]],agents:[["Домашкин","рабочее дело","активен"]],linkedCases:[{id:"shkola-raspisanie",title:"Школа Миши — изменение расписания",assistant:"",status:"исходное дело"}]
     }
   };
   let CASES = {}, activeCaseId = null, caseTab = "Обзор";
   const hashStr = s => { let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); };
   const cloneCase = o => JSON.parse(JSON.stringify(o));
   function genericCase(title,status){
-    return { id:"gen-"+hashStr(title||"case"), space:currentSpace, title:title||"Дело", goal:"—", status:status||"в работе",
+    const id="gen-"+hashStr(title||"case"), assistant=currentSpace==="Семья"?"Домашкин":"Фиксарик", workId="work-"+assistant.toLowerCase()+"-"+hashStr(id);
+    return { id, space:currentSpace, assistant, title:title||"Дело", goal:"—", status:status||"в работе",
       nextStep:"Определить следующий шаг", responsible:"вы", deadline:"—", visibility:"Участники дела", progress:25, agentWatch:true, requireConfirm:true,
       participants:[{name:"вы", contact:"вы", role:"Владелец", actions:["docs","tasks","confirm","invite"], notify:true, invite:"принято"}],
       plan:[{name:"Начало", tasks:[{name:"Разобраться в задаче", status:"todo", who:"вы"}]}],
       dialog:[{who:"agent", text:"Готов помочь с этим делом. С чего начнём?"}],
-      docs:[], deadlines:[], agents:[["Агент дела","наблюдает","активен"]] };
+      docs:[], deadlines:[], agents:[[assistant,"ведёт отдельное рабочее дело","готов"]], linkedCases:[{id:workId,title:assistant+" — "+(title||"Дело"),assistant,status:"не начато"}] };
   }
+  function assistantWorkCase(parent,link){ return { id:link.id, space:parent.space, assistantWork:link.assistant, parentCaseId:parent.id, title:link.title, goal:"Выполнить поручение по делу «"+parent.title+"»", status:"не начато", nextStep:"Ждёт поручения в исходном деле", responsible:link.assistant, deadline:"—", visibility:"Участники исходного дела", progress:0, agentWatch:true, requireConfirm:true, participants:parent.participants, plan:[{name:"Поручение",tasks:[]}], dialog:[{who:"agent",text:"Это отдельное рабочее дело "+link.assistant+". Здесь появятся только действия и диалог по вашему поручению."}], docs:[],deadlines:[],agents:[[link.assistant,"рабочее дело","готов"]],linkedCases:[{id:parent.id,title:parent.title,assistant:"",status:"исходное дело"}] }; }
   function openCaseRow(title,status,seed){
     const cs = cloneCase((seed && CASE_SEEDS[seed]) || genericCase(title,status));
-    CASES[cs.id]=cs; activeCaseId=cs.id; caseTab="Обзор";
+    CASES[cs.id]=cs; (cs.linkedCases||[]).forEach(link=>{ if(!CASES[link.id]&&!CASE_SEEDS[link.id]) CASES[link.id]=assistantWorkCase(cs,link); }); activeCaseId=cs.id; caseTab="Обзор";
     if (location.hash !== "#case/"+cs.id) location.hash = "#case/"+cs.id; else renderCase();
   }
   window.openCaseRow = openCaseRow;
@@ -1360,17 +1373,19 @@
   const kvRow = (k,v) => '<div class="kvr"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>';
   const toggleRow = (label,on,act) => '<button type="button" class="toggle'+(on?" on":"")+'" data-act="'+act+'" aria-pressed="'+on+'"><span class="knob"></span>'+esc(label)+'</button>';
   const activeCase = () => CASES[activeCaseId];
+  const assistantWorkTitle = cs => cs.assistantWork ? cs.assistantWork+" · отдельное рабочее дело" : "";
+  function linkedCasesPanel(cs){ const links=cs.linkedCases||[]; if(!links.length) return ""; return '<div class="section-t">Связанные дела</div><div class="lst">'+links.map(link=>'<div class="prow"><div><b>'+esc(link.title)+'</b><div class="rc-hint">'+esc(link.assistant ? link.assistant+' работает отдельно; действия и диалог — в этом деле.' : 'Связано с текущим делом.')+'</div></div>'+statusChip(link.status||"—")+'<button class="btn small" data-act="open-linked" data-id="'+attr(link.id)+'">Открыть</button></div>').join("")+'</div>'; }
 
   function caseTabPanel(cs,tab){
-    if (tab==="Обзор") return '<div class="kv">'+kvRow("Цель",cs.goal)+kvRow("Статус",cs.status)+kvRow("Следующий шаг",cs.nextStep)+kvRow("Ответственный",cs.responsible)+kvRow("Срок",cs.deadline)+kvRow("Видимость",cs.visibility)+'</div>'+
+    if (tab==="Обзор") return '<div class="kv">'+kvRow("Цель",cs.goal)+kvRow("Статус",cs.status)+kvRow("Следующий шаг",cs.nextStep)+kvRow("Ответственный",cs.responsible)+kvRow("Срок",cs.deadline)+kvRow("Видимость",cs.visibility)+(cs.assistantWork?kvRow("Тип",assistantWorkTitle(cs)):"")+'</div>'+linkedCasesPanel(cs)+
       '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="goto-settings">Изменить дело</button><button class="btn" data-act="goto-plan">Открыть план</button></div>';
     if (tab==="Диалог") return '<div class="thread2">'+cs.dialog.map((m,i)=> m.who==="agent"
-      ? '<div class="bubble">'+esc(m.text)+ (m.propose && !m.done ? '<div class="cta-row" style="margin-top:10px"><button class="btn primary" data-act="agent-yes" data-i="'+i+'">Подтвердить</button><button class="btn" data-act="agent-no" data-i="'+i+'">Отклонить</button></div>' : (m.done?'<div class="done-mark">✓ подтверждено</div>':'')) +'</div>'
+      ? '<div class="bubble"><small>'+esc(cs.assistantWork||cs.assistant||"Агент дела")+'</small><br>'+esc(m.text)+ (m.propose && !m.done ? '<div class="cta-row" style="margin-top:10px"><button class="btn primary" data-act="agent-yes" data-i="'+i+'">Подтвердить</button><button class="btn" data-act="agent-no" data-i="'+i+'">Отклонить</button></div>' : (m.done?'<div class="done-mark">✓ подтверждено</div>':'')) +'</div>'
       : '<div class="bubble user">'+esc(m.text)+'</div>').join("")+'</div>'+
       '<div class="composer" style="max-width:620px;margin-top:12px"><input placeholder="Сообщение по делу…" aria-label="Сообщение"><button aria-label="Отправить">→</button></div>';
     if (tab==="План") return cs.plan.map((st,si)=>'<div class="stage"><div class="stage-h">'+esc(st.name)+'</div>'+
       st.tasks.map((t,ti)=>'<div class="task"><span class="tstat '+t.status+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(t.name)+'</b><span>'+esc(t.who||"")+'</span></div>'+
-        (t.status==="done"?'<span class="chip">готово</span>':'<button class="btn small" data-act="task-done" data-s="'+si+'" data-t="'+ti+'">Отметить готово</button>')+'</div>').join("")+'</div>').join("");
+        (t.status==="done"?'<span class="chip">готово</span>':'<button class="btn small" data-act="task-done" data-s="'+si+'" data-t="'+ti+'">Отметить готово</button>')+'</div>').join("")+'</div>').join("")+linkedCasesPanel(cs);
     if (tab==="Участники") return '<div class="lst">'+cs.participants.map(p=>'<div class="prow"><div><b>'+esc(p.name)+'</b> · '+esc(p.role)+
       '<div class="perm-tags">'+(p.actions||[]).map(a=>'<span class="ptag">'+esc(PERM_LABELS[a]||a)+'</span>').join("")+(p.notify?'<span class="ptag">🔔 уведомления</span>':'')+'</div></div><span class="chip">'+esc(p.invite)+'</span></div>').join("")+'</div>'+
       '<div class="section-t">Добавить участника</div>'+
@@ -1416,6 +1431,7 @@
       const b=e.target.closest("[data-act]"); if(!b)return; const cs=activeCase(); const act=b.dataset.act;
       if(act==="goto-settings"){ caseTab="Настройки"; renderCase(true); }
       else if(act==="goto-plan"){ caseTab="План"; renderCase(true); }
+      else if(act==="open-linked"){ routeCase(b.dataset.id); }
       else if(act==="task-done"){ cs.plan[+b.dataset.s].tasks[+b.dataset.t].status="done"; bumpProgress(cs); renderCase(true); }
       else if(act==="toggle-watch"){ cs.agentWatch=!cs.agentWatch; renderCase(true); }
       else if(act==="toggle-confirm"){ cs.requireConfirm=!cs.requireConfirm; renderCase(true); }
@@ -1483,10 +1499,18 @@
     return [];
   }
   const caseMeta = c => ((c.participants||[]).length)+" уч. · обновлено "+fmtWhen(c.updated_at);
+  function eventPayload(ev){ const p=ev&&ev.payload; if(typeof p!=="string") return p||{}; try{return JSON.parse(p)||{};}catch(_){return{};} }
+  const assistantName = c => (c&&c.scope)==="home" ? "Домашкин" : "Фиксарик";
+  function realLinksPanel(){
+    const plans={}, links=[];
+    (activeReal.events||[]).forEach(ev=>{ const p=eventPayload(ev); if(ev.kind==="plan.branches") (p.branches||[]).forEach((branch,index)=>plans[index]=branch); if(ev.kind==="branch.started"&&p.child_case_id) links.push({id:String(p.child_case_id),title:String(p.title||((plans[p.ord]||{}).title)||"Рабочее дело")}); });
+    if(!links.length)return "";
+    return '<div class="section-t">Связанные рабочие дела</div><div class="lst">'+links.map(link=>'<div class="prow"><div><b>'+esc(link.title)+'</b><div class="rc-hint">'+esc(assistantName(activeReal.c))+' работает в отдельном деле: его действия и диалог находятся там.</div></div><button class="btn small" data-act="open-real-linked" data-id="'+attr(link.id)+'">Открыть</button></div>').join("")+'</div>';
+  }
 
   async function loadAllEvents(id){ let out=[],since=0; for(let i=0;i<20;i++){ const page=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/events?since_seq="+since); if(!Array.isArray(page)||!page.length) break; out=out.concat(page); const mx=page.reduce((m,e)=>Math.max(m,e.seq||0),since); since=mx+1; if(page.length<200) break; } return out; }
   const evText = ev => { const p=ev.payload||{}; return p.title||p.message||p.text||p.note||p.name||p.step||p.reason||p.summary||""; };
-  function evActor(ev){ if(ev.actor_kind==="agent")return "Агент"; if(ev.actor_kind==="system")return "Система"; if(ev.actor_kind==="worker")return "Служба"; if(ev.actor_kind==="principal"){ const p=(activeReal&&(activeReal.c.participants||[]).find(x=>x.principal_id===ev.actor_id)); return (p&&p.display_name)||(ev.actor_id===authState.principal?"Вы":"Человек"); } return ev.actor_kind||"—"; }
+  function evActor(ev){ if(ev.actor_kind==="agent")return assistantName(activeReal&&activeReal.c); if(ev.actor_kind==="system")return "Система"; if(ev.actor_kind==="worker")return "Служба"; if(ev.actor_kind==="principal"){ const p=(activeReal&&(activeReal.c.participants||[]).find(x=>x.principal_id===ev.actor_id)); return (p&&p.display_name)||(ev.actor_id===authState.principal?"Вы":"Человек"); } return ev.actor_kind||"—"; }
   function eventLine(ev){ const k=KIND_RU[ev.kind]||ev.kind; const t=evText(ev); const ag=ev.actor_kind==="agent"; return '<div class="ev '+esc(ev.actor_kind||"")+'"><div class="eh"><b>'+esc(evActor(ev))+'</b> · '+esc(k)+(ag?'<span class="badge">агент</span>':'')+' · '+esc(fmtWhen(ev.created_at))+'</div>'+(t?'<div class="et">'+esc(t)+'</div>':'')+'</div>'; }
   function ownerName(){ const c=activeReal.c; const o=(c.participants||[]).find(p=>p.role==="owner"); if(o&&o.display_name)return o.display_name; return c.owner_id===authState.principal?"Вы":"—"; }
 
@@ -1527,7 +1551,7 @@
   }
   function runCard(run){
     const steps=(run.steps||[]).map(s=>'<div class="task"><span class="tstat '+(s.status==="succeeded"?"done":(s.status==="failed"?"blocked":"todo"))+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(s.step||"Шаг")+'</b><span>'+esc(RUN_STATUS[s.status]||s.status||"ожидает")+(s.error?' · '+esc(s.error):'')+'</span></div></div>').join("");
-    return '<div class="rc-strip"><h3>Агент · '+esc(RUN_STATUS[run.status]||run.status||"—")+'</h3>'+(run.current_step?'<p class="rc-hint">Сейчас: '+esc(run.current_step)+'</p>':'')+(steps||'<p class="rc-hint">Шаги ещё готовятся.</p>')+(run.last_error?'<p class="rc-note">'+esc(run.last_error)+'</p>':'')+'</div>';
+    return '<div class="rc-strip"><h3>'+esc(assistantName(activeReal&&activeReal.c))+' · '+esc(RUN_STATUS[run.status]||run.status||"—")+'</h3>'+(run.current_step?'<p class="rc-hint">Сейчас: '+esc(run.current_step)+'</p>':'')+(steps||'<p class="rc-hint">Шаги ещё готовятся.</p>')+(run.last_error?'<p class="rc-note">'+esc(run.last_error)+'</p>':'')+'</div>';
   }
   function patchCard(p){
     const detail=p.value===undefined?"Содержание доступно только решающему участнику.":JSON.stringify(p.value);
@@ -1536,7 +1560,7 @@
   function realTabPanel(){
     const c=activeReal.c, canDecide=activeReal.canDecide, isOwner=activeReal.isOwner;
     if(realTab==="Обзор"){
-      return '<div class="kv">'+kvRow("Цель",c.goal||"—")+kvRow("Статус",RU_STATE[c.state]||c.state||"—")+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+kvRow("Объектов",String((c.subjects||[]).length))+'</div>'+
+      return '<div class="kv">'+kvRow("Цель",c.goal||"—")+kvRow("Статус",RU_STATE[c.state]||c.state||"—")+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Помощник",assistantName(c))+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+kvRow("Объектов",String((c.subjects||[]).length))+'</div>'+realLinksPanel()+
         (c.needs_word?'<div class="rc-note">По этому делу ждут вашего решения — загляните в Журнал.</div>':'')+
         '<div class="section-t">Написать агенту</div><form class="composer" data-act="ask-agent" style="max-width:620px;display:flex;flex-direction:column"><textarea name="message" required rows="1" style="resize:vertical;min-height:42px" placeholder="Напр., изменилось школьное расписание — что нужно сделать?" aria-label="Сообщение агенту"></textarea><button class="btn primary" type="submit">Отправить</button></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble" style="margin-top:12px">'+esc(activeReal.reply)+'</div>':'')+'</div>'+
         '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="rc-goto" data-tab="Журнал">Открыть журнал</button><button class="btn" data-act="rc-goto" data-tab="Участники">Участники</button></div>';
@@ -1605,6 +1629,7 @@
       const cp=e.target.closest("[data-copy]"); if(cp){ try{ await navigator.clipboard.writeText(cp.dataset.copy); toast("Ссылка скопирована"); }catch(_){ toast("Скопируйте ссылку вручную"); } return; }
       const b=e.target.closest("[data-act]"); if(!b) return; const c=activeReal.c; const act=b.dataset.act;
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
+      if(act==="open-real-linked"){ realTab="Обзор"; location.hash="#case/"+b.dataset.id; return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
@@ -1629,9 +1654,9 @@
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:v.value}); REAL.loaded=false; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; toast((err&&err.message)||"Не удалось сменить пространство."); } return; }
       if(f.dataset.act==="ask-agent"){
-        const input=f.querySelector('input[name="message"]'), btn=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; btn.disabled=true;
+        const input=f.querySelector('[name="message"]'), btn=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; btn.disabled=true; btn.classList.add("thinking"); btn.setAttribute("aria-busy","true");
         try{ await askCaseAgent(message); input.value=""; drawRealCase(); }
-        catch(err){ toast((err&&err.message)||"Агент пока не ответил. Повторите позже."); btn.disabled=false; } return;
+        catch(err){ toast((err&&err.message)||"Агент пока не ответил. Повторите позже."); btn.disabled=false; btn.classList.remove("thinking"); btn.removeAttribute("aria-busy"); } return;
       }
     };
   }
@@ -1822,8 +1847,8 @@
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
   document.getElementById("view").addEventListener("click", e=>{ const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
-  document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; button.disabled=true; answer.textContent="Агент думает…";
-    try{ answer.textContent=await askCaseAgent(message); input.value=""; }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; } });
+  document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.textContent="Агент думает…";
+    try{ answer.textContent=await askCaseAgent(message); input.value=""; }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); } });
   document.addEventListener("input",e=>{ const field=e.target.closest("textarea[name=message]"); if(!field)return; field.style.height="auto"; field.style.height=Math.min(field.scrollHeight,180)+"px"; });
   bootIdentity();
 
