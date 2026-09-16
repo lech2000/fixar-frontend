@@ -1182,7 +1182,7 @@
     const quick=friendly?(()=>{ const items=currentSpace==="Семья"
       ? [["Семейный диалог","Спросить Домашкина"],["Общие дела","Открыть дела"],["Сроки и изменения","Ближайшие даты"]]
       : [["Диалог с ФиксАР","Спросить Фиксарика"],["Мои активные дела","Открыть дела"],["Сроки и изменения","Ближайшие даты"]];
-      return '<div class="quick-jumps" aria-label="Быстрые переходы">'+items.map(item=>{ const id=kidOf(node,item[0]); return id?'<button class="quick-jump" type="button" onclick="go(\''+id+'\')"><b>'+esc(item[1])+'</b><span>'+esc(item[0])+' →</span></button>':''; }).join("")+'</div>';
+      return '<div class="quick-jumps" aria-label="Быстрые переходы">'+items.map((item,index)=>{ const id=kidOf(node,item[0]); const action=currentSpace==="Семья"&&index===0?'onclick="openFamilyDialog()"':'onclick="go(\''+id+'\')"'; return id?'<button class="quick-jump" type="button" '+action+'><b>'+esc(item[1])+'</b><span>'+esc(item[0])+' →</span></button>':''; }).join("")+'</div>';
     })():"";
     const cards = node.children.map(b=>{
       const c = d[b.name] || {}; const isDialog = /диалог|помощник/i.test(b.name);
@@ -1562,6 +1562,20 @@
     if(space==="Практика")return REAL.cases.filter(c=>(c.scope||"")==="pro");
     return [];
   }
+  async function openFamilyDialog(message){
+    if(!authState.token){ openAccount(); return; }
+    await ensureSession(); await loadRealCases(true);
+    let dialog=REAL.cases.find(c=>c.scope==="home"&&c.title==="Семейный диалог с Домашкиным"&&c.state==="active");
+    if(!dialog){
+      dialog=await authFetch("POST","/cases",{title:"Семейный диалог с Домашкиным",goal:"Семейные вопросы, школа и ближайшие изменения",side:"need_help"});
+      await authFetch("POST","/cases/"+encodeURIComponent(dialog.id)+"/scope",{scope:"home"});
+      await authFetch("PUT","/cases/"+encodeURIComponent(dialog.id)+"/routing",{domain:"household",selected_agent_id:"chores",reason:"семейный диалог Домашкина",expect_domain:"",expect_selected_agent_id:""});
+      REAL.loaded=false;
+    }
+    currentSpace="Семья"; rebuildNav(); realTab="Обзор"; location.hash="#case/"+dialog.id;
+    await renderRealCase(dialog.id); if(message) await askCaseAgent(message);
+  }
+  window.openFamilyDialog=openFamilyDialog;
   const caseMeta = c => ((c.participants||[]).length)+" уч. · обновлено "+fmtWhen(c.updated_at);
   function eventPayload(ev){ const p=ev&&ev.payload; if(typeof p!=="string") return p||{}; try{return JSON.parse(p)||{};}catch(_){return{};} }
   const assistantName = c => { if(c&&c.selected_agent_id){ const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id); return practice?practiceTitle(practice):c.selected_agent_id; } return (c&&c.scope)==="home" ? "Домашкин" : "Фиксарик"; };
@@ -1905,8 +1919,9 @@
   });
 
   // Композер (демо): «Отправить» добавляет реплику и канонический ответ — кнопка не «мёртвая»
-  function composerSend(comp){
+  async function composerSend(comp){
     const inp=comp.querySelector("input"); const v=(inp.value||"").trim(); if(!v) return;
+    if(currentSpace==="Семья"){ await openFamilyDialog(v); return; }
     const mk=(cls,html)=>{ const d=document.createElement("div"); d.className="bubble"+(cls?" "+cls:""); d.innerHTML=html; return d; };
     comp.parentElement.insertBefore(mk("user", esc(v)), comp); inp.value="";
     setTimeout(()=>{ comp.parentElement.insertBefore(mk("", "Это демо-экран: в рабочей версии запрос уйдёт агенту дела. <small>ФиксАР · сейчас</small>"), comp); comp.scrollIntoView({block:"nearest"}); }, 300);
