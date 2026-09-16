@@ -1130,6 +1130,34 @@
     }
   };
 
+  let PRACTICE={principal:"",loaded:false,loading:false,items:[],selectedId:"",error:""};
+  const practiceTitle = item => item.kind_title||item.title||item.domain_title||item.domain||"Кабинет";
+  function practiceStorageKey(){ return "fixar-v2-practice:"+(authState.principal||"guest"); }
+  async function loadPracticeCabinets(force){
+    if(!authState.token||!authState.principal){ PRACTICE={principal:"",loaded:true,loading:false,items:[],selectedId:"",error:""}; return; }
+    if(PRACTICE.loading||(!force&&PRACTICE.loaded&&PRACTICE.principal===authState.principal)) return;
+    PRACTICE.loading=true;
+    try{ const data=await authFetch("GET","/practice"); const items=Array.isArray(data&&data.practices)?data.practices:[]; let selected=""; try{selected=localStorage.getItem(practiceStorageKey())||"";}catch(_){} if(!items.some(item=>item.id===selected))selected=(items[0]||{}).id||""; PRACTICE={principal:authState.principal,loaded:true,loading:false,items,selectedId:selected,error:""}; }
+    catch(error){ PRACTICE={principal:authState.principal,loaded:true,loading:false,items:[],selectedId:"",error:(error&&error.message)||"Не удалось загрузить кабинеты."}; }
+  }
+  function practicePanel(){
+    if(!authState.token) return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Войдите, чтобы увидеть только открытые вами кабинеты практики.</p><button class="btn primary" data-acct="open">Войти</button></div>';
+    if(PRACTICE.loading||!PRACTICE.loaded||PRACTICE.principal!==authState.principal) return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Загружаем кабинеты…</p></div>';
+    if(PRACTICE.error) return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-note">'+esc(PRACTICE.error)+'</p><button class="btn" data-act="practice-reload">Повторить</button></div>';
+    const rows=PRACTICE.items.length?PRACTICE.items.map(item=>'<button class="lrow" data-act="practice-select" data-id="'+attr(item.id)+'"><span><h4>'+esc(practiceTitle(item))+'</h4><p>'+esc(item.domain_title||item.domain||"Рабочее направление")+'</p></span>'+(item.id===PRACTICE.selectedId?'<span class="chip">выбран</span>':'<span class="when">выбрать →</span>')+'</button>').join(""):'<p class="rc-hint">Вы ещё не открывали кабинеты.</p>';
+    const add=authState.assurance>=2?'<button class="btn primary" data-act="practice-add">Добавить кабинет</button>':'<p class="rc-note">Чтобы добавить кабинет, подтвердите вход до уровня 2.</p>';
+    return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Выберите кабинет, в котором сейчас работаете. В списке только ваши кабинеты.</p><div class="lst">'+rows+'</div><div class="cta-row" style="margin-top:12px">'+add+'</div></div>';
+  }
+  async function openPracticeAdd(){
+    if(!authState.token){ openAccount(); return; }
+    if(authState.assurance<2){ toast("Подтвердите вход до уровня 2, чтобы добавить кабинет."); return; }
+    let packs; try{ packs=await authFetch("GET","/packs"); }catch(error){ toast((error&&error.message)||"Не удалось загрузить направления."); return; }
+    const enabled={}; PRACTICE.items.forEach(item=>enabled[item.domain+"/"+(item.kind||"")]=true);
+    const choices=[]; (packs.packs||[]).forEach(pack=>(pack.practice&&pack.practice.kinds||[]).forEach(kind=>{ if(!enabled[pack.id+"/"+kind.id]) choices.push({domain:pack.id,kind:kind.id,title:(pack.title||pack.id)+" — "+(kind.title||kind.id)}); }));
+    if(!choices.length){ toast("Все доступные кабинеты уже открыты."); return; }
+    modalOpen("Добавить кабинет",'<p class="lead">Выберите направление. Новый кабинет создаётся только в вашем аккаунте и не даёт доступа к чужим делам.</p><div class="tiles" id="practicechoices">'+choices.map(choice=>'<button class="tile" type="button" data-domain="'+attr(choice.domain)+'" data-kind="'+attr(choice.kind)+'" data-title="'+attr(choice.title)+'"><span><h3>'+esc(choice.title)+'</h3><p>Открыть кабинет</p></span><span class="chev" aria-hidden="true">→</span></button>').join("")+'</div>',body=>{ body.querySelector("#practicechoices").onclick=async event=>{ const button=event.target.closest("[data-domain]"); if(!button)return; button.disabled=true; try{ const item=await authFetch("POST","/practice",{domain:button.dataset.domain,kind:button.dataset.kind,title:button.dataset.title}); await loadPracticeCabinets(true); PRACTICE.selectedId=item.id||PRACTICE.selectedId; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} modalClose(); refreshCurrentView(); }catch(error){ button.disabled=false; toast((error&&error.message)||"Кабинет не добавлен."); } }; });
+  }
+
   function dashboard(node){
     const d = SPACE_DATA[currentSpace] || {};
     const friendly=currentSpace==="Личное"||currentSpace==="Семья";
@@ -1159,7 +1187,7 @@
         '<div class="cb">'+body+'</div></article>';
     }).join("");
     const settings=(currentSpace==="Личное"||currentSpace==="Семья")?'<div class="rc-strip"><h3>Помощники</h3><p class="rc-hint">Настройки открываются в проверенных экранах прежней версии: согласия, каналы и детские данные остаются там под серверной проверкой прав.</p><div class="cta-row"><a class="btn" href="/fixclo/">Настроить Фиксарика</a><a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>':'';
-    return '<div class="'+(friendly?'friendly-home':'')+'">'+(realMode()?realDashStrip():'')+quick+settings+'<div class="dash">'+cards+'</div></div>';
+    return '<div class="'+(friendly?'friendly-home':'')+'">'+(currentSpace==="Практика"?practicePanel():"")+(realMode()?realDashStrip():'')+quick+settings+'<div class="dash">'+cards+'</div></div>';
   }
 
   function isListNode(node){ return node.children.length>=3 && node.children.some(c=>/^Все |^Активные$|Завершённые|Черновики|Опубликованные|^Новые$|^Мои /.test(c.name)); }
@@ -1790,7 +1818,7 @@
       '<div class="vhead"><p class="eyebrow">'+esc(isMain?currentSpace:eyebrowFor(node))+'</p><h1>'+esc(isMain?("Главная — "+currentSpace):node.name)+'</h1>';
     if (isMain){
       head += '<p>Ваше пространство «'+esc(currentSpace)+'»: важное, дела и сроки под наблюдением агентов.</p></div>';
-      loadThen(()=>head+dashboard(node), skeletonDash(head), bindScreen); return;
+      loadThen(()=>head+dashboard(node), skeletonDash(head), ()=>{ bindScreen(); if(currentSpace==="Практика"&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(refreshCurrentView); }); return;
     } else if (isListNode(node)){
       head += '<p>Фильтр по состоянию · клик открывает дело.</p></div>';
       loadThen(()=>head+renderList(node), skeletonList(head), bindScreen); return;
@@ -1864,7 +1892,7 @@
   document.getElementById("acct").addEventListener("click", openAccount);
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
-  document.getElementById("view").addEventListener("click", e=>{ const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
+  document.getElementById("view").addEventListener("click", e=>{ const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
   const agentDock=document.getElementById("agentdock"), agentDockToggle=document.getElementById("agentdocktoggle");
   function setAgentDockCompact(compact){ agentDock.classList.toggle("compact",compact); agentDockToggle.setAttribute("aria-expanded",String(!compact)); agentDockToggle.querySelector("span").textContent=compact?"Открыть":"Свернуть"; try{ localStorage.setItem("fixar-v2-agent-dock-compact",compact?"1":"0"); }catch(_){} }
   let savedDock; try{ savedDock=localStorage.getItem("fixar-v2-agent-dock-compact"); }catch(_){} setAgentDockCompact(savedDock===null?window.matchMedia("(max-width: 760px)").matches:savedDock==="1");
