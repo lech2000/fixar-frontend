@@ -65,9 +65,9 @@
       -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
     }
     .brand{ display:flex; align-items:center; gap:10px; padding:16px 16px 10px }
-    .brand-mark{ display:grid;place-items:center;width:34px;height:34px;border-radius:10px;
-      background:linear-gradient(145deg,#78ef9f,#1ab25a);box-shadow:0 0 20px rgba(67,224,130,.25);font-size:21px }
-    .brand b{ font-size:17px; font-weight:850 } .brand span{ color:var(--muted); font-size:12px; margin-left:auto }
+    .brand-mark{ display:grid;place-items:center;width:36px;height:36px;border-radius:12px;
+      color:var(--on-accent);background:var(--cyan);box-shadow:0 8px 22px var(--accent-soft);font-size:28px;font-weight:400;line-height:1 }
+    .brand b{ font-size:24px; font-weight:750;letter-spacing:-.05em } .brand>span:not(.brand-mark){ color:var(--muted); font-size:12px; margin-left:auto }
     .lang-switch{display:inline-grid;place-items:center;min-width:38px;height:32px;padding:0 9px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font:750 12px/1 ui-monospace,SFMono-Regular,Consolas,monospace;cursor:pointer}.lang-switch:hover{border-color:var(--cyan)}
     .search{ padding:6px 14px 12px }
     .search input{ width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px;
@@ -388,7 +388,7 @@
   <div class="pv-badge" id="pvbadge" aria-hidden="true">предпросмотр v2 · знакомство</div>
   <div class="app">
     <aside class="side" id="side" aria-label="Архитектура ФиксАР">
-      <div class="brand"><span class="brand-mark" aria-hidden="true">✱</span><b>ФиксАР</b><span>v2 · IA</span><button class="lang-switch" type="button" data-lang-switch>EN</button></div>
+      <div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><b>FixAR</b><span>v2</span><button class="lang-switch" type="button" data-lang-switch>EN</button></div>
       <div class="search"><input id="q" type="search" placeholder="Поиск по разделам…" aria-label="Поиск по разделам"></div>
       <div class="switch" id="switch"></div>
       <nav id="nav"></nav>
@@ -398,8 +398,8 @@
     <div class="view" id="view">
       <div class="topm">
         <button class="menu-btn" id="menu" aria-label="Меню" aria-controls="side" aria-expanded="false">☰</button>
-        <span class="brand-mark" aria-hidden="true" style="width:30px;height:30px;font-size:18px">✱</span>
-        <b>ФиксАР</b>
+        <span class="brand-mark" aria-hidden="true" style="width:32px;height:32px;border-radius:11px;font-size:24px">✳</span>
+        <b>FixAR</b>
         <button class="credit-pill" id="mobilecredits" type="button" hidden>кредиты —</button>
         <button class="lang-switch" type="button" data-lang-switch>EN</button>
         <button class="acct-btn" id="acct" aria-label="Аккаунт" aria-haspopup="dialog"><span class="av" id="acctav">Г</span><span class="nm" id="acctnm">Гость</span></button>
@@ -1408,7 +1408,7 @@
       ? uiText("Помощник работает в отдельном деле. Откройте его, чтобы увидеть диалог, действия и материалы.","This assistant works in a separate case. Open it to see the conversation, actions, and materials.")
       : (domashkin?uiText("Подключите дневник и каналы. Данные ребёнка откроются только после серверной проверки прав.","Connect the school diary and channels. Child data opens only after server-side permission checks."):uiText("Настройте каналы и границы чтения, затем заведите для Фиксарика отдельное дело.","Configure channels and reading boundaries, then create a separate Fixarik case."));
     const action=ready?'data-my-day-case="'+attr(assistantCase.id)+'"':(domashkin?'data-my-day-domashkin':'data-my-day-fixarik');
-    return '<article class="my-day-agent"><div class="my-day-agent-top"><span class="my-day-avatar" aria-hidden="true">'+(domashkin?'⌂':'✦')+'</span><span class="my-day-status '+(ready?'':'attention')+'">'+(ready?uiText("Отдельное дело","Separate case"):uiText("Нужна настройка","Setup needed"))+'</span></div><h3>'+name+'</h3><p class="role">'+role+'</p><p class="update">'+update+'</p><button class="my-day-text-button" type="button" '+action+'>'+(ready?uiText("Открыть дело","Open case"):uiText("Настроить","Set up"))+' →</button></article>';
+    return '<article class="my-day-agent agent-'+kind+'"><div class="my-day-agent-top"><span class="my-day-avatar" aria-hidden="true">'+(domashkin?'⌂':'✦')+'</span><span class="my-day-status '+(ready?'':'attention')+'">'+(ready?uiText("Отдельное дело","Separate case"):uiText("Нужна настройка","Setup needed"))+'</span></div><h3>'+name+'</h3><p class="role">'+role+'</p><p class="update">'+update+'</p><button class="my-day-text-button" type="button" '+action+'>'+(ready?uiText("Открыть дело","Open case"):uiText("Настроить","Set up"))+' →</button></article>';
   }
   function myDayRail(){
     const cases=myDayCases();
@@ -1422,62 +1422,172 @@
     const prompts=copy.prompts.map(pair=>'<button class="my-day-prompt" type="button" data-my-day-prompt="'+attr(uiText(pair[0],pair[1]))+'">'+esc(uiText(pair[0],pair[1]))+'</button>').join("");
     const assistants=friendly?'<div class="my-day-section-head"><h2>'+uiText("Ваши помощники","In good company")+'</h2><small>'+uiText("У каждого — своё дело","A case for every assistant")+'</small></div><div class="my-day-agent-grid">'+agents.map(myDayAgentCard).join("")+'</div>':"";
     const extras=(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"");
-    return '<main class="my-day-home">'+myDayAppearance()+'<header class="my-day-heading"><div><p class="eyebrow">'+uiText("ВАШЕ ПРОСТРАНСТВО ДЛЯ ЖИЗНИ","A LITTLE SPACE FOR YOUR LIFE")+'</p><h1>'+uiText("Меньше забот.<br>Больше вашей жизни.","Less to manage.<br>More life to live.")+'</h1><p>'+uiText("Вы решаете, что важно. Мы помогаем с остальным.","You choose what matters. We help with the rest.")+'</p></div><span class="my-day-badge">'+(hasSession()?uiText("Ваши данные","Your data"):uiText("Спокойное знакомство","A calm introduction"))+'</span></header><div class="my-day-layout"><div class="my-day-main"><section class="my-day-highlight"><div><span class="eyebrow">'+uiText("ОДНА ХОРОШАЯ МЫСЛЬ НА СЕГОДНЯ","ONE GOOD IDEA FOR TODAY")+'</span><h2>'+copy.highlight+'</h2><p>'+copy.body+'</p><button class="my-day-text-button" type="button" '+(cases[0]?'data-my-day-case="'+attr(cases[0].id)+'"':'data-act="create-case"')+'>'+(cases[0]?uiText("Продолжить главное дело","Continue the main case"):uiText("Начать с одного дела","Start with one case"))+' →</button></div><div class="my-day-orbit" aria-hidden="true"><div class="my-day-orbit-card">'+copy.symbol+'<b>'+esc(currentSpace)+'</b></div></div></section><form class="my-day-composer" data-act="my-day-ask"><label>'+uiText("С чего начнём?","Where shall we start?")+'</label><textarea name="message" rows="2" maxlength="8000" required placeholder="'+uiText("Напишите, что хочется упростить…","What would you like to make easier?")+'"></textarea><div class="my-day-composer-foot"><small>'+uiText("Фиксарик видит текущую страницу и может передать вопрос профильному помощнику.","Fixarik sees this page and can hand the question to a specialist assistant.")+'</small><button class="btn primary" type="submit">'+uiText("Отправить","Send")+'</button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Умные подсказки","Smart suggestions")+'">'+prompts+'</div>'+assistants+'</div>'+myDayRail()+'</div>'+extras+'</main>';
+    const spaceClass={"Семья":"space-family","Личное":"space-personal","Практика":"space-practice","Разработка":"space-development"}[currentSpace]||"space-personal";
+    return '<main class="my-day-home '+spaceClass+'">'+myDayAppearance()+'<header class="my-day-heading"><div><p class="eyebrow">'+uiText("ВАШЕ ПРОСТРАНСТВО ДЛЯ ЖИЗНИ","A LITTLE SPACE FOR YOUR LIFE")+'</p><h1>'+uiText("Меньше забот.<br>Больше вашей жизни.","Less to manage.<br>More life to live.")+'</h1><p>'+uiText("Вы решаете, что важно. Мы помогаем с остальным.","You choose what matters. We help with the rest.")+'</p></div><span class="my-day-badge">'+(hasSession()?uiText("Ваши данные","Your data"):uiText("Спокойное знакомство","A calm introduction"))+'</span></header><div class="my-day-layout"><div class="my-day-main"><section class="my-day-highlight"><div><span class="eyebrow">'+uiText("ОДНА ХОРОШАЯ МЫСЛЬ НА СЕГОДНЯ","ONE GOOD IDEA FOR TODAY")+'</span><h2>'+copy.highlight+'</h2><p>'+copy.body+'</p><button class="my-day-text-button" type="button" '+(cases[0]?'data-my-day-case="'+attr(cases[0].id)+'"':'data-act="create-case"')+'>'+(cases[0]?uiText("Продолжить главное дело","Continue the main case"):uiText("Начать с одного дела","Start with one case"))+' →</button></div><div class="my-day-orbit" aria-hidden="true"><div class="my-day-orbit-card">'+copy.symbol+'<b>'+esc(currentSpace)+'</b></div></div></section><form class="my-day-composer" data-act="my-day-ask"><label>'+uiText("С чего начнём?","Where shall we start?")+'</label><textarea name="message" rows="2" maxlength="8000" required placeholder="'+uiText("Напишите, что хочется упростить…","What would you like to make easier?")+'"></textarea><div class="my-day-composer-foot"><small>'+uiText("Фиксарик видит текущую страницу и может передать вопрос профильному помощнику.","Fixarik sees this page and can hand the question to a specialist assistant.")+'</small><button class="btn primary" type="submit">'+uiText("Отправить","Send")+'</button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Умные подсказки","Smart suggestions")+'">'+prompts+'</div>'+assistants+'</div>'+myDayRail()+'</div>'+extras+'</main>';
   }
 
   function dashboard(node){
     return myDayHome(node);
   }
 
+  const OWNER_TOOLS = [
+    ["overview","Сводка","Пользователи, дела, модели и агенты"],
+    ["users","Пользователи","Состояние аккаунтов без контактов и токенов"],
+    ["acquisition","Привлечение","Источники и новые пользователи"],
+    ["settings","Настройки","Вход новых посетителей и параметры кабинета"],
+    ["broadcast","Ленты","Черновики и подтверждение публикаций"],
+    ["audit","Аудит","Журнал действий владельца"]
+  ];
   function ownerToolsPanel(){
     if(!ownerTools.allowed||ownerTools.principal!==authState.principal)return "";
-    const tools=[
-      ["overview","Сводка","Пользователи, дела, модели и агенты"],
-      ["users","Пользователи","Состояние аккаунтов без контактов и токенов"],
-      ["acquisition","Привлечение","Источники и новые пользователи"],
-      ["settings","Настройки","Вход новых посетителей и параметры кабинета"],
-      ["broadcast","Ленты","Черновики и подтверждение публикаций"],
-      ["audit","Аудит","Журнал действий владельца"]
+    return '<section class="owner-tools"><p class="eyebrow">Owner · private</p><h2>Инструменты владельца</h2><p>Доступ подтверждён сервером. Опасные изменения и публикации требуют отдельного подтверждения.</p><div class="owner-tool-grid">'+OWNER_TOOLS.map((tool,index)=>'<a class="owner-tool tone-'+(index%6)+'" href="#owner/'+tool[0]+'"><b>'+esc(tool[1])+'</b><span>'+esc(tool[2])+' →</span></a>').join("")+'</div></section>';
+  }
+
+  let ownerRouteToken=0, ownerRouteSettings=null;
+  const ownerNumber=value=>new Intl.NumberFormat("ru-RU").format(Number(value)||0);
+  function ownerDate(value){ const date=new Date(value||""); return isNaN(date.getTime())?"—":date.toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}); }
+  function ownerTool(id){ return OWNER_TOOLS.find(tool=>tool[0]===id)||OWNER_TOOLS[0]; }
+  function ownerShell(tab,body,status){
+    const tool=ownerTool(tab);
+    return '<main class="owner-workspace"><header class="owner-heading"><div><p class="eyebrow">Owner · private</p><h1>'+esc(tool[1])+'</h1><p>'+esc(tool[2])+'</p></div><a class="btn" href="#'+kidOf(SPACE_NODES["Разработка"],"Главная")+'">← '+uiText("На главную","Back home")+'</a></header>'+
+      '<nav class="owner-route-tabs" aria-label="Разделы кабинета">'+OWNER_TOOLS.map(item=>'<a href="#owner/'+item[0]+'" aria-current="'+(item[0]===tab?'page':'false')+'">'+esc(item[1])+'</a>').join("")+'</nav>'+
+      '<p class="owner-route-status" role="status" aria-live="polite">'+esc(status||"Доступ проверен сервером. Каждый просмотр записывается в аудит.")+'</p>'+body+'</main>';
+  }
+  function ownerEmpty(message){ return '<div class="owner-empty"><span>✳</span><p>'+esc(message)+'</p></div>'; }
+  function ownerTable(headers,rows){
+    return '<div class="owner-table-wrap"><table class="owner-table"><thead><tr>'+headers.map(value=>'<th>'+esc(value)+'</th>').join("")+'</tr></thead><tbody>'+(rows.length?rows.join(""):'<tr><td colspan="'+headers.length+'">Нет данных.</td></tr>')+'</tbody></table></div>';
+  }
+  function ownerMetricCard(label,value,note,tone){ return '<article class="owner-metric tone-'+tone+'"><span>'+esc(label)+'</span><strong>'+esc(ownerNumber(value))+'</strong><small>'+esc(note)+'</small></article>'; }
+  function ownerOverview(data){
+    const summary=data.summary||{};
+    const cards=[
+      ["Пользователи",summary.users_total,"новых "+ownerNumber(summary.users_new)+" · активных "+ownerNumber(summary.users_active),0],
+      ["Дела",summary.cases_total,"активных "+ownerNumber(summary.cases_active)+" · ждут "+ownerNumber(summary.cases_waiting),1],
+      ["Обращения к моделям",summary.model_calls,ownerNumber(summary.model_tokens)+" токенов",2],
+      ["Работа агентов",summary.runs_succeeded,"сейчас "+ownerNumber(summary.runs_active)+" · сбоев "+ownerNumber(summary.runs_failed),3],
+      ["Документы",summary.documents_total,"без чтения содержимого",4],
+      ["Кредиты",summary.credits_spent,"начислено "+ownerNumber(summary.credits_granted),5],
+      ["Требует внимания",Number(summary.denied_calls||0)+Number(summary.reports_open||0)+Number(summary.unfunded_spends||0),"отказы · сообщения · списания",2]
     ];
-    return '<section class="owner-tools"><p class="eyebrow">Owner · private</p><h2>Инструменты владельца</h2><p>Доступ подтверждён сервером. Опасные изменения и публикации требуют отдельного подтверждения.</p><div class="owner-tool-grid">'+tools.map(tool=>'<a class="owner-tool" href="/classic/?owner='+tool[0]+'"><b>'+esc(tool[1])+'</b><span>'+esc(tool[2])+' →</span></a>').join("")+'</div></section>';
+    const models=(data.top_models||[]).map(row=>'<tr><td>'+esc(row.agent||"—")+'</td><td>'+esc(row.model||"—")+'</td><td>'+esc(row.egress==="remote"?"наружу":"локально")+'</td><td>'+ownerNumber(row.calls)+'</td><td>'+ownerNumber(row.denied)+'</td><td>'+ownerNumber(row.tokens)+'</td></tr>');
+    return '<section class="owner-metrics">'+cards.map(card=>ownerMetricCard(...card)).join("")+'</section><section class="owner-block"><div class="owner-block-head"><h2>Модели и агенты</h2><small>Без содержимого запросов · '+esc(ownerDate(data.generated_at))+'</small></div>'+ownerTable(["Агент","Модель","Контур","Вызовы","Отказы","Токены"],models)+'</section>';
+  }
+  function ownerUsers(data){
+    const rows=(data.users||[]).map(row=>'<tr><td><b>'+esc(row.display_name||"Без имени")+'</b><small>'+esc(row.principal_id||"")+'</small></td><td>'+esc(row.retired?"погашен":row.demo?"демо":Number(row.assurance)>=2?"подтверждён":(row.channels||[]).length?"привязан":"только браузер")+'<small>'+esc((row.channels||[]).join(" · "))+'</small></td><td>'+esc(ownerDate(row.created_at))+'</td><td>'+esc(ownerDate(row.last_seen_at))+'</td><td>'+ownerNumber(row.open_cases)+' / '+ownerNumber(row.cases)+'</td><td>'+ownerNumber(row.documents)+'</td><td>'+ownerNumber(row.credits_spent)+'</td><td>'+ownerNumber(row.credit_balance)+'</td></tr>');
+    return '<form class="owner-user-search" data-owner-users><label>Имя или внутренний ID<input type="search" name="q" maxlength="100" value="'+attr(data.query||"")+'"></label><label>Сортировка<select name="sort"><option value="recent">Недавно были</option><option value="created">Новые</option><option value="cases">По делам</option><option value="credits">По расходу</option></select></label><button class="btn primary" type="submit">Найти</button></form><section class="owner-block"><div class="owner-block-head"><h2>Пользователи</h2><small>Найдено '+ownerNumber(data.total)+' · контакты и токены не выдаются</small></div>'+ownerTable(["Пользователь","Состояние","Создан","Был","Дела","Файлы","Потратил","Остаток"],rows)+'</section>';
+  }
+  function ownerBreakdown(title,rows){ return '<section class="owner-block"><div class="owner-block-head"><h2>'+esc(title)+'</h2></div>'+ownerTable(["Группа","Людей"],(rows||[]).map(row=>'<tr><td>'+esc(row.bucket||"не указано")+'</td><td>'+ownerNumber(row.n)+'</td></tr>'))+'</section>'; }
+  function ownerAcquisition(data){ const acquisition=data.acquisition||{}; return '<div class="owner-grid">'+ownerBreakdown("По каналу привлечения",acquisition.by_source)+ownerBreakdown("По локали",acquisition.by_locale)+ownerBreakdown("По юрисдикции",acquisition.by_jurisdiction)+'</div>'; }
+  function ownerSettingsPanel(settings){
+    ownerRouteSettings=settings;
+    return '<form class="owner-settings-v2" data-owner-settings><section class="owner-setting tone-0"><h2>Новые посетители</h2><p>Настоящий серверный рубильник: выключение закрывает создание новых аккаунтов.</p><label class="owner-check"><input type="checkbox" name="enabled" '+(settings.new_visitors_enabled?'checked':'')+'> Разрешить новому браузеру начать</label></section><section class="owner-setting tone-2"><h2>Публичное объявление</h2><p>Показывается всем на первом экране. Только обычный текст.</p><textarea name="notice" maxlength="500" rows="5">'+esc(settings.public_notice||"")+'</textarea></section><section class="owner-setting tone-3"><h2>Параметры кабинета</h2><div class="owner-setting-fields"><label>Окно метрик, часов<input name="hours" type="number" min="1" max="720" value="'+attr(settings.metrics_window_hours)+'" required></label><label>Обновление, секунд<input name="refresh" type="number" min="15" max="900" value="'+attr(settings.auto_refresh_seconds)+'" required></label><label>Людей на странице<input name="pageSize" type="number" min="10" max="100" value="'+attr(settings.user_page_size)+'" required></label></div></section><div class="owner-actions"><button class="btn primary" type="submit">Сохранить настройки</button><small>Версия '+ownerNumber(settings.version)+' · '+esc(ownerDate(settings.updated_at))+'</small></div></form>';
+  }
+  function ownerAudit(data){ const names={settings_read:"открыты настройки",settings_updated:"изменены настройки",metrics_read:"открыты метрики",users_read:"открыта таблица пользователей",audit_read:"открыт журнал"}; const rows=(data.events||[]).map(row=>'<tr><td>'+esc(ownerDate(row.at))+'</td><td>'+esc(names[row.action]||row.action||"—")+'</td><td>'+esc(row.actor||"—")+'</td><td><small>'+esc(JSON.stringify(row.details||{}))+'</small></td></tr>'); return '<section class="owner-block"><div class="owner-block-head"><h2>Журнал доступа</h2><small>Без копий пользовательских данных</small></div>'+ownerTable(["Когда","Действие","Кто","Детали"],rows)+'</section>'; }
+  function ownerBroadcast(data){
+    const outlets=data.outlets||[],drafts=data.drafts||[],published=data.published||[];
+    const draftCards=drafts.map(post=>'<article class="owner-draft"><div><b>'+esc(post.outlet_title||post.outlet_id||"Лента")+'</b><small>'+esc(ownerDate(post.created_at))+'</small></div>'+(post.rationale?'<p class="owner-draft-reason">'+esc(post.rationale)+'</p>':'')+'<p>'+esc(post.body||"")+'</p><div class="owner-actions"><button class="btn primary" type="button" data-owner-publish="'+attr(post.id)+'">Опубликовать</button><button class="btn" type="button" data-owner-reject="'+attr(post.id)+'">Отклонить</button></div></article>').join("");
+    const options=outlets.filter(outlet=>!outlet.disabled_at).map(outlet=>'<option value="'+attr(outlet.id)+'">'+esc(outlet.title)+'</option>').join("");
+    const outletRows=outlets.map(outlet=>'<tr><td>'+esc(outlet.title)+'</td><td>'+esc(outlet.platform)+'</td><td>'+esc(outlet.ключ_на_месте?"ключ на месте":"ключ не задан")+'</td><td>'+esc(outlet.disabled_at?"отключена":"работает")+'</td></tr>');
+    const publishedRows=published.map(post=>'<tr><td>'+esc(ownerDate(post.published_at||post.created_at))+'</td><td>'+esc(post.outlet_title||"")+'</td><td>'+esc((post.body||"").slice(0,120))+'</td><td>'+(post.link?'<a href="'+attr(post.link)+'" target="_blank" rel="noopener">смотреть ↗</a>':esc(post.failure||"—"))+'</td></tr>');
+    return '<div class="owner-grid"><section class="owner-block owner-wide"><div class="owner-block-head"><h2>Ждут решения</h2><small>'+ownerNumber(drafts.length)+'</small></div><div class="owner-drafts">'+(draftCards||ownerEmpty("Черновиков нет."))+'</div></section><section class="owner-block"><div class="owner-block-head"><h2>Новый черновик</h2></div><form class="owner-post-form" data-owner-post><label>Лента<select name="outlet" required>'+options+'</select></label><label>Текст<textarea name="body" rows="6" maxlength="4000" required></textarea></label><button class="btn primary" type="submit">Сохранить в черновики</button></form></section><section class="owner-block"><div class="owner-block-head"><h2>Ленты</h2><small>Ключи не раскрываются</small></div>'+ownerTable(["Лента","Площадка","Ключ","Состояние"],outletRows)+'</section><section class="owner-block owner-wide"><div class="owner-block-head"><h2>Опубликовано</h2></div>'+ownerTable(["Когда","Лента","Текст","Пост"],publishedRows)+'</section></div>';
+  }
+  async function ownerLoad(tab,options){
+    if(tab==="overview"||tab==="acquisition"){ const settings=await authFetch("GET","/ops/owner/settings"); ownerRouteSettings=settings.settings; return authFetch("GET","/ops/owner/metrics?hours="+encodeURIComponent((settings.settings||{}).metrics_window_hours||24)); }
+    if(tab==="users"){ const query=(options&&options.q)||"",sort=(options&&options.sort)||"recent"; const data=await authFetch("GET","/ops/owner/users?page=1&limit=50&sort="+encodeURIComponent(sort)+"&include_retired=false&q="+encodeURIComponent(query)); data.query=query; data.sort=sort; return data; }
+    if(tab==="settings"){ const data=await authFetch("GET","/ops/owner/settings"); return data.settings||{}; }
+    if(tab==="audit")return authFetch("GET","/ops/owner/audit?limit=150");
+    const [outlets,drafts,published]=await Promise.all([authFetch("GET","/ops/owner/broadcast/outlets?include_disabled=true"),authFetch("GET","/ops/owner/broadcast/posts?state=draft&limit=50"),authFetch("GET","/ops/owner/broadcast/posts?state=published&limit=30")]);
+    return {outlets:outlets.outlets||[],drafts:drafts.posts||[],published:published.posts||[]};
+  }
+  function ownerBody(tab,data){ if(tab==="overview")return ownerOverview(data); if(tab==="users")return ownerUsers(data); if(tab==="acquisition")return ownerAcquisition(data); if(tab==="settings")return ownerSettingsPanel(data); if(tab==="broadcast")return ownerBroadcast(data); return ownerAudit(data); }
+  async function renderOwnerRoute(requested,options){
+    const tab=ownerTool(requested)[0],token=++ownerRouteToken;
+    currentSpace="Разработка"; rebuildNav(); closeNav(); vwrap.classList.remove("dialog-view");
+    vwrap.innerHTML=ownerShell(tab,'<div class="owner-loading">'+skelCard(5)+'</div>',"Проверяю доступ и читаю данные…"); vwrap.parentElement.scrollTop=0;
+    if(!authState.ready){ setTimeout(()=>{ if(token===ownerRouteToken)renderOwnerRoute(tab,options); },120); return; }
+    await probeOwnerTools(); if(token!==ownerRouteToken)return;
+    if(!ownerTools.allowed){ const message=authState.token?"Сервер не подтвердил доступ владельца.":"Войдите в аккаунт владельца, чтобы открыть кабинет."; const action=authState.token?"":'<button class="btn primary" type="button" data-owner-signin>Войти</button>'; vwrap.innerHTML=ownerShell(tab,'<div class="owner-empty"><span>✳</span><p>'+esc(message)+'</p>'+action+'</div>',"Закрытый раздел"); const button=vwrap.querySelector("[data-owner-signin]"); if(button)button.onclick=openAccount; return; }
+    try{ const data=await ownerLoad(tab,options); if(token!==ownerRouteToken)return; vwrap.innerHTML=ownerShell(tab,ownerBody(tab,data)); bindOwnerRoute(tab,data); }
+    catch(error){ if(token!==ownerRouteToken)return; vwrap.innerHTML=ownerShell(tab,'<div class="owner-empty"><span>!</span><p>'+esc((error&&error.message)||"Данные кабинета не загрузились.")+'</p><button class="btn" type="button" data-owner-refresh>Повторить</button></div>',"Не удалось прочитать раздел"); bindOwnerRoute(tab,{}); }
+  }
+  async function ownerFingerprint(post){ try{ const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(post.body||"")); return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join(""); }catch(_){ return post.body_sha256||""; } }
+  function bindOwnerRoute(tab,data){
+    const refresh=vwrap.querySelector("[data-owner-refresh]"); if(refresh)refresh.onclick=()=>renderOwnerRoute(tab);
+    const users=vwrap.querySelector("[data-owner-users]"); if(users){ users.elements.sort.value=data.sort||"recent"; users.onsubmit=event=>{ event.preventDefault(); renderOwnerRoute("users",{q:users.elements.q.value.trim(),sort:users.elements.sort.value}); }; }
+    const settings=vwrap.querySelector("[data-owner-settings]"); if(settings)settings.onsubmit=async event=>{ event.preventDefault(); const fields=settings.elements,button=settings.querySelector("button[type=submit]"),enabled=fields.enabled.checked; if(ownerRouteSettings&&ownerRouteSettings.new_visitors_enabled&&!enabled&&!confirm("Закрыть вход новым посетителям? Уже вошедшие продолжат работать.")){ fields.enabled.checked=true; return; } button.disabled=true; try{ const response=await authFetch("PUT","/ops/owner/settings",{expected_version:ownerRouteSettings.version,new_visitors_enabled:enabled,public_notice:fields.notice.value,metrics_window_hours:Number(fields.hours.value),auto_refresh_seconds:Number(fields.refresh.value),user_page_size:Number(fields.pageSize.value),confirmation:enabled?"":"close-new-visitors"}); ownerRouteSettings=response.settings; toast("Настройки сохранены и записаны в аудит."); renderOwnerRoute("settings"); }catch(error){ button.disabled=false; toast((error&&error.message)||"Настройки не сохранены."); } };
+    const postForm=vwrap.querySelector("[data-owner-post]"); if(postForm)postForm.onsubmit=async event=>{ event.preventDefault(); const fields=postForm.elements,button=postForm.querySelector("button"); button.disabled=true; try{ await authFetch("POST","/ops/owner/broadcast/posts",{outlet_id:fields.outlet.value,body:fields.body.value.trim()}); renderOwnerRoute("broadcast"); }catch(error){ button.disabled=false; toast((error&&error.message)||"Черновик не сохранён."); } };
+    vwrap.querySelectorAll("[data-owner-publish]").forEach(button=>button.onclick=async()=>{ const post=(data.drafts||[]).find(item=>String(item.id)===button.dataset.ownerPublish); if(!post||!confirm("Пост уйдёт в сообщество и будет виден всем. Опубликовать?"))return; button.disabled=true; try{ await authFetch("POST","/ops/owner/broadcast/posts/"+encodeURIComponent(post.id)+"/publish",{expected_body_sha256:await ownerFingerprint(post)}); renderOwnerRoute("broadcast"); }catch(error){ button.disabled=false; toast((error&&error.message)||"Пост не опубликован."); } });
+    vwrap.querySelectorAll("[data-owner-reject]").forEach(button=>button.onclick=async()=>{ const note=prompt("Почему не публикуем? Это увидит ведущий.",""); if(note===null)return; button.disabled=true; try{ await authFetch("POST","/ops/owner/broadcast/posts/"+encodeURIComponent(button.dataset.ownerReject)+"/reject",{note}); renderOwnerRoute("broadcast"); }catch(error){ button.disabled=false; toast((error&&error.message)||"Черновик не отклонён."); } });
   }
 
   function isListNode(node){ return node.children.length>=3 && node.children.some(c=>/^Все |^Активные$|Завершённые|Черновики|Опубликованные|^Новые$|^Мои /.test(c.name)); }
   function statusNorm(s){ if(/заверш|закрыт|опубликов/i.test(s)) return "Завершено"; if(/^нов|обращ|черновик|иде[яю]/i.test(s)) return "Новое"; if(/ждёт|ожида|подпис|наблюд|взросл|модерац|тестиров/i.test(s)) return "Ожидает человека"; return "В работе"; }
-  const LIST_FILTERS = [ {n:"Все",f:()=>true},{n:"Мои",f:s=>s!=="Завершено"},{n:"Требуют меня",f:s=>s==="Ожидает человека"},{n:"Агенты работают",f:s=>s==="В работе"},{n:"Завершённые",f:s=>s==="Завершено"} ];
+  const LIST_FILTERS = [
+    {n:"Все",en:"All",f:()=>true},
+    {n:"Мои",en:"Mine",f:item=>item.mine},
+    {n:"Требуют меня",en:"Need me",f:item=>item.needsMe},
+    {n:"Агенты работают",en:"Agents working",f:item=>item.agentWorking},
+    {n:"Завершённые",en:"Completed",f:item=>item.completed}
+  ];
+  function caseListStatus(c){
+    if(c.state==="closed"||c.state==="archived")return "Завершено";
+    if(c.needs_word)return "Требует вас";
+    if(c.active_run_id)return "Агент работает";
+    return "Активно";
+  }
+  function caseListStatusLabel(status){
+    if(status==="Завершено")return uiText("Завершено","Completed");
+    if(status==="Требует вас")return uiText("Требует вас","Needs you");
+    if(status==="Агент работает")return uiText("Агент работает","Agent working");
+    return uiText("Активно","Active");
+  }
+  function caseListAssistant(c){
+    if(!c.selected_agent_id)return "";
+    if(isDomashkinCase(c)||/domashkin/i.test(c.selected_agent_id))return uiText("Домашкин","Domashkin");
+    const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id);
+    return practice?practiceTitle(practice):"FixAR";
+  }
+  function caseListItem(c){
+    const status=caseListStatus(c),participants=(c.participants||[]).length;
+    return {title:c.title||uiText("Без названия","Untitled"),status,meta:(participants?participants+" "+uiText("уч.","people")+" · ":"")+uiText("обновлено ","updated ")+fmtWhen(c.updated_at),id:c.id,real:true,mine:c.owner_id===authState.principal,needsMe:!!c.needs_word,agentWorking:!!c.active_run_id&&!c.needs_word,completed:c.state==="closed"||c.state==="archived",assistant:caseListAssistant(c)};
+  }
   function listItemsFor(node){
-    if(realMode()) return realCasesForSpace(currentSpace).map(c=>({title:c.title||"Без названия",status:statusNorm(RU_STATE[c.state]||"в работе"),meta:caseMeta(c),id:c.id,real:true}));
-    if(hasSession()) return [];
-    const d=SPACE_DATA[currentSpace]||{}; const raw=(d.projects && /проект|пак/i.test(node.name))?d.projects:(d.cases||[]); return raw.map(it=>({title:it[0],status:statusNorm(it[1]),meta:it[2],seed:it[3]})); }
+    if(realMode()) return realCasesForSpace(currentSpace).map(caseListItem);
+    return [];
+  }
+  function listEmptyState(node,items){
+    const mayCreate=currentSpace!=="Разработка",create=mayCreate?'<button class="btn primary" data-act="create-case">'+uiText("Создать дело","Create case")+'</button>':"";
+    if(!hasSession())return '<section class="my-cases-empty"><span aria-hidden="true">○</span><h2>'+uiText("Здесь появятся ваши дела","Your cases will appear here")+'</h2><p>'+uiText("Войдите или создайте первое настоящее дело. Демонстрационные записи не подставляются.","Sign in or create your first real case. Demo records are never substituted.")+'</p><div class="cta-row">'+create+'<button class="btn" data-my-day-account>'+uiText("Войти","Sign in")+'</button></div></section>';
+    if(!items.length)return '<section class="my-cases-empty"><span aria-hidden="true">○</span><h2>'+uiText("Пока спокойно","All quiet for now")+'</h2><p>'+uiText("В этом пространстве ещё нет дел. Начните с результата, который хотите получить.","There are no cases in this space yet. Start with the outcome you want.")+'</p>'+create+'</section>';
+    return "";
+  }
   function listRowsHtml(node){
     const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
     const items = listItemsFor(node);
-    if(realMode() && items.length===0) return emptyState("🗂","Пока нет дел","Создайте настоящее дело — вы станете его владельцем.","Создать дело","data-act=\"create-case\"");
-    if(hasSession() && items.length===0) return emptyState("🧭","Раздел ещё подключается","Здесь не показываются демонстрационные проекты вместо данных вашего аккаунта.","","");
-    const shown = items.filter(it=>cur.f(it.status));
-    return shown.length ? shown.map(it=>'<button class="lrow" data-open="1" '+(it.real?'data-real="1" data-id="'+attr(it.id)+'"':'data-seed="'+attr(it.seed||"")+'"')+' data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'"><span><h4>'+esc(it.title)+'</h4><p>'+esc(it.meta||"")+'</p></span>'+statusChip(it.status)+'<span class="when">открыть →</span></button>').join("")
-      : emptyState("🔍","Ничего в этом фильтре","Смените фильтр — или создайте новое дело.","Сбросить фильтр","data-act=\"reset-filter\" data-node=\""+node.id+"\"");
+    const empty=listEmptyState(node,items); if(empty)return empty;
+    const shown = items.filter(cur.f);
+    return shown.length ? shown.map((it,index)=>'<button class="my-case-row" data-open="1" data-real="1" data-id="'+attr(it.id)+'" data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'"><span class="my-case-index" aria-hidden="true">'+String(index+1).padStart(2,"0")+'</span><span class="my-case-copy"><h3>'+esc(it.title)+'</h3><p>'+esc(it.meta||"")+(it.assistant?' · '+uiText("помощник ","assistant ")+esc(it.assistant):"")+'</p></span><span class="my-case-status status-'+(it.needsMe?'need':(it.agentWorking?'agent':(it.completed?'done':'active')))+'">'+caseListStatusLabel(it.status)+'</span><span class="my-case-open">'+uiText("Открыть","Open")+' →</span></button>').join("")
+      : '<section class="my-cases-empty compact"><span aria-hidden="true">○</span><h2>'+uiText("В этом фильтре спокойно","Nothing needs attention here")+'</h2><p>'+uiText("Выберите другой взгляд или создайте новое дело.","Choose another view or create a new case.")+'</p><button class="btn" data-act="reset-filter" data-node="'+node.id+'">'+uiText("Показать все","Show all")+'</button></section>';
   }
   function applyFilter(nodeId,name){
     listFilter=name; try{ history.replaceState(null,"","#"+nodeId+"~"+encodeURIComponent(name)); }catch(e){}
     const node=byId[nodeId]; const bar=vwrap.querySelector('.filter-bar');
     if(!bar){ render(node); return; }
-    bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.filter===name));
+    bar.querySelectorAll('.tab').forEach(t=>{ const active=t.dataset.filter===name; t.classList.toggle('active',active); t.setAttribute('aria-pressed',String(active)); });
     const lst=vwrap.querySelector('#lst'); if(lst){ lst.innerHTML=listRowsHtml(node); bindListRows(); }
   }
   window.applyFilter = applyFilter;
   function bindListRows(){
-    vwrap.querySelectorAll('.lrow[data-open]').forEach(r=>r.onclick=()=>{ if(r.dataset.real){ realTab=defaultRealTab(); location.hash="#case/"+r.dataset.id; } else openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed); });
+    vwrap.querySelectorAll('.my-case-row[data-open],.lrow[data-open]').forEach(r=>r.onclick=()=>{ if(r.dataset.real){ realTab=defaultRealTab(); location.hash="#case/"+r.dataset.id; } else openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed); });
     const rf=vwrap.querySelector('[data-act="reset-filter"]'); if(rf) rf.onclick=()=>applyFilter(rf.dataset.node,"Все");
   }
   function renderList(node){
-    const create = node.children.find(c=>/^Создать|^Добавить/.test(c.name));
     const items = listItemsFor(node);
     const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
-    const chips = LIST_FILTERS.map(x=>{ const cnt=items.filter(it=>x.f(it.status)).length; return '<button class="tab'+(x.n===cur.n?" active":"")+'" data-filter="'+attr(x.n)+'" data-node="'+node.id+'">'+esc(x.n)+'<span class="tcount">'+cnt+'</span></button>'; }).join("");
-    return '<div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div>'+
-      (realMode()?'<button class="btn primary create-btn" data-act="create-case">Создать дело</button>':(create?'<button class="btn primary create-btn" onclick="go(\''+create.id+'\')">'+esc(create.name)+'</button>':''))+'</div>'+
-      '<div class="lst" id="lst">'+listRowsHtml(node)+'</div>';
+    const chips = LIST_FILTERS.map(x=>{ const cnt=items.filter(x.f).length,active=x.n===cur.n; return '<button class="tab'+(active?" active":"")+'" type="button" aria-pressed="'+active+'" data-filter="'+attr(x.n)+'" data-node="'+node.id+'">'+uiText(x.n,x.en)+'<span class="tcount">'+cnt+'</span></button>'; }).join("");
+    const need=items.filter(item=>item.needsMe).length,working=items.filter(item=>item.agentWorking).length,done=items.filter(item=>item.completed).length;
+    const create=currentSpace!=="Разработка"?'<button class="btn primary create-btn" data-act="create-case">'+uiText("Создать дело","Create case")+'</button>':"";
+    return '<main class="my-cases"><div class="crumbs">'+crumbHtml(node)+'</div><header class="my-cases-heading"><div><p class="eyebrow">'+esc(currentSpace)+' · '+uiText("ВАШИ ДЕЛА","YOUR CASES")+'</p><h1>'+uiText("Смотрите, что движется дальше.","See what moves forward next.")+'</h1><p>'+uiText("Ваш ответ — первым. Работа помощников — рядом. Завершённое не мешает.","Your input comes first. Assistant work stays visible. Completed cases stay out of the way.")+'</p></div><span class="my-day-badge">'+items.length+' '+uiText("дел","cases")+'</span></header><section class="my-cases-pulse" aria-label="'+uiText("Состояние дел","Case status")+'"><div><b>'+need+'</b><span>'+uiText("требуют вас","need you")+'</span></div><div><b>'+working+'</b><span>'+uiText("помощники работают","assistants working")+'</span></div><div><b>'+done+'</b><span>'+uiText("завершено","completed")+'</span></div></section><div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div>'+create+'</div><div class="my-cases-list" id="lst">'+listRowsHtml(node)+'</div></main>';
   }
 
   // --- Богатые экраны (нативные button/<a>, фокус, без эмодзи-иконок) ---
@@ -2377,7 +2487,7 @@
     const fixar=(currentSpace==="Личное"||currentSpace==="Семья")?'<button class="btn" data-act="fixar-case">Начать с FixAR</button>':'';
     return '<div class="rc-strip"><h3>Ваши дела · '+esc(currentSpace)+' ('+rc.length+')</h3>'+rows+'<div class="cta-row" style="margin-top:10px"><button class="btn primary" data-act="create-case">Создать дело</button>'+fixar+'</div></div>';
   }
-  function refreshCurrentView(){ const h=location.hash.slice(1); if(h.indexOf("case/")===0||h==="demo/states") return; const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; const node=byId[id]; if(node) render(node); }
+  function refreshCurrentView(){ const h=location.hash.slice(1); if(h.indexOf("case/")===0||h==="demo/states") return; if(h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; } const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; const node=byId[id]; if(node) render(node); }
 
   /* ── Общий модальный лист (для создания дела и правки доступа) ── */
   let _m=null,_mReturn=null;
@@ -2462,12 +2572,13 @@
       loadThen(()=>dashboard(node), '<div class="my-day-home">'+skelCard(2)+skelCard(5)+'</div>', ()=>{ bindScreen(); setAgentDockCompact(true); if(currentSpace==="Практика"&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(refreshCurrentView); });
       return;
     }
+    if(isListNode(node)){
+      loadThen(()=>renderList(node), skeletonList(""), bindScreen);
+      return;
+    }
     let head = '<div class="crumbs">'+crumbHtml(node)+'</div>'+
       '<div class="vhead"><p class="eyebrow">'+esc(isMain?currentSpace:eyebrowFor(node))+'</p><h1>'+esc(isMain?("Главная — "+currentSpace):node.name)+'</h1>';
-    if (isListNode(node)){
-      head += '<p>Фильтр по состоянию · клик открывает дело.</p></div>';
-      loadThen(()=>head+renderList(node), skeletonList(head), bindScreen); return;
-    } else if (node.children.length){
+    if (node.children.length){
       head += '<p>Раздел «'+esc(node.name)+'» · '+node.children.length+' пункт(ов).</p></div>';
       vwrap.innerHTML = head+tileGrid(node);
     } else {
@@ -2494,6 +2605,7 @@
     const h = location.hash.slice(1);
     if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
+    if (h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; }
     const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; listFilter = t>=0 ? decodeURIComponent(h.slice(t+1)) : "Все";
     if (byId[id]) go(id);
   });
@@ -2575,6 +2687,7 @@
   (function(){ const h=location.hash.slice(1);
     if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
+    if (h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; }
     const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; if(t>=0) listFilter=decodeURIComponent(h.slice(t+1));
     go(byId[id] ? id : kidOf(SPACE_NODES[currentSpace],"Главная"));
   })();
