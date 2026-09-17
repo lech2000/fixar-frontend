@@ -1046,13 +1046,34 @@
     catch(error){ creditState.error=(error&&error.message)||"Баланс временно недоступен."; }
     creditState.loading=false; renderCredits();
   }
+  function safePaymentUrl(value){
+    try{ const url=new URL(String(value||"")); return url.protocol==="https:"?url.href:""; }
+    catch(_){ return ""; }
+  }
   function openCredits(){
     const data=creditState.data;
     if(!data){ toast(creditState.error||"Баланс загружается…"); loadCredits(true); return; }
     const gift=creditGiftAvailable(data)?'<p class="rc-note">До <b>'+creditNumber(data.gift_size)+'</b> стартовых кредитов сервер начислит при первом платном действии. Чтение баланса ничего не начисляет.</p>':'';
     const basic=Number(data.balance||0)<=0&&!creditGiftAvailable(data)?'<p class="rc-note">Кредиты закончились, но обслуживание продолжается в базовом режиме: младшая локальная модель и GigaChat, только если разрешения дела допускают российское облако.</p>':'';
+    const topup=authState.signed_in?'<form id="credit-topup" class="pform"><h3>Пополнить</h3><div class="pf-row"><label>Количество кредитов<input name="credits" type="number" min="1000" step="100" value="1000" required inputmode="numeric"></label><label>Кто платит<select name="payer"><option value="person">Частное лицо — карта или СБП</option><option value="company">Организация или ИП</option></select></label></div><p class="rc-hint">1000 кредитов стоят 100 ₽. Для кассового чека в аккаунте должны быть почта или телефон.</p><div class="cta-row"><button class="btn primary" type="submit">Получить ссылку на оплату</button></div><div class="rc-note" id="credit-topup-result" aria-live="polite" hidden></div></form>':'<div class="cta-row"><button class="btn primary" id="credit-signin" type="button">Войти для пополнения</button></div>';
     modalOpen("Кредиты",'<p class="lead">Текущий остаток: <b>'+creditNumber(data.balance)+'</b></p>'+gift+basic+
-      '<div class="prow"><span>Подарочные</span><b>'+creditNumber(data.gift_balance)+'</b></div><div class="prow"><span>Заработанные</span><b>'+creditNumber(data.earned_balance)+'</b></div><div class="prow"><span>Купленные</span><b>'+creditNumber(data.paid_balance)+'</b></div>');
+      '<div class="prow"><span>Подарочные</span><b>'+creditNumber(data.gift_balance)+'</b></div><div class="prow"><span>Заработанные</span><b>'+creditNumber(data.earned_balance)+'</b></div><div class="prow"><span>Купленные</span><b>'+creditNumber(data.paid_balance)+'</b></div>'+topup,body=>{
+      const signin=body.querySelector("#credit-signin"); if(signin) signin.onclick=()=>{ modalClose(); openAccount(); };
+      const form=body.querySelector("#credit-topup"); if(!form)return;
+      form.onsubmit=async event=>{
+        event.preventDefault();
+        const button=form.querySelector("button[type=submit]"),result=form.querySelector("#credit-topup-result"),credits=parseInt(form.credits.value,10);
+        result.hidden=false;
+        if(!(credits>=1000)){ result.textContent="Минимальное пополнение — 1000 кредитов."; form.credits.focus(); return; }
+        button.disabled=true; button.textContent="Выставляю счёт…"; result.textContent="Связываюсь с кассой банка…";
+        try{
+          const answer=await authFetch("POST","/credits/topup",{credits,payer:form.payer.value});
+          const paymentUrl=safePaymentUrl(answer.payment_url||answer.qr_payload);
+          result.innerHTML='<b>Счёт выставлен на '+creditNumber(answer.credits)+' кредитов · '+esc(answer.roubles)+' ₽.</b>'+(paymentUrl?'<div class="cta-row"><a class="btn primary" target="_blank" rel="noopener" href="'+attr(paymentUrl)+'">Перейти к оплате</a></div>':'<p>Банк не вернул безопасную ссылку. Не переводите деньги вручную.</p>');
+        }catch(error){ result.textContent="Пополнить не вышло: "+((error&&error.message)||"касса временно недоступна"); }
+        finally{ button.disabled=false; button.textContent="Получить ссылку на оплату"; }
+      };
+    });
   }
 
   async function probeOwnerTools(){
