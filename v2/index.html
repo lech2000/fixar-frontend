@@ -1232,7 +1232,7 @@
   function selectedPractice(){ return PRACTICE.items.find(item=>item.id===PRACTICE.selectedId)||null; }
   function practiceCaseStorageKey(caseId){ return "fixar-v2-practice-case:"+(authState.principal||"guest")+":"+caseId; }
   function rememberPracticeCase(caseId,practice){ try{ localStorage.setItem(practiceCaseStorageKey(caseId),JSON.stringify({domain:practice.domain,agent:practice.agent})); }catch(_){} }
-  function practiceCaseBinding(caseData){ if(!caseData||caseData.scope!=="pro"||caseData.domain)return null; try{ const value=JSON.parse(localStorage.getItem(practiceCaseStorageKey(caseData.id))||"null"); return value&&value.domain&&value.agent?value:null; }catch(_){return null;} }
+  function practiceCaseBinding(caseData){ if(!caseData||caseData.domain)return null; if(caseData.scope==="home"&&/домашкин/i.test(caseData.title||""))return {domain:"household",agent:"chores"}; if(caseData.scope!=="pro")return null; try{ const value=JSON.parse(localStorage.getItem(practiceCaseStorageKey(caseData.id))||"null"); return value&&value.domain&&value.agent?value:null; }catch(_){return null;} }
   async function loadPracticeCabinets(force){
     if(!authState.token||!authState.principal){ PRACTICE={principal:"",loaded:true,loading:false,items:[],selectedId:"",error:""}; return; }
     if(PRACTICE.loading||(!force&&PRACTICE.loaded&&PRACTICE.principal===authState.principal)) return;
@@ -1678,7 +1678,6 @@
     if(!dialog){
       dialog=await authFetch("POST","/cases",{title:"Семейный диалог с Домашкиным",goal:"Семейные вопросы, школа и ближайшие изменения",side:"need_help"});
       await authFetch("POST","/cases/"+encodeURIComponent(dialog.id)+"/scope",{scope:"home"});
-      await authFetch("PUT","/cases/"+encodeURIComponent(dialog.id)+"/routing",{domain:"household",selected_agent_id:"chores",reason:"семейный диалог Домашкина",expect_domain:"",expect_selected_agent_id:""});
       REAL.loaded=false;
     }
     currentSpace="Семья"; rebuildNav(); realTab="Обзор"; location.hash="#case/"+dialog.id;
