@@ -822,6 +822,7 @@
    └─ Политика удаления данных
   </script>
 
+  <script src="/document-export.js"></script>
   <script>
   "use strict";
   // --- Разбор дерева из отступов (├ └ │) ---
@@ -923,6 +924,14 @@
     if(!response.ok){ let detail="отказ "+response.status; try{ const data=await response.json(); detail=(data&&data.detail&&(data.detail.message||data.detail.reason))||(data&&data.detail)||detail; }catch(_){} const error=new Error(String(detail)); error.status=response.status; throw error; }
     const blob=await response.blob(), url=URL.createObjectURL(blob), link=document.createElement("a");
     link.href=url; link.download=filename||"material"; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }
+  function downloadBlob(blob,filename){ const url=URL.createObjectURL(blob),link=document.createElement("a"); link.href=url; link.download=filename; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000); }
+  function safeDocumentName(title){ return window.FixARDocumentExport.safeFilename(title||"Разбор Домашкина"); }
+  async function exportDraftDocx(draft){ const bytes=window.FixARDocumentExport.makeDocx(draft.title||"Разбор Домашкина",draft.body||""); downloadBlob(new Blob([bytes],{type:window.FixARDocumentExport.mime}),safeDocumentName(draft.title)+".docx"); }
+  async function exportDraftPdf(draft){
+    if(!(window.jspdf&&window.jspdf.jsPDF)){ await new Promise((resolve,reject)=>{ const script=document.createElement("script"); script.src="/vendor/jspdf.umd.min.js"; script.onload=resolve; script.onerror=reject; document.head.appendChild(script); }); }
+    const response=await fetch("/vendor/PTSans-Regular.ttf"); if(!response.ok)throw new Error("Шрифт PDF недоступен"); const raw=new Uint8Array(await response.arrayBuffer()); let binary=""; for(let i=0;i<raw.length;i+=8192)binary+=String.fromCharCode.apply(null,raw.subarray(i,i+8192));
+    const Pdf=window.jspdf.jsPDF,doc=new Pdf({unit:"mm",format:"a4"}); doc.addFileToVFS("PTSans.ttf",btoa(binary)); doc.addFont("PTSans.ttf","PTSans","normal"); doc.setFont("PTSans"); const margin=20,width=doc.internal.pageSize.getWidth()-40,height=doc.internal.pageSize.getHeight()-20; let y=24; const line=(text,size)=>{doc.setFontSize(size);doc.splitTextToSize(String(text||""),width).forEach(value=>{if(y>height){doc.addPage();y=20;}doc.text(value,margin,y);y+=size*.5;});}; line(draft.title||"Разбор Домашкина",18); y+=4; String(draft.body||"").split(/\r?\n/).forEach(value=>{if(value)line(value,11);else y+=5;}); doc.save(safeDocumentName(draft.title)+".pdf");
   }
   function fileAsBase64(file){ return new Promise((resolve,reject)=>{ const reader=new FileReader(); reader.onerror=()=>reject(new Error("Не удалось прочитать файл.")); reader.onload=()=>resolve(String(reader.result||"").split(",",2)[1]||""); reader.readAsDataURL(file); }); }
   function newSessionToken(){ if(typeof crypto==="undefined"||!crypto.getRandomValues) return ""; const b=new Uint8Array(32); crypto.getRandomValues(b); let s=""; for(let i=0;i<b.length;i++) s+=b[i].toString(16).padStart(2,"0"); return s; }
@@ -1667,17 +1676,20 @@
   }
   function realCasesForSpace(space){
     if(space==="Личное") return REAL.cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
-    if(space==="Семья")  return REAL.cases.filter(c=>(c.scope||"")==="home");
+    if(space==="Семья")  return REAL.cases.filter(c=>(c.scope||"")==="home"&&c.title!=="Разбор домашнего задания");
     if(space==="Практика")return REAL.cases.filter(c=>(c.scope||"")==="pro");
     return [];
   }
   async function openFamilyDialog(message){
     if(!authState.token){ openAccount(); return; }
     await ensureSession(); await loadRealCases(true);
-    let dialog=REAL.cases.find(c=>c.scope==="home"&&c.title==="Семейный диалог с Домашкиным"&&c.state==="active");
+    let dialog=REAL.cases.find(c=>c.scope==="home"&&/^(?:Семейный д|Д)иалог с Домашкиным$/.test(c.title||"")&&c.state==="active");
     if(!dialog){
-      dialog=await authFetch("POST","/cases",{title:"Семейный диалог с Домашкиным",goal:"Семейные вопросы, школа и ближайшие изменения",side:"need_help"});
+      dialog=await authFetch("POST","/cases",{title:"Диалог с Домашкиным",goal:"Семейные вопросы, школа и ближайшие изменения",side:"need_help"});
       await authFetch("POST","/cases/"+encodeURIComponent(dialog.id)+"/scope",{scope:"home"});
+      REAL.loaded=false;
+    }else if(dialog.title!=="Диалог с Домашкиным"){
+      dialog=await authFetch("PUT","/cases/"+encodeURIComponent(dialog.id)+"/details",{title:"Диалог с Домашкиным",goal:dialog.goal||"Семейные вопросы, школа и ближайшие изменения",expect_version:dialog.version});
       REAL.loaded=false;
     }
     currentSpace="Семья"; rebuildNav(); realTab="Обзор"; location.hash="#case/"+dialog.id;
@@ -1794,17 +1806,31 @@
     if(typeof summary==="string")return summary;
     const value=summary.task_summary; return typeof value==="string"?value:((value&&value.text)||"");
   }
+  function homeworkDocumentText(assignment){
+    const summary=assignment&&assignment.summary||{}, parts=[String(summary.task_summary||assignment.task_text||"").trim()];
+    [["На что обратить внимание",summary.attention_points],["Что спросить у ребёнка",summary.questions_for_child],["Родителю",summary.parent_notes],["Нужно уточнить",summary.needs_clarification]].forEach(item=>{ const values=Array.isArray(item[1])?item[1].filter(Boolean):[]; if(values.length)parts.push(item[0]+":\n"+values.map(value=>"• "+value).join("\n")); });
+    return parts.filter(Boolean).join("\n\n");
+  }
+  function homeworkDetails(assignment){
+    if(!assignment||!assignment.summary)return "";
+    return '<details class="rc-note" style="margin-top:8px"><summary><b>Открыть разбор Домашкина</b></summary><div style="white-space:pre-wrap;margin-top:9px">'+esc(homeworkDocumentText(assignment))+'</div><div class="cta-row" style="margin-top:10px"><button class="btn small" data-act="save-homework-doc" data-id="'+attr(assignment.id)+'">Сохранить в документы дела</button></div></details>';
+  }
+  function schoolAssignmentRow(assignment,title,meta){
+    const summary=homeworkSummary(assignment), agent=domashkinHomeworkAgent(); let action="";
+    if(assignment&&!summary&&agent)action='<button class="btn small" data-act="analyze-homework" data-id="'+attr(assignment.id)+'">Разобрать</button>';
+    return '<div class="prow"><div><b>'+esc(title||"Задание")+'</b>'+(meta?'<div class="rc-hint">'+esc(meta)+'</div>':'')+(assignment?'<div style="margin-top:7px">'+esc(assignment.task_text||"Задание без текста")+'</div>':'<div class="rc-hint" style="margin-top:7px">Задание к этому уроку не найдено.</div>')+homeworkDetails(assignment)+'</div>'+action+'</div>';
+  }
   function schoolPanel(){
     if(!activeReal.isOwner) return '<div class="rc-note">Приглашённый родитель видит обсуждение и выданные материалы дела. Доступ к дневнику ребёнка подключается отдельно после серверной проверки прав.</div>';
     if(activeReal.childrenError) return errorBox(activeReal.childrenError,'data-act="school-retry"');
     if(!activeReal.children.length) return '<div class="rc-strip"><h3>Сначала подключите ребёнка</h3><p class="rc-hint">Расписание и задания не подставляются из демо: Домашкин покажет их только после подтверждённой привязки дневника.</p><div class="cta-row"><a class="btn primary" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>';
     const school=activeReal.school||{childId:activeReal.children[0].id,date:dateInputValue(new Date(Date.now()+24*60*60*1000)),loading:true,schedule:[],assignments:[],error:""};
-    const controls='<form class="pform" data-act="school-day"><div class="pf-row"><label>Ребёнок<select name="child">'+activeReal.children.map(child=>'<option value="'+attr(child.id)+'"'+(child.id===school.childId?' selected':'')+'>'+esc(child.display_name||"Ребёнок")+'</option>').join("")+'</select></label><label>День<input name="date" type="date" required value="'+attr(school.date)+'"></label></div><div class="cta-row"><button class="btn primary" type="submit">Показать день</button><button class="btn small" type="button" data-act="school-date" data-offset="0">Сегодня</button><button class="btn small" type="button" data-act="school-date" data-offset="1">Завтра</button></div></form>';
+    const controls='<form class="pform" data-act="school-day"><div class="pf-row"><label>Ребёнок<select name="child">'+activeReal.children.map(child=>'<option value="'+attr(child.id)+'"'+(child.id===school.childId?' selected':'')+'>'+esc(child.display_name||"Ребёнок")+'</option>').join("")+'</select></label><label>День<input name="date" type="date" required value="'+attr(school.date)+'"></label></div><div class="cta-row"><button class="btn primary" type="submit">Показать день</button><button class="btn small" type="button" data-act="school-date" data-offset="-2">Позавчера</button><button class="btn small" type="button" data-act="school-date" data-offset="-1">Вчера</button><button class="btn small" type="button" data-act="school-date" data-offset="0">Сегодня</button><button class="btn small" type="button" data-act="school-date" data-offset="1">Завтра</button></div></form>';
     if(school.loading)return controls+'<div class="rc-strip"><p class="rc-hint">Домашкин сверяет расписание и задания…</p></div>';
     if(school.error)return controls+errorBox(school.error,'data-act="school-retry"');
     const bySubject={}; school.assignments.forEach(a=>{bySubject[String(a.subject||"").trim()]=a;});
-    const lessons=school.schedule.map(lesson=>{ const assignment=bySubject[String(lesson.subject||"").trim()], summary=homeworkSummary(assignment); let action=""; if(assignment&&assignment.case_id) action='<button class="btn small" data-act="open-real-linked" data-id="'+attr(assignment.case_id)+'">Открыть дело</button>'; else if(assignment&&domashkinHomeworkAgent()) action='<button class="btn small" data-act="analyze-homework" data-id="'+attr(assignment.id)+'">Разобрать в отдельном деле</button>'; return '<div class="prow"><div><b>'+esc((lesson.lesson_number?lesson.lesson_number+". ":"")+(lesson.subject||"Урок"))+'</b><div class="rc-hint">'+esc([lesson.start_time,lesson.end_time].filter(Boolean).join("–")+(lesson.room?' · каб. '+lesson.room:''))+'</div>'+(assignment?'<div style="margin-top:7px">'+esc(assignment.task_text||"Задание без текста")+'</div>':'<div class="rc-hint" style="margin-top:7px">Задание к этому уроку не найдено.</div>')+(summary?'<div class="rc-note" style="margin-top:7px">'+esc(summary)+'</div>':'')+'</div>'+action+'</div>'; }).join("");
-    const extra=school.assignments.filter(a=>!school.schedule.some(l=>String(l.subject||"").trim()===String(a.subject||"").trim())).map(a=>'<div class="prow"><div><b>'+esc(a.subject||"Задание")+'</b><div>'+esc(a.task_text||"Задание без текста")+'</div></div>'+(a.case_id?'<button class="btn small" data-act="open-real-linked" data-id="'+attr(a.case_id)+'">Открыть дело</button>':'')+'</div>').join("");
+    const lessons=school.schedule.map(lesson=>{ const assignment=bySubject[String(lesson.subject||"").trim()]; return schoolAssignmentRow(assignment,(lesson.lesson_number?lesson.lesson_number+". ":"")+(lesson.subject||"Урок"),[lesson.start_time,lesson.end_time].filter(Boolean).join("–")+(lesson.room?' · каб. '+lesson.room:'')); }).join("");
+    const extra=school.assignments.filter(a=>!school.schedule.some(l=>String(l.subject||"").trim()===String(a.subject||"").trim())).map(a=>schoolAssignmentRow(a,a.subject||"Задание","")).join("");
     const empty=!lessons&&!extra?'<div class="rc-note">На выбранный день расписание ещё не загружено. Домашкин не угадывает уроки; проверьте синхронизацию дневника.</div>':'';
     return controls+'<div class="section-t">Уроки и задания</div><div class="lst">'+lessons+extra+'</div>'+empty+(!domashkinHomeworkAgent()?'<div class="rc-note">Для автоматического разбора включите личного Домашкина с модулем домашних заданий.</div>':'');
   }
@@ -1851,7 +1877,7 @@
       return '<div class="section-t">Календарь дела</div><div class="lst">'+rows+'</div><div class="section-t">Добавить срок или встречу</div><form class="pform" data-act="calendar-create"><div class="pf-row"><label>Вид<select name="kind"><option value="deadline">Срок</option><option value="hearing">Заседание</option><option value="meeting">Встреча</option><option value="reminder">Напоминание</option></select></label><label>Когда<input name="at" type="datetime-local" required value="'+attr(calendarInputValue())+'"></label></div><label style="display:block;margin-top:10px">Название<input name="title" required maxlength="500" placeholder="Например, подтвердить новое расписание" style="width:100%"></label><div class="pf-row" style="margin-top:10px"><label>Окончание (необязательно)<input name="until" type="datetime-local"></label><label>Место (необязательно)<input name="place" maxlength="500" placeholder="Школа, суд, онлайн"></label></div><label style="display:block;margin-top:10px">Заметка<textarea name="note" rows="3" maxlength="4000" style="width:100%;resize:vertical" placeholder="Что подготовить или проверить"></textarea></label><p class="rc-hint">Для срока напоминание по умолчанию ставится за три дня, для заседания — за сутки.</p><div class="cta-row"><button class="btn primary" type="submit">Добавить в календарь</button></div></form>';
     }
     if(realTab==="Документы"){
-      const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<div class="cta-row"><button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>'+(d.shared?'<button class="btn small" data-act="draft-external" data-id="'+attr(d.id)+'">Ссылка</button>':'')+'</div>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
+      const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<div class="cta-row"><button class="btn small" data-act="draft-pdf" data-id="'+attr(d.id)+'">PDF</button><button class="btn small" data-act="draft-docx" data-id="'+attr(d.id)+'">DOCX</button><button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>'+(d.shared?'<button class="btn small" data-act="draft-external" data-id="'+attr(d.id)+'">Ссылка</button>':'')+'</div>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
       const materialRows=(activeReal.materials||[]).map(m=>{ const mayChange=canDecide||m.uploaded_by===authState.principal; return '<div class="prow"><div><b>'+esc(m.title||"Материал")+'</b><div class="rc-hint">'+esc(m.mime||m.kind||"файл")+' · '+esc(SEE_RU[m.sensitivity]||m.sensitivity||"обычное")+' · '+esc(m.extract_status==="ok"?"разобран":(m.extract_status==="failed"?"не разобран":"обработка ожидается"))+'</div></div><div class="cta-row"><button class="btn small" data-act="material-download" data-id="'+attr(m.id)+'" data-name="'+attr(m.title||"material")+'">Скачать</button>'+(mayChange?'<button class="btn small" data-act="material-sensitivity" data-id="'+attr(m.id)+'" data-sensitivity="'+attr(m.sensitivity||"normal")+'">Доступ</button>':'')+'</div></div>'; }).join("")||'<p class="rc-hint">Приложенных файлов пока нет.</p>';
       const hidden=activeReal.hiddenMaterials?'<p class="rc-note">Ещё материалов скрыто вашим уровнем доступа: '+activeReal.hiddenMaterials+'. Их названия не раскрываются.</p>':'';
       const upload=activeReal.canComment?'<div class="section-t">Приложить файл</div><form class="pform" data-act="material-upload"><label class="book-file"><input name="material" type="file" required><span class="btn small">Скрепка · выбрать файл</span><span class="book-file-name">Файл не выбран</span></label><label style="display:block;margin-top:10px">Какие сведения содержит файл<select name="sensitivity" style="width:100%">'+SEE_ALL.map(s=>'<option value="'+s+'">'+esc(SEE_RU[s])+'</option>').join("")+'</select></label><p class="rc-hint">Категория определяет, кто из участников увидит материал. Её можно изменить позже.</p><div class="cta-row"><button class="btn primary" type="submit">Загрузить в дело</button></div><div class="rc-hint" data-material-status></div></form>':'<p class="rc-note">Прикладывать материалы может участник с правом комментирования.</p>';
@@ -1907,6 +1933,7 @@
       const b=e.target.closest("[data-act]"); if(!b) return; const c=activeReal.c; const act=b.dataset.act;
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
       if(act==="open-real-linked"){ realTab="Обзор"; location.hash="#case/"+b.dataset.id; return; }
+      if(act==="draft-docx"||act==="draft-pdf"){ const draft=(activeReal.drafts||[]).find(item=>item.id===b.dataset.id); if(!draft)return; b.disabled=true; try{ if(act==="draft-pdf")await exportDraftPdf(draft); else await exportDraftDocx(draft); }catch(err){ toast((err&&err.message)||"Не удалось собрать документ."); }finally{b.disabled=false;} return; }
       if(act==="draft-share"){ b.disabled=true; try{ await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/share",{}); renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось выдать документ."); } return; }
       if(act==="draft-external"){ b.disabled=true; try{ const r=await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/external-share",{}); const link=location.origin+"/document/"+encodeURIComponent(r.token); await navigator.clipboard.writeText(link); toast("Внешняя ссылка скопирована. Просмотр доступен 7 дней; редактирование — после регистрации и приглашения."); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось создать ссылку."); } return; }
       if(act==="material-download"){ b.disabled=true; try{ await authDownload("/cases/"+encodeURIComponent(c.id)+"/materials/"+encodeURIComponent(b.dataset.id)+"/content",b.dataset.name); }catch(err){ toast(err.status===403?"Для скачивания подтвердите вход до уровня 2.":((err&&err.message)||"Не удалось скачать файл.")); }finally{ b.disabled=false; } return; }
@@ -1917,8 +1944,14 @@
       if(act==="analyze-homework"){
         const agent=domashkinHomeworkAgent(); if(!agent){ toast("Сначала включите личного Домашкина."); return; }
         b.disabled=true; b.classList.add("thinking"); b.textContent="Разбираю…";
-        try{ const result=await authFetch("POST","/homework/assignments/"+encodeURIComponent(b.dataset.id)+"/analyze",{personal_agent_id:agent.agent_id}); if(!result.case_id)throw new Error("Разбор сохранён без отдельного дела"); try{ await authFetch("POST","/cases/"+encodeURIComponent(result.case_id)+"/scope",{scope:"home"}); }catch(_){} REAL.loaded=false; realTab="Обзор"; location.hash="#case/"+result.case_id; await renderRealCase(result.case_id); }
-        catch(err){ b.disabled=false; b.classList.remove("thinking"); b.textContent="Разобрать в отдельном деле"; toast((err&&err.message)||"Не удалось разобрать задание."); }
+        try{ const result=await authFetch("POST","/homework/assignments/"+encodeURIComponent(b.dataset.id)+"/analyze",{personal_agent_id:agent.agent_id,case_id:c.id}); const assignment=(activeReal.school.assignments||[]).find(item=>item.id===b.dataset.id); if(assignment){Object.assign(assignment,result.assignment||{});assignment.summary=result.summary;} drawRealCase(); toast("Разбор готов и сохранён в материалах этого дела."); }
+        catch(err){ b.disabled=false; b.classList.remove("thinking"); b.textContent="Разобрать"; toast((err&&err.message)||"Не удалось разобрать задание."); }
+        return;
+      }
+      if(act==="save-homework-doc"){
+        const assignment=((activeReal.school&&activeReal.school.assignments)||[]).find(item=>item.id===b.dataset.id); if(!assignment||!assignment.summary)return; b.disabled=true; b.textContent="Сохраняю…";
+        try{ const draft=await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/drafts",{title:(assignment.lesson_date?assignment.lesson_date+" · ":"")+(assignment.subject||"Разбор Домашкина"),body:homeworkDocumentText(assignment),basis:"разбор Домашкина по заданию "+assignment.id,kind:"homework_analysis"}); activeReal.drafts.unshift(draft); b.textContent="Сохранено в документах"; toast("Разбор сохранён. PDF и DOCX доступны во вкладке «Документы»."); }
+        catch(err){ b.disabled=false; b.textContent="Сохранить в документы дела"; toast((err&&err.message)||"Не удалось сохранить разбор."); }
         return;
       }
       if(act==="calendar-cancel"){ if(!window.confirm("Отменить это событие? Запись останется в истории календаря."))return; b.disabled=true; try{ await authFetch("POST","/calendar/"+encodeURIComponent(b.dataset.id)+"/cancel",{}); realTab="Сроки"; renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось отменить событие."); } return; }
