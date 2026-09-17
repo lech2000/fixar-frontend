@@ -5,25 +5,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#071c26">
   <title>ФиксАР — v2 (навигатор архитектуры)</title>
+  <script>
+    (function(){
+      try{
+        var saved=JSON.parse(localStorage.getItem("fixar-v2-appearance")||"{}");
+        var mode=saved.mode||"system";
+        var dark=mode==="dark"||(mode==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme=dark?"dark":"light";
+        document.documentElement.dataset.themeMode=mode;
+        document.documentElement.style.setProperty("--accent-h",String(Number(saved.hue)||185));
+      }catch(_){ document.documentElement.dataset.theme="dark"; }
+    })();
+  </script>
   <style>
     :root{
-      color-scheme: dark;
-      --bg:#06151d; --panel:rgba(10,35,45,.88); --panel-2:rgba(7,27,36,.93);
-      --line:rgba(156,222,229,.18); --line-soft:rgba(156,222,229,.10);
-      --text:#f1f7f7; --muted:#9bb5bb;
-      --cyan:#62e6f2; --green:#6ce497; --amber:#ffc86a; --focus:#8fe9f4;
+      color-scheme:dark;
+      --accent-h:185;
+      --bg:#06151d;--panel:rgba(10,35,45,.88);--panel-2:rgba(7,27,36,.94);--field:#081e27;
+      --line:rgba(156,222,229,.18);--line-soft:rgba(156,222,229,.10);
+      --text:#f1f7f7;--muted:#9bb5bb;--dim:#728c92;
+      --cyan:hsl(var(--accent-h) 84% 67%);--accent-soft:hsl(var(--accent-h) 70% 62% / .12);
+      --accent-border:hsl(var(--accent-h) 72% 68% / .4);--on-accent:#06202a;
+      --green:#6ce497;--amber:#ffc86a;--focus:hsl(var(--accent-h) 88% 76%);
+      --body-art:radial-gradient(circle at 88% 4%,hsl(var(--accent-h) 55% 24% / .35),transparent 40rem),radial-gradient(circle at 2% 96%,rgba(54,51,107,.28),transparent 34rem),linear-gradient(160deg,#06151d,#09242d 60%,#071720);
+      --shadow:0 12px 30px rgba(0,0,0,.22);
       --radius:18px; --dur:150ms; --ease:cubic-bezier(.2,0,0,1);
       --nav-w: 320px;
+    }
+    :root[data-theme="light"]{
+      color-scheme:light;
+      --bg:#f5f8f8;--panel:rgba(255,255,255,.9);--panel-2:rgba(248,251,251,.96);--field:#fff;
+      --line:rgba(10,48,56,.16);--line-soft:rgba(10,48,56,.09);
+      --text:#102b31;--muted:#587178;--dim:#71868b;
+      --cyan:hsl(var(--accent-h) 72% 34%);--accent-soft:hsl(var(--accent-h) 62% 40% / .1);
+      --accent-border:hsl(var(--accent-h) 60% 35% / .38);--on-accent:#fff;
+      --green:#197647;--amber:#9a6100;--focus:hsl(var(--accent-h) 78% 34%);
+      --body-art:radial-gradient(circle at 88% 4%,hsl(var(--accent-h) 62% 82% / .42),transparent 38rem),radial-gradient(circle at 2% 96%,rgba(178,181,235,.3),transparent 32rem),linear-gradient(160deg,#f7fafa,#edf4f4 60%,#f8fafa);
+      --shadow:0 12px 32px rgba(13,49,56,.08);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
       margin:0; color:var(--text);
-      font:15px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background:
-        radial-gradient(circle at 88% 4%, rgba(20,81,92,.35), transparent 40rem),
-        radial-gradient(circle at 2% 96%, rgba(54,51,107,.28), transparent 34rem),
-        linear-gradient(160deg,#06151d,#09242d 60%,#071720);
+      font:15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-feature-settings:"cv02","cv03","cv04","cv11";letter-spacing:-.006em;
+      background:var(--body-art);
     }
     a{color:inherit;text-decoration:none}
     button{font:inherit;color:inherit}
@@ -33,7 +59,7 @@
     .side{
       display:flex; flex-direction:column; min-height:0;
       border-right:1px solid var(--line-soft);
-      background:linear-gradient(180deg,rgba(8,28,37,.7),rgba(6,20,27,.55));
+      background:linear-gradient(180deg,color-mix(in srgb,var(--panel-2) 88%,transparent),color-mix(in srgb,var(--bg) 82%,transparent));
       -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
     }
     .brand{ display:flex; align-items:center; gap:10px; padding:16px 16px 10px }
@@ -42,7 +68,7 @@
     .brand b{ font-size:17px; font-weight:850 } .brand span{ color:var(--muted); font-size:12px; margin-left:auto }
     .search{ padding:6px 14px 12px }
     .search input{ width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px;
-      background:#081e27; color:var(--text); outline:none }
+      background:var(--field); color:var(--text); outline:none }
     .search input:focus{ border-color:var(--cyan); box-shadow:0 0 0 3px rgba(98,230,242,.1) }
     nav{ overflow:auto; padding:4px 8px 20px; flex:1; min-height:0; -webkit-overflow-scrolling:touch }
     .n-row{ display:flex; align-items:center; gap:2px; border-radius:9px }
@@ -62,20 +88,20 @@
 
     /* Контент */
     .view{ overflow:auto; min-height:0; -webkit-overflow-scrolling:touch }
-    .vwrap{ width:min(1180px,100%); margin:0 auto; padding:22px clamp(16px,3vw,40px) 60px }
+    .vwrap{ width:min(1180px,100%); margin:0 auto; padding:clamp(24px,4vw,52px) clamp(16px,4vw,52px) 72px }
     .crumbs{ display:flex; flex-wrap:wrap; gap:6px; color:var(--muted); font-size:13px; margin-bottom:12px }
     .crumbs a{ color:var(--muted) } .crumbs a:hover{ color:var(--cyan) }
     .crumbs .sep{ opacity:.5 }
-    .vhead h1{ margin:0; font-size:clamp(24px,3.2vw,38px); letter-spacing:-.02em; line-height:1.08 }
+    .vhead h1{ margin:0; max-width:18ch; font-size:clamp(30px,4vw,48px); font-weight:760; letter-spacing:-.045em; line-height:1.02;text-wrap:balance }
     .vhead .eyebrow{ margin:0 0 4px; color:var(--cyan); font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase }
-    .vhead p{ color:var(--muted); margin:10px 0 0; max-width:64ch }
+    .vhead p{ color:var(--muted); margin:14px 0 0; max-width:58ch;font-size:clamp(15px,1.5vw,17px);line-height:1.6;text-wrap:pretty }
 
     .tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; margin-top:22px }
     .tile{ display:grid; grid-template-columns:1fr 18px; align-items:center; gap:12px; padding:16px 18px;
       border:1px solid var(--line); border-radius:var(--radius);
-      background:linear-gradient(155deg,var(--panel),var(--panel-2)); box-shadow:0 12px 30px rgba(0,0,0,.25);
+      background:linear-gradient(155deg,var(--panel),var(--panel-2)); box-shadow:var(--shadow);
       transition:border-color var(--dur) var(--ease), transform var(--dur) var(--ease); cursor:pointer; text-align:left; width:100% }
-    .tile:hover{ transform:translateY(-2px); border-color:rgba(98,230,242,.4) }
+    .tile:hover{ transform:translateY(-2px); border-color:var(--accent-border) }
     .tile h3{ margin:0 0 2px; font-size:15.5px } .tile p{ margin:0; color:var(--muted); font-size:12.5px }
     .tile .chev{ color:var(--muted) } .tile:hover .chev{ color:var(--cyan) }
     .tile .count{ color:var(--muted); font-size:12px; margin-left:6px }
@@ -83,16 +109,16 @@
     /* Дашборд «Главная» */
     .dash{ display:grid; grid-template-columns:1.1fr .95fr .95fr; gap:14px; margin-top:22px }
     .card{ display:flex; flex-direction:column; border:1px solid var(--line); border-radius:var(--radius);
-      background:linear-gradient(155deg,var(--panel),var(--panel-2)); box-shadow:0 14px 34px rgba(0,0,0,.28); overflow:hidden; min-height:150px }
+      background:linear-gradient(155deg,var(--panel),var(--panel-2)); box-shadow:var(--shadow); overflow:hidden; min-height:150px }
     .card .ch{ padding:16px 16px 8px } .card .ch .eyebrow{ margin:0 0 3px; color:var(--cyan); font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase }
     .card .ch h2{ margin:0; font-size:16px } .card .cb{ padding:4px 16px 16px; color:var(--muted); font-size:13px; flex:1 }
     .row{ display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--line-soft) }
     .row:last-child{ border-bottom:0 } .row b{ color:var(--text); font-weight:600; font-size:13.5px }
     .chip{ padding:3px 8px; border-radius:999px; background:rgba(108,228,151,.11); color:var(--green); font-size:11px; white-space:nowrap }
-    .bubble{ padding:11px 13px; border-radius:14px; background:rgba(30,72,83,.55); color:#dce9eb; font-size:13px; margin:2px 0 10px }
+    .bubble{ padding:11px 13px; border-radius:14px; background:var(--accent-soft); color:var(--text); font-size:13px; margin:2px 0 10px }
     .composer{ margin-top:auto; display:grid; grid-template-columns:1fr 42px; gap:8px; padding-top:8px }
-    .composer input{ padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#081e27; color:var(--text); outline:none; min-width:0 }
-    .composer button{ border:0; border-radius:12px; background:var(--cyan); color:#06202a; font-weight:900; cursor:pointer }
+    .composer input{ padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--field); color:var(--text); outline:none; min-width:0 }
+    .composer button{ border:0; border-radius:12px; background:var(--cyan); color:var(--on-accent); font-weight:900; cursor:pointer }
     .friendly-home .quick-jumps{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:16px 0 6px }
     .quick-jump{ min-height:76px; padding:13px 14px; text-align:left; border:1px solid var(--line); border-radius:15px; background:linear-gradient(150deg,rgba(98,230,242,.10),rgba(255,255,255,.025)); color:var(--text); cursor:pointer }
     .quick-jump:hover{ border-color:var(--cyan) } .quick-jump b{ display:block; font-size:15px } .quick-jump span{ display:block; margin-top:4px; color:var(--muted); font-size:12px }
@@ -102,23 +128,23 @@
     .friendly-home .b-dialog .composer input{ min-height:58px; padding:14px 16px; border-radius:15px; font-size:16px }
     .friendly-home .b-dialog .composer button{ border-radius:15px; font-size:19px }
     .metrics{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px }
-    .metric{ padding:12px 14px; border:1px solid var(--line); border-radius:14px; background:rgba(7,27,36,.6) }
+    .metric{ padding:12px 14px; border:1px solid var(--line); border-radius:14px; background:var(--panel-2) }
     .metric b{ display:block; font-size:18px } .metric span{ color:var(--muted); font-size:12px }
 
     /* Заглушка листа */
-    .stub{ margin-top:22px; padding:22px; border:1px dashed var(--line); border-radius:var(--radius); background:rgba(7,27,36,.4) }
+    .stub{ margin-top:22px; padding:22px; border:1px dashed var(--line); border-radius:var(--radius); background:var(--panel-2) }
     .stub .tag{ display:inline-block; padding:4px 10px; border-radius:999px; background:rgba(98,230,242,.1); color:var(--cyan); font-size:12px; margin-bottom:10px }
     .stub p{ color:var(--muted); margin:6px 0 0 }
 
     /* Богатые экраны */
     .btn{ display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:13px;border:1px solid var(--line);
       background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;font-weight:650;font-size:14px;transition:border-color var(--dur),filter var(--dur) }
-    .btn:hover{ border-color:var(--cyan) } .btn.primary{ background:var(--cyan);color:#06202a;border-color:transparent } .btn.primary:hover{ filter:brightness(1.06) }
+    .btn:hover{ border-color:var(--cyan) } .btn.primary{ background:var(--cyan);color:var(--on-accent);border-color:transparent } .btn.primary:hover{ filter:brightness(1.06) }
     .btn.thinking,.btn.thinking:disabled{ cursor:wait;opacity:1;background:linear-gradient(110deg,#62e6f2 20%,#d9fbff 45%,#62e6f2 70%);background-size:220% 100%;animation:shimmer 1.15s linear infinite;color:#06202a }
-    .hero{ padding:8px 0 2px } .hero h1{ margin:6px 0 0;font-size:clamp(30px,4.4vw,52px);letter-spacing:-.035em;line-height:1.03 }
-    .hero .lead{ margin:14px 0 0;max-width:62ch;color:var(--muted);font-size:17px }
+    .hero{ padding:clamp(12px,3vw,36px) 0 10px } .hero h1{ margin:8px 0 0;max-width:15ch;font-size:clamp(42px,7vw,78px);font-weight:760;letter-spacing:-.062em;line-height:.96;text-wrap:balance }
+    .hero .lead{ margin:22px 0 0;max-width:56ch;color:var(--muted);font-size:clamp(17px,2vw,20px);line-height:1.55;text-wrap:pretty }
     .cta-row{ display:flex;flex-wrap:wrap;gap:10px;margin-top:22px }
-    .section-t{ margin:32px 0 12px;font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted) }
+    .section-t{ margin:44px 0 14px;font-size:11px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--muted) }
     .feat{ display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px }
     .feat .card{ min-height:auto;padding:16px;cursor:pointer } .feat .card:hover{ border-color:rgba(98,230,242,.4) }
     .tabs{ display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 14px }
@@ -138,8 +164,8 @@
     .stepper{ display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 6px }
     .step{ display:flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:13px }
     .step .num{ width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:12px;font-weight:700 }
-    .step.active{ border-color:rgba(98,230,242,.45);color:var(--text) } .step.active .num{ background:var(--cyan);color:#06202a }
-    .step.done .num{ background:var(--green);color:#06202a }
+    .step.active{ border-color:var(--accent-border);color:var(--text) } .step.active .num{ background:var(--cyan);color:var(--on-accent) }
+    .step.done .num{ background:var(--green);color:var(--on-accent) }
     .case-tabs{ display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 14px;border-bottom:1px solid var(--line-soft);padding-bottom:10px }
     .ct{ padding:7px 12px;border-radius:10px;background:none;border:0;color:var(--muted);cursor:pointer;font-size:13.5px }
     .ct.active{ background:rgba(98,230,242,.12);color:var(--text) }
@@ -154,7 +180,7 @@
     .chip.info{ background:rgba(98,230,242,.12);color:var(--cyan) } .chip.done{ background:rgba(255,255,255,.06);color:var(--muted) }
     .minmetrics{ display:flex;flex-wrap:wrap;gap:18px } .minmetrics>div>b{ display:block;font-size:18px;color:var(--text) } .minmetrics>div>span{ color:var(--muted);font-size:12px }
     .lbar{ display:flex;flex-wrap:nowrap;gap:8px;align-items:center;margin:14px 0 }
-    .lbar.sticky{ position:sticky;top:0;z-index:5;background:linear-gradient(180deg,rgba(6,20,27,.97),rgba(6,20,27,.9));-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:8px 0;margin:6px 0 12px }
+    .lbar.sticky{ position:sticky;top:0;z-index:5;background:linear-gradient(180deg,var(--bg),color-mix(in srgb,var(--bg) 90%,transparent));-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:8px 0;margin:6px 0 12px }
     .filter-bar{ flex:1 1 auto;min-width:0;display:flex;gap:8px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch } .filter-bar::-webkit-scrollbar{ display:none }
     .filter-bar .tab{ white-space:nowrap;display:inline-flex;align-items:center;gap:6px }
     .tcount{ background:rgba(255,255,255,.08);border-radius:999px;padding:1px 7px;font-size:11px;color:var(--muted) } .filter-bar .tab.active .tcount{ background:rgba(6,32,42,.5);color:var(--text) }
@@ -166,7 +192,7 @@
     .popen{ margin-top:2px;color:var(--cyan);font-size:13px;font-weight:600 } .pcard:hover .popen{ text-decoration:underline }
     .flow{ display:grid;grid-template-columns:repeat(4,1fr);gap:12px }
     .flow-step{ position:relative;display:flex;gap:10px;align-items:flex-start;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(155deg,var(--panel),var(--panel-2)) }
-    .flow-n{ flex:0 0 26px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--cyan);color:#06202a;font-weight:800;font-size:13px }
+    .flow-n{ flex:0 0 26px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--cyan);color:var(--on-accent);font-weight:800;font-size:13px }
     .flow-step b{ font-size:14px } .flow-step p{ margin:3px 0 0;color:var(--muted);font-size:12.5px }
     .flow-arrow{ position:absolute;right:-9px;top:50%;transform:translateY(-50%);color:var(--muted);z-index:1;font-size:18px }
     @media (max-width:900px){ .flow{ grid-template-columns:1fr } .flow-arrow{ display:none } }
@@ -190,10 +216,23 @@
     .tmain b{ font-size:14px } .tmain span{ display:block;color:var(--muted);font-size:12px }
     .btn.small{ padding:7px 12px;font-size:12.5px }
     .prow{ display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid var(--line-soft) } .prow:last-child{ border-bottom:0 } .prow b{ font-size:14px }
-    .perm-tags{ display:flex;flex-wrap:wrap;gap:6px;margin-top:6px } .ptag{ padding:3px 8px;border-radius:999px;background:rgba(98,230,242,.08);color:#bfeef4;font-size:11px }
+    .perm-tags{ display:flex;flex-wrap:wrap;gap:6px;margin-top:6px } .ptag{ padding:3px 8px;border-radius:999px;background:var(--accent-soft);color:var(--cyan);font-size:11px }
     .pform{ margin-top:12px;display:flex;flex-direction:column;gap:12px;max-width:680px }
     .pf-row{ display:grid;grid-template-columns:1fr 1fr;gap:12px } .pf-row label,.pform>label{ display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted) }
-    .pform input,.pform select{ padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:#081e27;color:var(--text);outline:none;font:inherit } .pform input:focus,.pform select:focus{ border-color:var(--cyan) }
+    .pform input,.pform select,.pform textarea{ padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--field);color:var(--text);outline:none;font:inherit } .pform input:focus,.pform select:focus,.pform textarea:focus{ border-color:var(--cyan) }
+    .fixarik-settings{display:grid;gap:18px}.settings-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.settings-card{padding:16px;border:1px solid var(--line-soft);border-radius:16px;background:var(--panel)}.settings-card h3{margin:0 0 7px;font-size:16px}.settings-card p{margin:0;color:var(--muted);line-height:1.5}.channel-state{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}.pack-search-results{display:grid;gap:10px;margin-top:14px}.pack-search-result{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 16px;border:1px solid var(--line-soft);border-radius:14px;background:var(--panel)}.pack-search-result h3{margin:0 0 4px;font-size:15px}.pack-search-result p{margin:0;color:var(--muted);line-height:1.4}.pack-search-result small{display:block;margin-top:6px;color:var(--dim)}
+    .appearance{display:grid;gap:18px}.appearance-group{display:grid;gap:10px}.appearance-label{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    .choice-row{display:flex;flex-wrap:wrap;gap:8px}.choice{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel-2);color:var(--muted);cursor:pointer}.choice:hover{border-color:var(--cyan);color:var(--text)}.choice.active{border-color:var(--accent-border);background:var(--accent-soft);color:var(--text);box-shadow:inset 0 0 0 1px var(--accent-border)}
+    .palette-choice{min-width:118px}.palette-dot{width:13px;height:13px;border-radius:50%;background:hsl(var(--swatch) 82% 55%);box-shadow:0 0 0 4px hsl(var(--swatch) 72% 52% / .14)}
+    .hue-control{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:12px;align-items:center;max-width:650px}.hue-control input{width:100%;accent-color:var(--cyan)}.hue-value{min-width:48px;padding:6px 9px;border:1px solid var(--line);border-radius:9px;text-align:center;font:600 12px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--text)}
+    .theme-preview{overflow:hidden;padding:clamp(18px,3vw,30px);border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,var(--panel),var(--panel-2));box-shadow:var(--shadow)}.theme-preview .eyebrow{margin:0 0 6px;color:var(--cyan);font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.theme-preview h2{max-width:16ch;margin:0;font-size:clamp(28px,4vw,42px);line-height:1;letter-spacing:-.045em;text-wrap:balance}.theme-preview p{max-width:48ch;margin:14px 0 0;color:var(--muted);font-size:16px;line-height:1.55}.theme-preview .cta-row{margin-top:20px}
+    .book-upload{ margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(155deg,var(--panel),var(--panel-2)) }
+    .book-upload h3{ margin:0 0 4px;font-size:16px }.book-upload p{ margin:0;color:var(--muted);font-size:13px }
+    .book-file{ display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border:1px dashed rgba(98,230,242,.4);border-radius:12px;background:rgba(98,230,242,.05);cursor:pointer;color:var(--text) }
+    .book-file input{ position:absolute;width:1px;height:1px;opacity:0;pointer-events:none }.book-file-name{ color:var(--muted);font-size:12.5px;overflow-wrap:anywhere }
+    .owner-tools{ margin:0 0 18px;padding:18px;border:1px solid rgba(255,200,106,.35);border-radius:var(--radius);background:linear-gradient(150deg,rgba(255,200,106,.10),rgba(7,27,36,.82)) }
+    .owner-tools .eyebrow{ margin:0;color:var(--amber);font-size:11px;font-weight:850;letter-spacing:.13em;text-transform:uppercase }.owner-tools h2{ margin:4px 0 3px;font-size:20px }.owner-tools p{ margin:0;color:var(--muted) }
+    .owner-tool-grid{ display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px;margin-top:14px }.owner-tool{ min-height:76px;padding:12px 13px;border:1px solid var(--line);border-radius:13px;background:rgba(6,21,29,.6) }.owner-tool:hover{ border-color:var(--amber) }.owner-tool b{ display:block }.owner-tool span{ display:block;margin-top:3px;color:var(--muted);font-size:12px }
     .perms{ border:1px solid var(--line);border-radius:12px;padding:12px 14px } .perms legend{ padding:0 6px;color:var(--muted);font-size:12px }
     .chk{ display:flex;align-items:center;gap:8px;color:var(--text);font-size:13.5px;padding:4px 0 } .chk input{ width:16px;height:16px }
     .toggles{ display:flex;flex-direction:column;gap:8px }
@@ -201,13 +240,13 @@
     .toggle .knob{ flex:0 0 40px;width:40px;height:22px;border-radius:999px;background:rgba(255,255,255,.12);position:relative;transition:background var(--dur) }
     .toggle .knob::after{ content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#cfe;transition:transform var(--dur) }
     .toggle.on .knob{ background:var(--cyan) } .toggle.on .knob::after{ transform:translateX(18px);background:#06202a }
-    @media (max-width:760px){ .kvr{ grid-template-columns:1fr;gap:2px } .pf-row{ grid-template-columns:1fr } }
+    @media (max-width:760px){ .kvr{ grid-template-columns:1fr;gap:2px } .pf-row,.settings-grid{ grid-template-columns:1fr } .pack-search-result{grid-template-columns:1fr}.pack-search-result .btn{width:100%} }
     /* Состояния (P5) */
     @keyframes shimmer{ 0%{ background-position:200% 0 } 100%{ background-position:-200% 0 } }
     .sk{ background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.10),rgba(255,255,255,.04));background-size:200% 100%;animation:shimmer 1.2s linear infinite;border-radius:10px }
     .sk-card{ border:1px solid var(--line);border-radius:var(--radius);padding:18px;background:linear-gradient(155deg,var(--panel),var(--panel-2));min-height:150px }
     .sk-line{ height:12px;margin:9px 0 } .sk-line.w40{ width:40% } .sk-line.w60{ width:60% } .sk-line.w80{ width:80% } .sk-title{ height:18px;width:55%;margin-bottom:12px }
-    .empty{ text-align:center;padding:38px 20px;border:1px dashed var(--line);border-radius:var(--radius);background:rgba(7,27,36,.4) }
+    .empty{ text-align:center;padding:38px 20px;border:1px dashed var(--line);border-radius:var(--radius);background:var(--panel-2) }
     .empty .emoji{ font-size:30px } .empty h3{ margin:10px 0 4px;font-size:17px } .empty p{ color:var(--muted);margin:0 auto 14px;max-width:44ch }
     .errbox{ display:flex;gap:14px;align-items:flex-start;padding:18px;border:1px solid rgba(255,120,120,.35);border-radius:var(--radius);background:rgba(120,30,30,.12) }
     .errbox .ic{ width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:rgba(255,120,120,.16);color:#ff9b9b;flex:0 0 32px;font-weight:900 }
@@ -222,6 +261,7 @@
     @media (max-width:760px){
       .case-tabs{ flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:8px } .case-tabs::-webkit-scrollbar{ display:none } .ct{ white-space:nowrap;flex:0 0 auto }
       .pmeta{ font-size:12px } .shell,.vwrap{ }
+      .choice-row{display:grid;grid-template-columns:1fr 1fr}.choice{justify-content:center}.palette-choice{min-width:0}.hue-control{grid-template-columns:1fr auto}.theme-preview h2{font-size:32px}
     }
     @media (max-width:900px){
       .dash>.card{ grid-row:auto !important }
@@ -238,7 +278,7 @@
       body.nav-open .side{ transform:none }
       .scrim{ display:block; position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity var(--dur) }
       body.nav-open .scrim{ opacity:1; visibility:visible }
-      .topm{ display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line-soft); position:sticky; top:0; background:rgba(6,20,27,.9); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); z-index:10 }
+      .topm{ display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line-soft); position:sticky; top:0; background:color-mix(in srgb,var(--bg) 90%,transparent); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); z-index:10 }
       .menu-btn{ display:grid; place-items:center; width:38px;height:38px;border:1px solid var(--line);border-radius:11px;background:var(--panel);cursor:pointer }
       .dash{ grid-template-columns:1fr }
     }
@@ -256,6 +296,13 @@
       background:linear-gradient(145deg,#78ef9f,#1ab25a);color:#052a17;font-weight:800;font-size:11px }
     .acct-btn .nm{ font-size:13px;font-weight:700;max-width:12ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
     @media (min-width:901px){ .acct-btn{ display:none } }
+    .credit-pill{ display:inline-flex; align-items:center; justify-content:center; gap:5px; border:1px solid rgba(255,200,106,.38);
+      border-radius:999px; padding:6px 10px; background:rgba(255,200,106,.08); color:var(--amber); cursor:pointer; font-size:12px; font-weight:750; white-space:nowrap }
+    .credit-pill:hover{ border-color:var(--amber); background:rgba(255,200,106,.13) }
+    .credit-pill:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
+    .switch .credit-pill{ width:100%; margin-top:8px }
+    @media (min-width:901px){ .topm .credit-pill{ display:none } }
+    @media (max-width:430px){ .topm .credit-pill{ padding:5px 8px; font-size:11px } .acct-btn .nm{ display:none } .acct-btn{ padding-right:5px } }
     .acct-line{ display:flex; align-items:center; gap:9px; padding:4px 4px 6px }
     .acct-line .av{ width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;
       background:linear-gradient(145deg,#78ef9f,#1ab25a);color:#052a17;font-weight:800;font-size:12px }
@@ -273,7 +320,7 @@
       background:transparent; color:var(--muted); cursor:pointer; font-size:18px; line-height:1 }
     .sheet-x:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
     .oauth{ display:flex; align-items:center; gap:12px; width:100%; margin:0 0 10px; padding:13px 15px;
-      border:1px solid var(--line); border-radius:13px; background:#081e27; color:var(--text); cursor:pointer; font-size:15px; font-weight:600;
+      border:1px solid var(--line); border-radius:13px; background:var(--field); color:var(--text); cursor:pointer; font-size:15px; font-weight:600;
       transition:border-color var(--dur), transform var(--dur) }
     .oauth:hover{ border-color:var(--cyan); transform:translateY(-1px) } .oauth:active{ transform:none }
     .oauth:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
@@ -294,15 +341,15 @@
     /* ── Реальные дела (Фаза 2): права, видимость, журнал, приглашение ── */
     .rtag{ font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid rgba(98,230,242,.35); color:var(--cyan); background:rgba(98,230,242,.08); margin:2px 5px 0 0; display:inline-block }
     .stag{ font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid rgba(255,200,106,.35); color:var(--amber); background:rgba(255,200,106,.08); margin:2px 5px 0 0; display:inline-block }
-    .see-edit{ margin-top:8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#081e27 }
+    .see-edit{ margin-top:8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--field) }
     .see-edit .chk{ display:inline-flex; align-items:center; gap:6px; margin:4px 12px 4px 0; font-size:13px }
     .ev{ padding:9px 12px; border-left:2px solid var(--line); margin:0 0 8px 2px }
     .ev.agent{ border-left-color:var(--green) } .ev.system{ border-left-color:var(--muted) } .ev.principal{ border-left-color:var(--cyan) }
     .ev .eh{ font-size:12px; color:var(--muted) } .ev .eh b{ color:var(--text) }
     .ev .badge{ font-size:10px; padding:1px 7px; border-radius:999px; background:rgba(108,228,151,.15); color:var(--green); margin-left:6px }
     .ev .et{ margin-top:2px; font-size:14px }
-    .invite-box{ margin-top:12px; padding:12px 14px; border:1px dashed var(--cyan); border-radius:12px; background:#081e27; font-size:13px }
-    .invite-box code{ display:block; margin-top:8px; padding:8px 10px; border-radius:8px; background:#06161d; color:var(--cyan); word-break:break-all; font-size:12px }
+    .invite-box{ margin-top:12px; padding:12px 14px; border:1px dashed var(--cyan); border-radius:12px; background:var(--field); font-size:13px }
+    .invite-box code{ display:block; margin-top:8px; padding:8px 10px; border-radius:8px; background:var(--bg); color:var(--cyan); word-break:break-all; font-size:12px }
     .invite-box .cta-row{ margin-top:10px }
     .rc-hint{ color:var(--muted); font-size:12px; margin:8px 0 }
     .rc-note{ margin:8px 0 0; padding:10px 12px; border:1px solid rgba(255,200,106,.3); border-radius:12px; background:rgba(255,200,106,.06); color:var(--amber); font-size:13px }
@@ -313,7 +360,24 @@
     .agent-dock form{ display:flex; flex-direction:column; gap:8px } .agent-dock textarea{ min-width:0; width:100%; min-height:64px; max-height:180px; padding:12px 14px; font-size:16px; resize:none; box-sizing:border-box } .agent-dock form .btn{ align-self:flex-end } .agent-dock .agent-answer{ margin:9px 2px 0; font-size:13px; color:var(--muted) }
     .agent-dock-toggle{ display:flex; align-items:center; justify-content:space-between; width:100%; border:0; background:transparent; color:var(--text); cursor:pointer; font:inherit; font-weight:750; padding:2px 1px 10px }.agent-dock-toggle span{ color:var(--muted); font-size:12px; font-weight:600 }
     .agent-dock.compact{ width:auto; min-width:0; padding:10px 13px; border-radius:999px; box-shadow:0 10px 28px rgba(0,0,0,.34) }.agent-dock.compact form,.agent-dock.compact .agent-answer{ display:none }.agent-dock.compact .agent-dock-toggle{ padding:0; gap:10px }.agent-dock.compact .agent-dock-toggle span{ color:var(--cyan) }
+    .case-dialog{ display:flex;flex-direction:column;gap:12px;max-width:820px;min-height:520px;padding:14px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(165deg,var(--panel),var(--panel-2));box-shadow:var(--shadow) }
+    .case-dialog-head{ display:flex;align-items:flex-start;justify-content:space-between;gap:12px }.case-dialog-head h2{ margin:0;font-size:18px }.case-dialog-head p{ margin:3px 0 0;color:var(--muted);font-size:12.5px }
+    .smart-prompts{ display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:1px 1px 4px;-webkit-overflow-scrolling:touch }.smart-prompts::-webkit-scrollbar{ display:none }.smart-prompt{ flex:0 0 auto;max-width:280px;padding:9px 12px;border:1px solid var(--accent-border);border-radius:999px;background:var(--accent-soft);color:var(--text);cursor:pointer;font-size:12.5px;white-space:nowrap }.smart-prompt:hover{ border-color:var(--cyan) }
+    .case-thread{ display:flex;flex:1;min-height:250px;max-height:52vh;overflow:auto;flex-direction:column;gap:10px;padding:8px 4px;scrollbar-width:thin }.case-thread .bubble{ width:fit-content;max-width:min(88%,680px);margin:0;padding:12px 14px;font-size:14.5px;line-height:1.48 }.case-thread .bubble.user{ align-self:flex-end;background:rgba(98,230,242,.15) }.case-thread .bubble small{ display:block;margin-bottom:3px;color:var(--muted) }
+    .chat-composer{ position:relative;display:flex;flex-direction:column;gap:9px;margin-top:auto;padding:11px;border:1px solid var(--line);border-radius:17px;background:var(--field) }.chat-composer textarea{ width:100%;min-height:58px;max-height:180px;padding:11px 12px;border:0;background:transparent;color:var(--text);font:inherit;font-size:16px;line-height:1.42;resize:none;outline:none }.chat-actions{ display:flex;align-items:center;gap:7px;flex-wrap:wrap }.chat-tool{ display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;font-size:13px;font-weight:650 }.chat-tool:hover{ border-color:var(--cyan) }.chat-tool input{ position:absolute;width:1px;height:1px;opacity:0;pointer-events:none }.chat-tool.listening{ border-color:var(--cyan);background:linear-gradient(110deg,var(--accent-soft),rgba(255,255,255,.22),var(--accent-soft));background-size:220% 100%;animation:shimmer 1.15s linear infinite }.chat-send{ margin-left:auto;min-height:42px }.chat-file-state{ padding:7px 10px;border-radius:10px;background:rgba(108,228,151,.09);color:var(--green);font-size:12px }.chat-status{ min-height:18px;color:var(--muted);font-size:12px }
     @media (max-width:760px){ .friendly-home .quick-jumps{ grid-template-columns:1fr } .quick-jump{ min-height:62px } }
+    @media (max-width:760px){
+      .vwrap.dialog-view{ min-height:calc(100dvh - 63px);padding:10px 10px calc(10px + env(safe-area-inset-bottom)) }
+      .vwrap.dialog-view .crumbs,.vwrap.dialog-view>.eyebrow,.vwrap.dialog-view>.pmeta{ display:none }
+      .vwrap.dialog-view>h1{ margin:2px 4px 0!important;font-size:21px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+      .vwrap.dialog-view .case-tabs{ margin:8px 0 8px }
+      .case-dialog{ min-height:calc(100dvh - 164px);padding:10px;border-radius:17px;border-left:0;border-right:0 }
+      .case-dialog-head{ padding:0 2px }.case-dialog-head h2{ font-size:16px }.case-dialog-head p{ font-size:11.5px }
+      .case-thread{ min-height:38vh;max-height:none;padding:5px 2px 10px }.case-thread .bubble{ max-width:92%;font-size:15px }
+      .smart-prompts{ margin-inline:-2px }.smart-prompt{ max-width:82vw;padding:10px 13px }
+      .chat-composer{ position:sticky;bottom:0;z-index:6;margin-inline:-2px;padding:9px 9px calc(9px + env(safe-area-inset-bottom));box-shadow:0 -12px 26px rgba(3,15,20,.42) }
+      .chat-actions{ flex-wrap:nowrap }.chat-tool{ width:43px;min-width:43px;padding:8px;font-size:0 }.chat-tool .tool-icon{ font-size:19px }.chat-send{ flex:1;margin-left:2px;justify-content:center;font-size:15px }
+    }
   </style>
 </head>
 <body>
@@ -332,16 +396,17 @@
         <button class="menu-btn" id="menu" aria-label="Меню" aria-controls="side" aria-expanded="false">☰</button>
         <span class="brand-mark" aria-hidden="true" style="width:30px;height:30px;font-size:18px">✱</span>
         <b>ФиксАР</b>
+        <button class="credit-pill" id="mobilecredits" type="button" hidden>кредиты —</button>
         <button class="acct-btn" id="acct" aria-label="Аккаунт" aria-haspopup="dialog"><span class="av" id="acctav">Г</span><span class="nm" id="acctnm">Гость</span></button>
       </div>
       <div class="vwrap" id="vwrap"></div>
     </div>
   </div>
   <div class="scrim" id="scrim" hidden></div>
-  <section class="agent-dock" id="agentdock" aria-label="Агент дела">
+  <section class="agent-dock" id="agentdock" aria-label="Фиксарик в контексте страницы">
     <button class="agent-dock-toggle" id="agentdocktoggle" type="button" aria-expanded="true">✦ Агент <span>Свернуть</span></button>
-    <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите агента о текущем деле"></textarea><button class="btn primary" type="submit">Отправить</button></form>
-    <div class="agent-answer" id="agentdockanswer">Откройте настоящее дело — агент сможет вести его и показывать следующий экран.</div>
+    <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите о текущей странице или деле"></textarea><button class="btn primary" type="submit">Отправить</button></form>
+    <div class="agent-answer" id="agentdockanswer">Я вижу текущий раздел и доступные здесь действия. Переходы сохраняются в вашей личной памяти на 90 дней.</div>
   </section>
 
   <script type="text/plain" id="ia">
@@ -759,6 +824,10 @@
 │     ├─ Настройки
 │     └─ Удалённые
 ├─ Настройки
+│  ├─ Фиксарик
+│  │  ├─ Каналы
+│  │  ├─ Важные сообщения
+│  │  └─ Паки разработчиков
 │  ├─ Профиль
 │  ├─ Пространства
 │  │  ├─ Создать пространство
@@ -807,6 +876,7 @@
    └─ Политика удаления данных
   </script>
 
+  <script src="/document-export.js"></script>
   <script>
   "use strict";
   // --- Разбор дерева из отступов (├ └ │) ---
@@ -861,10 +931,55 @@
   const BRAND = { google:{cls:"g",t:"Google"}, yandex:{cls:"y",t:"Яндекс"}, vk:{cls:"vk",t:"VK ID"},
                   sber:{cls:"s",t:"Сбер ID"}, tbank:{cls:"t",t:"Т-Банк"}, tg:{cls:"tg",t:"Телеграм"} };
   let authState = { token:null, principal:null, assurance:0, signed_in:false, providers:[], name:null, ready:false };
+  let ownerTools = { principal:null, checked:false, allowed:false, checking:false };
+  let creditState = { principal:null, loading:false, data:null, error:"" };
+  let fixarikFunnelOpened = false;
+  let interactionQueue = [], interactionTimer = null;
 
   const store = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
   const put   = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
   const drop  = k => { try { localStorage.removeItem(k); } catch(e){} };
+  const APPEARANCE_KEY = "fixar-v2-appearance";
+  function readAppearance(){
+    try{
+      const value=JSON.parse(store(APPEARANCE_KEY)||"{}");
+      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:Math.max(140,Math.min(310,Number(value.hue)||185)),preset:value.preset||"fixar"};
+    }catch(_){ return {mode:"system",hue:185,preset:"fixar"}; }
+  }
+  function applyAppearance(next,persist){
+    const current=readAppearance(),value=Object.assign({},current,next||{});
+    value.hue=Math.max(140,Math.min(310,Number(value.hue)||185));
+    const dark=value.mode==="dark"||(value.mode==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme=dark?"dark":"light";
+    document.documentElement.dataset.themeMode=value.mode;
+    document.documentElement.style.setProperty("--accent-h",String(value.hue));
+    const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.content=dark?"#071c26":"#f5f8f8";
+    if(persist!==false)put(APPEARANCE_KEY,JSON.stringify(value));
+    return value;
+  }
+  const systemTheme=window.matchMedia("(prefers-color-scheme: dark)");
+  if(systemTheme.addEventListener)systemTheme.addEventListener("change",()=>{ if(readAppearance().mode==="system")applyAppearance({},false); });
+  applyAppearance({},false);
+
+  function interactionSession(){ let id=store("fixar-v2-interaction-session"); if(id)return id; id="web_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,10); put("fixar-v2-interaction-session",id); return id; }
+  function currentPageContext(){
+    const hash=location.hash.slice(1), node=byId[hash.split("~",1)[0]], controls=[];
+    document.querySelectorAll("#view button,#view a[href],#agentdock button").forEach(el=>{ if(el.offsetParent===null||el.disabled||controls.length>=30)return; const name=(el.dataset.act||el.id||el.getAttribute("href")||"действие").slice(0,60), label=(el.textContent||el.getAttribute("aria-label")||"").trim().replace(/\s+/g," ").slice(0,60); controls.push(label?(name+" — "+label):name); });
+    return {space:currentSpace||"",screen:activeReal?"Дело":((node&&node.name)||"Главная"),tab:activeReal?realTab:"",route:hash.indexOf("case/")===0?"case/current":("screen/"+(hash||"home").replace(/[^A-Za-zА-Яа-яЁё0-9_.:/ -]/g,"")),available_actions:controls};
+  }
+  function rememberInteraction(action,target){
+    interactionQueue.push({event_id:"ui_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,9),action,target:String(target||"").replace(/[^A-Za-zА-Яа-яЁё0-9_.:/ -]/g,"").slice(0,120),page:currentPageContext()});
+    if(interactionQueue.length>60)interactionQueue=interactionQueue.slice(-60);
+    clearTimeout(interactionTimer); interactionTimer=setTimeout(flushInteractions,700);
+  }
+  async function flushInteractions(){
+    clearTimeout(interactionTimer); interactionTimer=null;
+    if(!interactionQueue.length||!authState.token||!authState.principal)return;
+    const events=interactionQueue.splice(0,20);
+    try{ await authFetch("POST","/dialog/context/events",{session_id:interactionSession(),events}); }
+    catch(_){ interactionQueue=events.concat(interactionQueue).slice(0,60); }
+    if(interactionQueue.length)interactionTimer=setTimeout(flushInteractions,900);
+  }
 
   function meName(){ return authState.signed_in ? (authState.name || (authState.providers||[]).map(p=>(BRAND[p]||{}).t||p).join(" + ") || "вы вошли") : "Гость"; }
   function meInitials(){ if(!authState.signed_in) return "Г"; const n=(authState.name||"").trim(); if(n){ const p=n.split(/\s+/); return ((p[0]||"")[0]||"")+((p[1]||"")[0]||"").toUpperCase(); } const p=(authState.providers||[])[0]; return ((BRAND[p]||{}).t||"В")[0].toUpperCase(); }
@@ -878,6 +993,22 @@
     if(!r.ok){ const e=new Error((data&&data.detail&&(data.detail.message||data.detail.reason))||(typeof (data&&data.detail)==="string"?data.detail:"отказ "+r.status)); e.status=r.status; throw e; }
     return data;
   }
+  async function authDownload(path, filename){
+    const headers={}; if(authState.token) headers.Authorization="Bearer "+authState.token;
+    const response=await fetch(AUTH_API+path,{headers});
+    if(!response.ok){ let detail="отказ "+response.status; try{ const data=await response.json(); detail=(data&&data.detail&&(data.detail.message||data.detail.reason))||(data&&data.detail)||detail; }catch(_){} const error=new Error(String(detail)); error.status=response.status; throw error; }
+    const blob=await response.blob(), url=URL.createObjectURL(blob), link=document.createElement("a");
+    link.href=url; link.download=filename||"material"; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }
+  function downloadBlob(blob,filename){ const url=URL.createObjectURL(blob),link=document.createElement("a"); link.href=url; link.download=filename; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000); }
+  function safeDocumentName(title){ return window.FixARDocumentExport.safeFilename(title||"Разбор Домашкина"); }
+  async function exportDraftDocx(draft){ const bytes=window.FixARDocumentExport.makeDocx(draft.title||"Разбор Домашкина",draft.body||""); downloadBlob(new Blob([bytes],{type:window.FixARDocumentExport.mime}),safeDocumentName(draft.title)+".docx"); }
+  async function exportDraftPdf(draft){
+    if(!(window.jspdf&&window.jspdf.jsPDF)){ await new Promise((resolve,reject)=>{ const script=document.createElement("script"); script.src="/vendor/jspdf.umd.min.js"; script.onload=resolve; script.onerror=reject; document.head.appendChild(script); }); }
+    const response=await fetch("/vendor/PTSans-Regular.ttf"); if(!response.ok)throw new Error("Шрифт PDF недоступен"); const raw=new Uint8Array(await response.arrayBuffer()); let binary=""; for(let i=0;i<raw.length;i+=8192)binary+=String.fromCharCode.apply(null,raw.subarray(i,i+8192));
+    const Pdf=window.jspdf.jsPDF,doc=new Pdf({unit:"mm",format:"a4"}); doc.addFileToVFS("PTSans.ttf",btoa(binary)); doc.addFont("PTSans.ttf","PTSans","normal"); doc.setFont("PTSans"); const margin=20,width=doc.internal.pageSize.getWidth()-40,height=doc.internal.pageSize.getHeight()-20; let y=24; const line=(text,size)=>{doc.setFontSize(size);doc.splitTextToSize(String(text||""),width).forEach(value=>{if(y>height){doc.addPage();y=20;}doc.text(value,margin,y);y+=size*.5;});}; line(draft.title||"Разбор Домашкина",18); y+=4; String(draft.body||"").split(/\r?\n/).forEach(value=>{if(value)line(value,11);else y+=5;}); doc.save(safeDocumentName(draft.title)+".pdf");
+  }
+  function fileAsBase64(file){ return new Promise((resolve,reject)=>{ const reader=new FileReader(); reader.onerror=()=>reject(new Error("Не удалось прочитать файл.")); reader.onload=()=>resolve(String(reader.result||"").split(",",2)[1]||""); reader.readAsDataURL(file); }); }
   function newSessionToken(){ if(typeof crypto==="undefined"||!crypto.getRandomValues) return ""; const b=new Uint8Array(32); crypto.getRandomValues(b); let s=""; for(let i=0;i<b.length;i++) s+=b[i].toString(16).padStart(2,"0"); return s; }
   function pendingRotation(old){ try{ const row=JSON.parse(store(AUTH_ROT)||"null"); return row&&row.old===old&&row.replacement?row:null; }catch(e){ return null; } }
   function saveRotation(row){ put(AUTH_ROT, JSON.stringify(row)); return pendingRotation(row.old); }
@@ -947,6 +1078,69 @@
     if(typeof renderFoot==="function") renderFoot();
     const badge=document.getElementById("pvbadge"); if(badge) badge.textContent = hasSession()?"предпросмотр v2 · ваши данные":"предпросмотр v2 · демо-данные";
     if(typeof loadRealCases==="function" && hasSession()){ loadRealCases(true).then(()=>{ if(typeof refreshCurrentView==="function") refreshCurrentView(); }); }
+    loadCredits();
+    maybeOpenFixarikFunnel();
+    probeOwnerTools().then(()=>{ if(currentSpace==="Разработка" && typeof refreshCurrentView==="function") refreshCurrentView(); });
+    flushInteractions();
+  }
+
+  function creditNumber(value){ return new Intl.NumberFormat("ru-RU").format(Number(value)||0); }
+  function creditGiftAvailable(data){ return !!data && Number(data.gifts_count||0)<Number(data.gift_max_per_principal||0) && Number(data.gift_size||0)>0; }
+  function renderCredits(){
+    const nodes=[document.getElementById("sidecredits"),document.getElementById("mobilecredits")].filter(Boolean);
+    nodes.forEach(node=>{
+      node.hidden=!authState.token||!authState.principal;
+      if(node.hidden)return;
+      node.textContent=creditState.loading?"кредиты …":creditState.data?("кредиты "+creditNumber(creditState.data.balance)):"кредиты —";
+      node.title=creditState.data&&creditGiftAvailable(creditState.data)?("Стартовый подарок +"+creditNumber(creditState.data.gift_size)+" при первом платном действии"):"Открыть баланс кредитов";
+      node.onclick=openCredits;
+    });
+  }
+  async function loadCredits(force){
+    if(!authState.token||!authState.principal){ creditState={principal:null,loading:false,data:null,error:""}; renderCredits(); return; }
+    if(creditState.loading||(!force&&creditState.principal===authState.principal&&creditState.data)){ renderCredits(); return; }
+    creditState={principal:authState.principal,loading:true,data:creditState.principal===authState.principal?creditState.data:null,error:""}; renderCredits();
+    try{ creditState.data=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/credits"); }
+    catch(error){ creditState.error=(error&&error.message)||"Баланс временно недоступен."; }
+    creditState.loading=false; renderCredits();
+  }
+  function safePaymentUrl(value){
+    try{ const url=new URL(String(value||"")); return url.protocol==="https:"?url.href:""; }
+    catch(_){ return ""; }
+  }
+  function openCredits(){
+    const data=creditState.data;
+    if(!data){ toast(creditState.error||"Баланс загружается…"); loadCredits(true); return; }
+    const gift=creditGiftAvailable(data)?'<p class="rc-note">До <b>'+creditNumber(data.gift_size)+'</b> стартовых кредитов сервер начислит при первом платном действии. Чтение баланса ничего не начисляет.</p>':'';
+    const basic=Number(data.balance||0)<=0&&!creditGiftAvailable(data)?'<p class="rc-note">Кредиты закончились, но обслуживание продолжается в базовом режиме: младшая локальная модель и GigaChat, только если разрешения дела допускают российское облако.</p>':'';
+    const topup=authState.signed_in?'<form id="credit-topup" class="pform"><h3>Пополнить</h3><div class="pf-row"><label>Количество кредитов<input name="credits" type="number" min="1000" step="100" value="1000" required inputmode="numeric"></label><label>Кто платит<select name="payer"><option value="person">Частное лицо — карта или СБП</option><option value="company">Организация или ИП</option></select></label></div><p class="rc-hint">1000 кредитов стоят 100 ₽. Для кассового чека в аккаунте должны быть почта или телефон.</p><div class="cta-row"><button class="btn primary" type="submit">Получить ссылку на оплату</button></div><div class="rc-note" id="credit-topup-result" aria-live="polite" hidden></div></form>':'<div class="cta-row"><button class="btn primary" id="credit-signin" type="button">Войти для пополнения</button></div>';
+    modalOpen("Кредиты",'<p class="lead">Текущий остаток: <b>'+creditNumber(data.balance)+'</b></p>'+gift+basic+
+      '<div class="prow"><span>Подарочные</span><b>'+creditNumber(data.gift_balance)+'</b></div><div class="prow"><span>Заработанные</span><b>'+creditNumber(data.earned_balance)+'</b></div><div class="prow"><span>Купленные</span><b>'+creditNumber(data.paid_balance)+'</b></div>'+topup,body=>{
+      const signin=body.querySelector("#credit-signin"); if(signin) signin.onclick=()=>{ modalClose(); openAccount(); };
+      const form=body.querySelector("#credit-topup"); if(!form)return;
+      form.onsubmit=async event=>{
+        event.preventDefault();
+        const button=form.querySelector("button[type=submit]"),result=form.querySelector("#credit-topup-result"),credits=parseInt(form.credits.value,10);
+        result.hidden=false;
+        if(!(credits>=1000)){ result.textContent="Минимальное пополнение — 1000 кредитов."; form.credits.focus(); return; }
+        button.disabled=true; button.textContent="Выставляю счёт…"; result.textContent="Связываюсь с кассой банка…";
+        try{
+          const answer=await authFetch("POST","/credits/topup",{credits,payer:form.payer.value});
+          const paymentUrl=safePaymentUrl(answer.payment_url||answer.qr_payload);
+          result.innerHTML='<b>Счёт выставлен на '+creditNumber(answer.credits)+' кредитов · '+esc(answer.roubles)+' ₽.</b>'+(paymentUrl?'<div class="cta-row"><a class="btn primary" target="_blank" rel="noopener" href="'+attr(paymentUrl)+'">Перейти к оплате</a></div>':'<p>Банк не вернул безопасную ссылку. Не переводите деньги вручную.</p>');
+        }catch(error){ result.textContent="Пополнить не вышло: "+((error&&error.message)||"касса временно недоступна"); }
+        finally{ button.disabled=false; button.textContent="Получить ссылку на оплату"; }
+      };
+    });
+  }
+
+  async function probeOwnerTools(){
+    if(!authState.token||!authState.principal){ ownerTools={principal:null,checked:true,allowed:false,checking:false}; return; }
+    if(ownerTools.checking||(ownerTools.checked&&ownerTools.principal===authState.principal))return;
+    ownerTools={principal:authState.principal,checked:false,allowed:false,checking:true};
+    try{ const response=await authFetch("GET","/ops/owner/settings"); ownerTools.allowed=!!(response&&response.settings); }
+    catch(_){ ownerTools.allowed=false; }
+    ownerTools.checked=true; ownerTools.checking=false;
   }
 
   /* ── Лист входа: реальные кнопки от /auth/providers, реальный /auth/start ── */
@@ -1026,25 +1220,28 @@
     "Практика": findNode("Для работы · Практика"),
     "Разработка": findNode("Для работы · Разработка")
   };
-  const ACCOUNT_NODES = [findNode("Общие разделы аккаунта"), findNode("Настройки"), findNode("Помощь")].filter(Boolean);
+  const ACCOUNT_SETTINGS_NODE = ROOT.children.find(node=>node.name==="Настройки");
+  const ACCOUNT_NODES = [findNode("Общие разделы аккаунта"), ACCOUNT_SETTINGS_NODE, findNode("Помощь")].filter(Boolean);
   const kidOf = (node,name) => { const k=node&&node.children.find(c=>c.name===name); return k?k.id:(node?node.id:"0"); };
   let currentSpace = "Семья";
   let listFilter = "Все";
   function spaceOf(node){ let n=node; while(n){ for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } n=n.parent; } return null; }
-  function switchSpace(k){ if(k===currentSpace) return; currentSpace=k; go(kidOf(SPACE_NODES[k],"Главная")); }
+  function switchSpace(k){ if(k===currentSpace) return; rememberInteraction("switch_space",k); currentSpace=k; go(kidOf(SPACE_NODES[k],"Главная")); }
   window.switchSpace = switchSpace;
   function renderSwitch(){
     const signed = authState.signed_in;
     document.getElementById("switch").innerHTML =
       '<div class="me"><div><div class="me-label">Пространство</div><div class="me-space">'+esc(currentSpace)+'</div></div>'+
-      '<button class="btn small" id="spacepick" type="button">Сменить</button><button class="me-av" id="meav" aria-haspopup="dialog" aria-label="'+(signed?"Аккаунт: "+esc(meName()):"Войти в ФиксАР")+'">'+esc(meInitials())+'</button></div>';
+      '<button class="btn small" id="spacepick" type="button">Сменить</button><button class="me-av" id="meav" aria-haspopup="dialog" aria-label="'+(signed?"Аккаунт: "+esc(meName()):"Войти в ФиксАР")+'">'+esc(meInitials())+'</button></div>'+
+      '<button class="credit-pill" id="sidecredits" type="button" hidden>кредиты —</button>';
     const b=document.getElementById("meav"); if(b) b.addEventListener("click", openAccount);
     const p=document.getElementById("spacepick"); if(p) p.addEventListener("click", openSpacePicker);
+    renderCredits();
   }
   function renderFoot(){
     const el=document.getElementById("protofoot");
     const others=Object.keys(SPACE_NODES).filter(k=>k!==currentSpace);
-    const notif=findNode("Центр уведомлений"), settings=findNode("Настройки");
+    const notif=findNode("Центр уведомлений"), settings=ACCOUNT_SETTINGS_NODE;
     const ctx=[["Публичная часть","Публичная часть"],["Первый запуск","Первый запуск"],["Структура дела","Внутренняя структура любого дела"],["Юридические","Юридические документы"]];
     el.innerHTML =
       '<div class="nav-div">Сменить пространство</div>'+
@@ -1141,7 +1338,7 @@
   function selectedPractice(){ return PRACTICE.items.find(item=>item.id===PRACTICE.selectedId)||null; }
   function practiceCaseStorageKey(caseId){ return "fixar-v2-practice-case:"+(authState.principal||"guest")+":"+caseId; }
   function rememberPracticeCase(caseId,practice){ try{ localStorage.setItem(practiceCaseStorageKey(caseId),JSON.stringify({domain:practice.domain,agent:practice.agent})); }catch(_){} }
-  function practiceCaseBinding(caseData){ if(!caseData||caseData.scope!=="pro"||caseData.domain)return null; try{ const value=JSON.parse(localStorage.getItem(practiceCaseStorageKey(caseData.id))||"null"); return value&&value.domain&&value.agent?value:null; }catch(_){return null;} }
+  function practiceCaseBinding(caseData){ if(!caseData||caseData.domain)return null; if(caseData.scope==="home"&&/домашкин/i.test(caseData.title||""))return {domain:"household",agent:"chores"}; if(caseData.scope!=="pro")return null; try{ const value=JSON.parse(localStorage.getItem(practiceCaseStorageKey(caseData.id))||"null"); return value&&value.domain&&value.agent?value:null; }catch(_){return null;} }
   async function loadPracticeCabinets(force){
     if(!authState.token||!authState.principal){ PRACTICE={principal:"",loaded:true,loading:false,items:[],selectedId:"",error:""}; return; }
     if(PRACTICE.loading||(!force&&PRACTICE.loaded&&PRACTICE.principal===authState.principal)) return;
@@ -1173,7 +1370,7 @@
     modalOpen("Практика FixAR",'<p class="lead">Выберите направление. Дело останется вашим: FixAR не становится его участником, не видит другие дела и использует только контекст этого дела и общие справочные материалы.</p><div class="tiles" id="fixarchoices">'+choices+'</div>',body=>{ body.querySelector("#fixarchoices").onclick=event=>{ const button=event.target.closest("[data-fixar-domain]"); if(!button)return; const practice=FIXAR_PRACTICES.find(item=>item.domain===button.dataset.fixarDomain); if(practice)openFixarConsent(practice); }; });
   }
   function openFixarConsent(practice){
-    modalOpen("Согласие на работу FixAR",'<p class="lead"><b>FixAR · '+esc(practice.title)+'</b></p><p>'+esc(practice.limits)+'</p><p class="rc-note">Отправляя дело в практику, вы поручаете FixAR помогать только в этом деле. Он не действует от вашего имени, не подписывает документы, не совершает платежи и просит подтверждение перед каждым внешним действием.</p><form id="fixarconsent" class="pform"><label style="display:flex;gap:9px;align-items:flex-start"><input name="consent" type="checkbox" required> <span>Понимаю границы AI-практики FixAR и согласен(на) на помощь в этом деле.</span></label><label style="display:block;margin-top:12px">Название дела<input name="title" required placeholder="Например, изменить расписание занятий" style="width:100%"></label><label style="display:block;margin-top:10px">Цель (необязательно)<input name="goal" placeholder="Что должно получиться" style="width:100%"></label><div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело с FixAR</button></div></form>',body=>{ const form=body.querySelector("#fixarconsent"); form.title.focus(); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"); button.disabled=true; button.textContent="Создаю…"; try{ const created=await authFetch("POST","/cases",{title:form.title.value.trim(),goal:form.goal.value.trim(),side:"need_help"}); await authFetch("PUT","/cases/"+encodeURIComponent(created.id)+"/routing",{domain:practice.domain,selected_agent_id:practice.agent,reason:"fixar-practice:v1:"+practice.domain,expect_domain:"",expect_selected_agent_id:""}); REAL.loaded=false; modalClose(); realTab="Обзор"; currentSpace="Личное"; rebuildNav(); renderRealCase(created.id); }catch(error){ button.disabled=false; button.textContent="Создать дело с FixAR"; toast((error&&error.message)||"Не удалось создать дело."); } }; });
+    modalOpen("Согласие на работу FixAR",'<p class="lead"><b>FixAR · '+esc(practice.title)+'</b></p><p>'+esc(practice.limits)+'</p><p class="rc-note">Отправляя дело в практику, вы поручаете FixAR помогать только в этом деле. Он не действует от вашего имени, не подписывает документы, не совершает платежи и просит подтверждение перед каждым внешним действием.</p><form id="fixarconsent" class="pform"><label style="display:flex;gap:9px;align-items:flex-start"><input name="consent" type="checkbox" required> <span>Понимаю границы AI-практики FixAR и согласен(на) на помощь в этом деле.</span></label><label style="display:block;margin-top:12px">Название дела<input name="title" required placeholder="Например, изменить расписание занятий" style="width:100%"></label><label style="display:block;margin-top:10px">Цель (необязательно)<input name="goal" placeholder="Что должно получиться" style="width:100%"></label><div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело с FixAR</button></div></form>',body=>{ const form=body.querySelector("#fixarconsent"); form.title.focus(); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"); button.disabled=true; button.textContent="Создаю…"; try{ const created=await authFetch("POST","/cases",{title:form.title.value.trim(),goal:form.goal.value.trim(),side:"need_help"}); await authFetch("PUT","/cases/"+encodeURIComponent(created.id)+"/routing",{domain:practice.domain,selected_agent_id:practice.agent,reason:"fixar-practice:v1:"+practice.domain,expect_domain:"",expect_selected_agent_id:""}); REAL.loaded=false; modalClose(); realTab=defaultRealTab(); currentSpace="Личное"; rebuildNav(); renderRealCase(created.id); }catch(error){ button.disabled=false; button.textContent="Создать дело с FixAR"; toast((error&&error.message)||"Не удалось создать дело."); } }; });
   }
 
   function dashboard(node){
@@ -1184,7 +1381,7 @@
       : [["Диалог с ФиксАР","Спросить Фиксарика"],["Мои активные дела","Открыть дела"],["Сроки и изменения","Ближайшие даты"]];
       return '<div class="quick-jumps" aria-label="Быстрые переходы">'+items.map((item,index)=>{ const id=kidOf(node,item[0]); const action=currentSpace==="Семья"&&index===0?'onclick="openFamilyDialog()"':'onclick="go(\''+id+'\')"'; return id?'<button class="quick-jump" type="button" '+action+'><b>'+esc(item[1])+'</b><span>'+esc(item[0])+' →</span></button>':''; }).join("")+'</div>';
     })():"";
-    const cards = node.children.map(b=>{
+    const cards = !hasSession()?node.children.map(b=>{
       const c = d[b.name] || {}; const isDialog = /диалог|помощник/i.test(b.name);
       const role = isDialog?"b-dialog":(/сегодня/i.test(b.name)?"b-today":(/сроки/i.test(b.name)?"b-deadlines":(/сводка/i.test(b.name)?"b-summary":"b-list")));
       let body;
@@ -1203,9 +1400,24 @@
       return '<article class="card '+role+'"'+(isDialog?' style="grid-row:span 2"':'')+'>'+
         '<div class="ch"><p class="eyebrow">'+esc(currentSpace)+'</p><h2>'+esc(b.name)+'</h2></div>'+
         '<div class="cb">'+body+'</div></article>';
-    }).join("");
-    const settings=(currentSpace==="Личное"||currentSpace==="Семья")?'<div class="rc-strip"><h3>Помощники</h3><p class="rc-hint">Настройки открываются в проверенных экранах прежней версии: согласия, каналы и детские данные остаются там под серверной проверкой прав.</p><div class="cta-row"><a class="btn" href="/fixclo/">Настроить Фиксарика</a><a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>':'';
-    return '<div class="'+(friendly?'friendly-home':'')+'">'+(currentSpace==="Практика"?practicePanel():"")+(realMode()?realDashStrip():'')+quick+settings+'<div class="dash">'+cards+'</div></div>';
+    }).join(""):"";
+    const fixarikSettings=findNode("Фиксарик");
+    const settings=(currentSpace==="Личное"||currentSpace==="Семья")?'<div class="rc-strip"><h3>Помощники</h3><p class="rc-hint">Каналы Фиксарика, границы чтения и опубликованные паки разработчиков собраны в одном месте. Детские данные Домашкина по-прежнему открываются только после серверной проверки прав.</p><div class="cta-row">'+(fixarikSettings?'<button class="btn" onclick="go(\''+fixarikSettings.id+'\')">Настроить Фиксарика</button>':'')+'<a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>':'';
+    const honest=hasSession()?'<div class="rc-strip"><h3>Сводка пространства</h3><p class="rc-hint">Показываем только подтверждённые данные аккаунта. Общие сроки, метрики и рекомендации появятся здесь после подключения календаря и уведомлений.</p></div>':'';
+    return '<div class="'+(friendly?'friendly-home':'')+'">'+(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"")+(realMode()?realDashStrip():'')+quick+settings+honest+(cards?'<div class="dash">'+cards+'</div>':'')+'</div>';
+  }
+
+  function ownerToolsPanel(){
+    if(!ownerTools.allowed||ownerTools.principal!==authState.principal)return "";
+    const tools=[
+      ["overview","Сводка","Пользователи, дела, модели и агенты"],
+      ["users","Пользователи","Состояние аккаунтов без контактов и токенов"],
+      ["acquisition","Привлечение","Источники и новые пользователи"],
+      ["settings","Настройки","Вход новых посетителей и параметры кабинета"],
+      ["broadcast","Ленты","Черновики и подтверждение публикаций"],
+      ["audit","Аудит","Журнал действий владельца"]
+    ];
+    return '<section class="owner-tools"><p class="eyebrow">Owner · private</p><h2>Инструменты владельца</h2><p>Доступ подтверждён сервером. Опасные изменения и публикации требуют отдельного подтверждения.</p><div class="owner-tool-grid">'+tools.map(tool=>'<a class="owner-tool" href="/classic/?owner='+tool[0]+'"><b>'+esc(tool[1])+'</b><span>'+esc(tool[2])+' →</span></a>').join("")+'</div></section>';
   }
 
   function isListNode(node){ return node.children.length>=3 && node.children.some(c=>/^Все |^Активные$|Завершённые|Черновики|Опубликованные|^Новые$|^Мои /.test(c.name)); }
@@ -1213,11 +1425,13 @@
   const LIST_FILTERS = [ {n:"Все",f:()=>true},{n:"Мои",f:s=>s!=="Завершено"},{n:"Требуют меня",f:s=>s==="Ожидает человека"},{n:"Агенты работают",f:s=>s==="В работе"},{n:"Завершённые",f:s=>s==="Завершено"} ];
   function listItemsFor(node){
     if(realMode()) return realCasesForSpace(currentSpace).map(c=>({title:c.title||"Без названия",status:statusNorm(RU_STATE[c.state]||"в работе"),meta:caseMeta(c),id:c.id,real:true}));
+    if(hasSession()) return [];
     const d=SPACE_DATA[currentSpace]||{}; const raw=(d.projects && /проект|пак/i.test(node.name))?d.projects:(d.cases||[]); return raw.map(it=>({title:it[0],status:statusNorm(it[1]),meta:it[2],seed:it[3]})); }
   function listRowsHtml(node){
     const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
     const items = listItemsFor(node);
     if(realMode() && items.length===0) return emptyState("🗂","Пока нет дел","Создайте настоящее дело — вы станете его владельцем.","Создать дело","data-act=\"create-case\"");
+    if(hasSession() && items.length===0) return emptyState("🧭","Раздел ещё подключается","Здесь не показываются демонстрационные проекты вместо данных вашего аккаунта.","","");
     const shown = items.filter(it=>cur.f(it.status));
     return shown.length ? shown.map(it=>'<button class="lrow" data-open="1" '+(it.real?'data-real="1" data-id="'+attr(it.id)+'"':'data-seed="'+attr(it.seed||"")+'"')+' data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'"><span><h4>'+esc(it.title)+'</h4><p>'+esc(it.meta||"")+'</p></span>'+statusChip(it.status)+'<span class="when">открыть →</span></button>').join("")
       : emptyState("🔍","Ничего в этом фильтре","Смените фильтр — или создайте новое дело.","Сбросить фильтр","data-act=\"reset-filter\" data-node=\""+node.id+"\"");
@@ -1231,7 +1445,7 @@
   }
   window.applyFilter = applyFilter;
   function bindListRows(){
-    vwrap.querySelectorAll('.lrow[data-open]').forEach(r=>r.onclick=()=>{ if(r.dataset.real){ realTab="Обзор"; location.hash="#case/"+r.dataset.id; } else openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed); });
+    vwrap.querySelectorAll('.lrow[data-open]').forEach(r=>r.onclick=()=>{ if(r.dataset.real){ realTab=defaultRealTab(); location.hash="#case/"+r.dataset.id; } else openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed); });
     const rf=vwrap.querySelector('[data-act="reset-filter"]'); if(rf) rf.onclick=()=>applyFilter(rf.dataset.node,"Все");
   }
   function renderList(node){
@@ -1262,7 +1476,7 @@
   function packCard(p){ return '<button class="pcard" onclick="go(\''+PACK_NODE.id+'\')">'+
     '<div style="display:flex;gap:10px;align-items:center"><span class="pico">'+esc(p.ic)+'</span><span class="chip">'+esc(p.c)+'</span></div>'+
     '<h3>'+esc(p.n)+'</h3><p>'+esc(p.d)+'</p>'+
-    '<div class="pmeta"><span class="stars">★ '+p.r+'</span><span>'+p.i+' установок</span></div>'+
+    '<div class="pmeta"><span>пример интерфейса</span><span>каталог подключается</span></div>'+
     '<span class="popen">Открыть пак →</span></button>'; }
 
   function screenLanding(node){
@@ -1280,24 +1494,24 @@
       ["Готов результат","Домашка собрана, расписание в календаре — вы только подтвердили"]
     ];
     return crumbsBlock(node)+
-      '<div class="hero"><p class="eyebrow" style="color:var(--cyan)">ФиксАР · платформа долгоживущих агентов</p>'+
-      '<h1>ФиксАР ведёт дела — вы сохраняете контроль</h1>'+
-      '<p class="lead">Личные, семейные и рабочие дела в одном месте: важное на виду, сроки не теряются, рутину берут на себя агенты. Каждый шаг — в понятных границах и по вашему разрешению.</p>'+
+      '<div class="hero"><p class="eyebrow" style="color:var(--cyan)">Дела с ИИ-помощниками</p>'+
+      '<h1>Меньше рутины. Больше контроля.</h1>'+
+      '<p class="lead">ФиксАР собирает личные, семейные и рабочие дела в одном месте. Агенты следят за изменениями и готовят следующий шаг — вы решаете, что выполнить.</p>'+
       '<div class="cta-row"><button class="btn primary" onclick="go(\''+kidId(node,"Начать работу")+'\')">Начать работу</button>'+
       '<button class="btn" onclick="go(\''+sibId(node,"Каталог решений")+'\')">Каталог решений</button></div></div>'+
-      '<div class="section-t">Как это выглядит в жизни</div>'+
+      '<div class="section-t">Один понятный путь</div>'+
       '<div class="flow">'+flow.map((s,i)=>'<div class="flow-step"><span class="flow-n">'+(i+1)+'</span><div><b>'+esc(s[0])+'</b><p>'+esc(s[1])+'</p></div>'+(i<flow.length-1?'<span class="flow-arrow" aria-hidden="true">→</span>':'')+'</div>').join('')+'</div>'+
-      '<div class="section-t">Что умеет</div><div class="feat">'+
+      '<div class="section-t">Для жизни и работы</div><div class="feat">'+
       feat.map(f=>'<article class="card" onclick="go(\''+f.id+'\')"><div class="ch"><h2 style="font-size:16px">'+esc(f.name)+'</h2></div>'+
         '<div class="cb">'+esc(FD[f.name]||"Открыть подробности.")+'</div></article>').join('')+'</div>'+
-      '<div class="section-t">Популярные паки</div><div class="pgrid">'+PACKS.slice(0,4).map(packCard).join('')+'</div>'+
-      '<div class="section-t">&nbsp;</div><div class="stub"><span class="tag">Начать</span><p>Возьмите готовый пак или создайте пространство под свои дела — агенты подхватят.</p>'+
+      '<div class="section-t">Готовые помощники</div><div class="pgrid">'+PACKS.slice(0,4).map(packCard).join('')+'</div>'+
+      '<div class="section-t">Начните с одного дела</div><div class="stub"><span class="tag">Без сложной настройки</span><p>Опишите результат своими словами. ФиксАР предложит структуру дела, сроки и подходящего помощника.</p>'+
       '<div class="cta-row"><button class="btn primary" onclick="go(\''+kidId(node,"Начать работу")+'\')">Начать работу</button></div></div>';
   }
 
   function screenCatalog(node){
     return crumbsBlock(node)+
-      '<div class="vhead"><p class="eyebrow">Публичная часть</p><h1>Каталог решений</h1><p>Готовые паки под ваши дела — установите и начните.</p></div>'+
+      '<div class="vhead"><p class="eyebrow">Публичная часть · пример</p><h1>Каталог решений</h1><p>Предварительный вид каталога. Реальная установка и показатели паков ещё подключаются.</p></div>'+
       '<div class="tabs" data-cat>'+node.children.map((c,i)=>'<button class="tab'+(i===0?' active':'')+'" data-tab="'+esc(c.name)+'">'+esc(c.name)+'</button>').join('')+'</div>'+
       '<div class="pgrid" id="pgrid">'+PACKS.map(packCard).join('')+'</div>';
   }
@@ -1307,19 +1521,81 @@
     const conns=["Telegram","Электронный дневник","Google Календарь","Почта"];
     let b = crumbsBlock(node)+
       '<div class="pack-head"><span class="big">С</span><div style="flex:1;min-width:220px">'+
-      '<p class="eyebrow">Публичная часть · Страница пака</p><h1 style="font-size:30px;margin:2px 0 6px">Семейные дела</h1>'+
-      '<div class="pmeta"><span class="stars">★ 4.8</span><span>1 248 отзывов</span><span>12k установок</span><span>Разработчик: lech2000</span></div></div>'+
-      '<button class="btn primary" style="align-self:center">Установить</button></div>';
+      '<p class="eyebrow">Публичная часть · пример карточки</p><h1 style="font-size:30px;margin:2px 0 6px">Семейные дела</h1>'+
+      '<div class="pmeta"><span>Показатели и отзывы демонстрационные</span></div></div>'+
+      '<button class="btn primary" style="align-self:center" disabled>Установка подключается</button></div>';
     node.children.forEach(s=>{ b+='<div class="section-t">'+esc(s.name)+'</div>';
       if(/разрешен/i.test(s.name)) b+='<div>'+perms.map(x=>'<div class="perm"><span class="dot"></span><b>'+esc(x)+'</b><span>по запросу</span></div>').join('')+'</div>';
       else if(/коннектор/i.test(s.name)) b+='<div class="tabs">'+conns.map(x=>'<span class="tab">'+esc(x)+'</span>').join('')+'</div>';
-      else if(/отзыв|рейтинг/i.test(s.name)) b+='<div class="feat">'+
-        '<article class="card"><div class="cb"><b style="color:var(--text)">Мария</b> · ★★★★★<br>Наконец все семейные дела в одном месте.</div></article>'+
-        '<article class="card"><div class="cb"><b style="color:var(--text)">Игорь</b> · ★★★★☆<br>Дневник и сроки — удобно, агент напоминает.</div></article></div>';
-      else if(/разработчик/i.test(s.name)) b+='<div class="perm"><span class="pico" style="width:32px;height:32px">L</span><b>lech2000</b><span>6 паков · ★ 4.8</span></div>';
+      else if(/отзыв|рейтинг/i.test(s.name)) b+='<p class="rc-hint">Настоящие рейтинг и отзывы появятся после подключения registry.</p>';
+      else if(/разработчик/i.test(s.name)) b+='<div class="perm"><span class="pico" style="width:32px;height:32px">L</span><b>Пример разработчика</b><span>профиль подключается</span></div>';
       else b+='<p style="color:var(--muted);max-width:72ch;margin:4px 0 0">Раздел «'+esc(s.name)+'»: содержательный текст пака в дизайне v2.</p>';
     });
     return b;
+  }
+
+  const CHANNEL_INFO = {
+    tg:{title:"Telegram",note:"Фиксарик видит сообщения своему боту и явно пересланные ему сообщения. Личные чаты без бота недоступны."},
+    max:{title:"MAX",note:"Фиксарик работает в своём диалоге с ботом. Другие диалоги MAX он не читает."},
+    vk_bot:{title:"ВКонтакте",note:"Подключается переписка с сообществом Фиксарика, а не личные диалоги VK ID."}
+  };
+  function screenAppearanceSettings(node){
+    const appearance=readAppearance(),fixarik=node.children.find(child=>child.name==="Фиксарик");
+    const modes=[["system","Как на устройстве"],["light","Светлая"],["dark","Тёмная"]];
+    const palettes=[["fixar","FixAR",185],["calm","Спокойная",215],["family","Семья",153],["practice","Практика",275]];
+    return crumbsBlock(node)+'<div class="appearance">'+
+      '<div class="vhead"><p class="eyebrow">Ваш интерфейс</p><h1>Оформление под вас</h1><p>Выберите свет, характер и оттенок. Изменения видны сразу и сохраняются только на этом устройстве.</p></div>'+
+      '<section class="theme-preview" aria-label="Предпросмотр оформления"><p class="eyebrow">ФиксАР рядом</p><h2>Важное видно. Лишнее не мешает.</h2><p>Короткие заголовки, спокойный ритм и один понятный следующий шаг на каждом экране.</p><div class="cta-row"><span class="btn primary">Главное действие</span><span class="btn">Второй шаг</span></div></section>'+
+      '<section class="settings-card"><div class="appearance-group"><div class="appearance-label">Свет</div><div class="choice-row" data-theme-choices>'+modes.map(item=>'<button class="choice'+(appearance.mode===item[0]?' active':'')+'" type="button" data-theme-mode="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div></div>'+
+      '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Палитра</div><div class="choice-row" data-palette-choices>'+palettes.map(item=>'<button class="choice palette-choice'+(appearance.preset===item[0]?' active':'')+'" type="button" data-palette="'+item[0]+'" data-hue="'+item[2]+'" aria-pressed="'+(appearance.preset===item[0])+'"><span class="palette-dot" style="--swatch:'+item[2]+'"></span>'+item[1]+'</button>').join("")+'</div></div>'+
+      '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="accent-hue">Точный оттенок</label><div class="hue-control"><input id="accent-hue" type="range" min="140" max="310" step="1" value="'+appearance.hue+'" aria-describedby="hue-help"><output class="hue-value" id="hue-value" for="accent-hue">'+appearance.hue+'°</output></div><p id="hue-help">Меняется только акцент. Яркость текста и контраст интерфейса остаются безопасными.</p></div>'+
+      '<div class="cta-row"><button class="btn" type="button" data-reset-appearance>Вернуть оформление FixAR</button></div></section>'+
+      (fixarik?'<section class="settings-card"><h3>Помощники и каналы</h3><p>Подключения Фиксарика, доступ к перепискам и паки разработчиков настраиваются отдельно.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+fixarik.id+'\')">Настройки Фиксарика</button></div></section>':'')+
+      '</div>';
+  }
+  function screenFixarikSettings(node){
+    return crumbsBlock(node)+'<div class="fixarik-settings">'+
+      '<div class="vhead"><p class="eyebrow">Личный помощник</p><h1>Настройки Фиксарика</h1><p>Здесь видно, где Фиксарик действительно подключён, что он вправе читать и какие расширения можно добавить. Скрытого доступа к личным перепискам нет.</p></div>'+
+      '<div><div class="section-t">Каналы</div><div class="settings-grid" id="fixarik-channels"><div class="settings-card"><p>Проверяю подключения…</p></div></div></div>'+
+      '<div class="settings-card"><h3>Как сообщать о важном</h3><p>Сейчас Фиксарик разбирает сообщения, отправленные непосредственно ему, и события ваших дел. Наблюдение за выбранными групповыми чатами появится только через отдельный пак-коннектор с явным разрешением на каждый чат.</p><div class="cta-row"><a class="btn primary" href="/fixclo/">Настроить самого Фиксарика</a><button class="btn" type="button" data-open-account>Вход и аккаунт</button></div></div>'+
+      '<div><div class="section-t">Паки и коннекторы разработчиков</div><div class="settings-card"><form class="pform" id="developer-pack-search"><div class="pf-row"><label>Что найти<input name="q" maxlength="120" placeholder="Например, важные сообщения или календарь"></label><label>Вид<select name="kind"><option value="">Все расширения</option><option value="Connector">Коннекторы</option><option value="Pack">Паки</option><option value="Solution">Решения</option></select></label></div><div class="cta-row"><button class="btn primary" type="submit">Найти в каталоге</button></div></form><div class="pack-search-results" id="developer-pack-results" aria-live="polite"><p class="rc-hint">Загружаю опубликованные расширения…</p></div></div></div>'+
+      '</div>';
+  }
+  function channelCard(code,connected,label){
+    const info=CHANNEL_INFO[code];
+    return '<article class="settings-card"><h3>'+esc(info.title)+'</h3><p>'+esc(info.note)+'</p><div class="channel-state"><span class="chip'+(connected?'':' warn')+'">'+(connected?'подключён':'не подключён')+'</span><span class="rc-hint">'+esc(label||'')+'</span></div></article>';
+  }
+  async function loadFixarikChannels(){
+    const box=document.getElementById("fixarik-channels"); if(!box)return;
+    if(!authState.token||!authState.principal){ box.innerHTML='<div class="settings-card"><h3>Сначала войдите</h3><p>После входа здесь появятся только ваши подтверждённые подключения.</p><div class="cta-row"><button class="btn primary" type="button" data-channel-signin>Войти</button></div></div>'; const button=box.querySelector("[data-channel-signin]"); if(button)button.onclick=openAccount; return; }
+    try{
+      const response=await authFetch("GET","/channels"),channels=response.channels||[];
+      box.innerHTML=Object.keys(CHANNEL_INFO).map(code=>{ const found=channels.find(channel=>channel.channel===code); return channelCard(code,!!found,found?(found.label||""):""); }).join("");
+    }catch(error){ box.innerHTML='<div class="settings-card"><h3>Подключения не загрузились</h3><p>'+esc((error&&error.message)||"Попробуйте позже.")+'</p></div>'; }
+  }
+  function packResultCard(pack){
+    const type={Connector:"коннектор",Pack:"пак",Solution:"решение"}[pack.kind]||pack.kind||"расширение";
+    return '<article class="pack-search-result"><div><h3>'+esc(pack.title||pack.name||"Без названия")+'</h3><p>'+esc(pack.summary||"Описание не указано.")+'</p><small>'+esc(type)+' · '+esc(pack.publisher_name||pack.namespace||"разработчик не указан")+' · '+esc(pack.version||"")+(pack.on_canary?' · ограниченный круг':'')+'</small></div><button class="btn" type="button" data-pack-details="'+attr(pack.id)+'">Подробнее</button></article>';
+  }
+  async function searchDeveloperPacks(form){
+    const results=document.getElementById("developer-pack-results"); if(!results)return;
+    const button=form&&form.querySelector("button[type=submit]"); if(button)button.disabled=true;
+    results.innerHTML='<p class="rc-hint">Ищу только опубликованные расширения…</p>';
+    try{
+      if(!authState.token)await ensureSession();
+      const query=form?(form.q.value||"").trim():"",kind=form?form.kind.value:"";
+      const response=await authFetch("POST","/storefront/search",{q:query,kind,limit:20}),packs=response.packs||[];
+      results.innerHTML=packs.length?packs.map(packResultCard).join(""):'<div class="rc-note">'+esc(response.why_empty||"Опубликованных расширений пока нет. Поиск уже подключён и покажет их после публикации разработчиками.")+'</div>';
+    }catch(error){ results.innerHTML='<div class="rc-note">Каталог не загрузился: '+esc((error&&error.message)||"попробуйте позже")+'. Это не означает, что паков нет.</div>'; }
+    finally{ if(button)button.disabled=false; }
+  }
+  async function openDeveloperPack(versionId){
+    if(!authState.principal)return openAccount();
+    try{
+      const pack=await authFetch("GET","/storefront/packs/"+encodeURIComponent(authState.principal)+"/"+encodeURIComponent(versionId));
+      const requested=(pack.requested_capabilities||[]).map(item=>'<div class="perm"><span class="dot"></span><b>'+esc(item["сможет"]||item.code||"Право")+'</b><span>'+esc(item["не сможет"]||"")+'</span></div>').join("");
+      modalOpen(pack.title||pack.name||"Пак разработчика",'<p class="lead">'+esc(pack.summary||"Описание не указано.")+'</p><div class="prow"><span>Разработчик</span><b>'+esc(pack.publisher_name||"не указан")+'</b></div><div class="prow"><span>Версия</span><b>'+esc(pack.version||"")+'</b></div>'+(requested?'<div class="section-t">Запрашиваемые права</div>'+requested:'')+'<p class="rc-note">Карточка показывает опубликованное описание до установки. Установка и выдача прав выполняются отдельно и только после вашего подтверждения.</p>');
+    }catch(error){ toast((error&&error.message)||"Карточка пака не загрузилась."); }
   }
 
   function screenOnboarding(node){
@@ -1353,12 +1629,28 @@
     "Публичная часть / Главная": screenLanding,
     "Публичная часть / Каталог решений": screenCatalog,
     "Публичная часть / Страница пака": screenPack,
+    "Настройки": screenAppearanceSettings,
+    "Настройки / Фиксарик": screenFixarikSettings,
     "Первый запуск": screenOnboarding,
     "Внутренняя структура любого дела": screenCase
   };
   const pathKey = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
 
   function bindScreen(){
+    const appearancePanel=vwrap.querySelector('.appearance');
+    if(appearancePanel){
+      const sync=(value)=>{
+        appearancePanel.querySelectorAll('[data-theme-mode]').forEach(button=>{ const active=button.dataset.themeMode===value.mode; button.classList.toggle('active',active); button.setAttribute('aria-pressed',String(active)); });
+        appearancePanel.querySelectorAll('[data-palette]').forEach(button=>{ const active=button.dataset.palette===value.preset; button.classList.toggle('active',active); button.setAttribute('aria-pressed',String(active)); });
+        const slider=appearancePanel.querySelector('#accent-hue'),output=appearancePanel.querySelector('#hue-value'); if(slider)slider.value=value.hue; if(output)output.value=value.hue+'°';
+      };
+      appearancePanel.addEventListener('click',event=>{
+        const mode=event.target.closest('button[data-theme-mode]'); if(mode){ sync(applyAppearance({mode:mode.dataset.themeMode},true)); return; }
+        const palette=event.target.closest('button[data-palette]'); if(palette){ sync(applyAppearance({preset:palette.dataset.palette,hue:Number(palette.dataset.hue)},true)); return; }
+        if(event.target.closest('[data-reset-appearance]'))sync(applyAppearance({mode:'system',preset:'fixar',hue:185},true));
+      });
+      const hue=appearancePanel.querySelector('#accent-hue'); if(hue)hue.addEventListener('input',()=>sync(applyAppearance({preset:'custom',hue:Number(hue.value)},true)));
+    }
     const cat=vwrap.querySelector('.tabs[data-cat]');
     if(cat) cat.addEventListener('click',e=>{ const btn=e.target.closest('.tab'); if(!btn)return;
       cat.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
@@ -1371,6 +1663,13 @@
       vwrap.querySelector('#casepanel').innerHTML = casePanel(byId[btn.dataset.ctab]); });
     const fb=vwrap.querySelector('.filter-bar');
     if(fb) fb.addEventListener('click',e=>{ const b=e.target.closest('[data-filter]'); if(b) applyFilter(b.dataset.node,b.dataset.filter); });
+    const fixarikSearch=vwrap.querySelector('#developer-pack-search');
+    if(fixarikSearch){
+      fixarikSearch.onsubmit=event=>{ event.preventDefault(); searchDeveloperPacks(fixarikSearch); };
+      const accountButton=vwrap.querySelector('[data-open-account]'); if(accountButton)accountButton.onclick=openAccount;
+      const results=vwrap.querySelector('#developer-pack-results'); if(results)results.onclick=event=>{ const button=event.target.closest('[data-pack-details]'); if(button)openDeveloperPack(button.dataset.packDetails); };
+      loadFixarikChannels(); searchDeveloperPacks(fixarikSearch);
+    }
     bindListRows();
   }
 
@@ -1543,11 +1842,17 @@
 
   let REAL={loaded:false,loading:false,cases:[],error:null};
   let activeReal=null, realTab="Обзор";
-  const REAL_TABS=["Обзор","Журнал","План","Документы","Участники","Настройки"];
+  const onMobile = () => window.matchMedia("(max-width: 760px)").matches;
+  const defaultRealTab = () => onMobile()?"Диалог":"Обзор";
+  const REAL_TABS=["Обзор","Диалог","Журнал","План","Сроки","Документы","Участники","Настройки"];
+  const realTabs = c => { const tabs=isDomashkinCase(c) ? ["Обзор","Диалог","Школа","Журнал","План","Сроки","Документы","Участники","Настройки"] : REAL_TABS.slice(); if(onMobile()){ const i=tabs.indexOf("Диалог"); if(i>0)tabs.unshift(tabs.splice(i,1)[0]); } return tabs; };
   function hasSession(){ return !!authState.token; }
   function realMode(){ return hasSession() && !!SPACE_SCOPE[currentSpace]; }
 
   function fmtWhen(iso){ if(!iso) return ""; const d=new Date(iso); if(isNaN(d.getTime())) return ""; const M=["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"]; const now=new Date(); const hh=String(d.getHours()).padStart(2,"0"),mm=String(d.getMinutes()).padStart(2,"0"); return d.toDateString()===now.toDateString()?("сегодня "+hh+":"+mm):(d.getDate()+" "+M[d.getMonth()]+", "+hh+":"+mm); }
+  function calendarInputValue(date){ const d=date||new Date(Date.now()+24*60*60*1000), pad=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes()); }
+  function dateInputValue(date){ const d=date||new Date(), pad=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  const CALENDAR_KIND={deadline:"Срок",hearing:"Заседание",meeting:"Встреча",reminder:"Напоминание"};
   async function loadRealCases(force){
     if(!authState.token||!authState.principal){ REAL.cases=[]; REAL.loaded=true; return; }
     if(REAL.loading) return; if(REAL.loaded && !force) return;
@@ -1558,27 +1863,53 @@
   }
   function realCasesForSpace(space){
     if(space==="Личное") return REAL.cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
-    if(space==="Семья")  return REAL.cases.filter(c=>(c.scope||"")==="home");
+    if(space==="Семья")  return REAL.cases.filter(c=>(c.scope||"")==="home"&&c.title!=="Разбор домашнего задания");
     if(space==="Практика")return REAL.cases.filter(c=>(c.scope||"")==="pro");
     return [];
   }
   async function openFamilyDialog(message){
     if(!authState.token){ openAccount(); return; }
     await ensureSession(); await loadRealCases(true);
-    let dialog=REAL.cases.find(c=>c.scope==="home"&&c.title==="Семейный диалог с Домашкиным"&&c.state==="active");
+    let dialog=REAL.cases.find(c=>c.scope==="home"&&/^(?:Семейный д|Д)иалог с Домашкиным$/.test(c.title||"")&&c.state==="active");
     if(!dialog){
-      dialog=await authFetch("POST","/cases",{title:"Семейный диалог с Домашкиным",goal:"Семейные вопросы, школа и ближайшие изменения",side:"need_help"});
+      dialog=await authFetch("POST","/cases",{title:"Диалог с Домашкиным",goal:"Семейные вопросы, школа и ближайшие изменения",side:"need_help"});
       await authFetch("POST","/cases/"+encodeURIComponent(dialog.id)+"/scope",{scope:"home"});
-      await authFetch("PUT","/cases/"+encodeURIComponent(dialog.id)+"/routing",{domain:"household",selected_agent_id:"chores",reason:"семейный диалог Домашкина",expect_domain:"",expect_selected_agent_id:""});
+      REAL.loaded=false;
+    }else if(dialog.title!=="Диалог с Домашкиным"){
+      dialog=await authFetch("PUT","/cases/"+encodeURIComponent(dialog.id)+"/details",{title:"Диалог с Домашкиным",goal:dialog.goal||"Семейные вопросы, школа и ближайшие изменения",expect_version:dialog.version});
       REAL.loaded=false;
     }
-    currentSpace="Семья"; rebuildNav(); realTab="Обзор"; location.hash="#case/"+dialog.id;
+    currentSpace="Семья"; rebuildNav(); realTab=defaultRealTab(); location.hash="#case/"+dialog.id;
     await renderRealCase(dialog.id); if(message) await askCaseAgent(message);
   }
   window.openFamilyDialog=openFamilyDialog;
   const caseMeta = c => ((c.participants||[]).length)+" уч. · обновлено "+fmtWhen(c.updated_at);
   function eventPayload(ev){ const p=ev&&ev.payload; if(typeof p!=="string") return p||{}; try{return JSON.parse(p)||{};}catch(_){return{};} }
-  const assistantName = c => { if(c&&c.selected_agent_id){ const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id); return practice?practiceTitle(practice):c.selected_agent_id; } return (c&&c.scope)==="home" ? "Домашкин" : "Фиксарик"; };
+  const isDomashkinCase = c => !!c && /домашкин/i.test(c.title||"");
+  const assistantName = c => { if(isDomashkinCase(c)) return "Домашкин"; if(c&&c.selected_agent_id){ const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id); return practice?practiceTitle(practice):c.selected_agent_id; } return "Фиксарик"; };
+  function domashkinBookPanel(){
+    if(!isDomashkinCase(activeReal.c) || !activeReal.isOwner) return "";
+    const children=activeReal.children||[];
+    if(!children.length) return '<div class="book-upload"><h3>Загрузить учебник</h3><p>Сначала добавьте профиль ребёнка в настройках Домашкина. Детские данные читаются только после подтверждённого входа.</p><div class="cta-row"><a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>';
+    return '<div class="book-upload"><h3>Загрузить учебник</h3><p>PDF останется приватным и будет использоваться Домашкиным только для выбранного ребёнка.</p><form class="pform" data-act="textbook-upload">'+
+      '<div class="pf-row"><label>Ребёнок<select name="child" required>'+children.map(child=>'<option value="'+attr(child.id)+'">'+esc(child.display_name||"Ребёнок")+(child.grade?' · '+esc(String(child.grade))+' класс':'')+'</option>').join("")+'</select></label><label>Предмет<input name="subject" required maxlength="80" placeholder="Математика"></label></div>'+
+      '<label class="book-file"><input name="book" type="file" accept="application/pdf,.pdf" required><span class="btn small">Скрепка · выбрать PDF</span><span class="book-file-name">Файл не выбран</span></label>'+
+      '<fieldset class="perms"><legend>Отдельный вопрос об общем корпусе</legend><label class="chk"><input name="share" type="checkbox"> Предложить эту книгу общему корпусу после проверки прав</label><div data-share-fields hidden style="margin-top:10px"><label>Основание<select name="rights_basis"><option value="rights_holder">Я правообладатель</option><option value="open_license">Открытая лицензия</option></select></label><label style="display:block;margin-top:8px">Ссылка на лицензию<input name="license_url" type="url" placeholder="https://…" style="width:100%"></label><p class="rc-hint">Заявка не публикует файл автоматически. До проверки книга остаётся приватной.</p></div></fieldset>'+
+      '<div class="cta-row"><button class="btn primary" type="submit">Загрузить и разобрать</button></div><div class="rc-hint" data-book-status>'+esc(activeReal.textbookStatus||"")+'</div></form></div>';
+  }
+  function domashkinParentInvitePanel(){
+    if(!isDomashkinCase(activeReal.c) || !activeReal.canDecide) return "";
+    const hasSecondParent=(activeReal.c.participants||[]).some(p=>p.principal_id!==activeReal.c.owner_id&&p.role==="spouse");
+    if(hasSecondParent) return '<div class="rc-strip"><h3>Второй родитель подключён</h3><p class="rc-hint">Он участвует в деле Домашкина и получает уведомления о новых сообщениях. Каждый родитель управляет своими каналами уведомлений самостоятельно.</p></div>';
+    return '<div class="rc-strip"><h3>Пригласить второго родителя</h3><p class="rc-hint">Он сможет читать и обсуждать материалы, назначать семейные действия и подтверждать предложения Домашкина. Персональные сведения открываются явно, без передачи вашего логина от дневника.</p>'+
+      '<form class="pform" data-act="invite-parent"><label class="chk"><input name="pii" type="checkbox" checked> Разрешить видеть персональные сведения в этом деле</label><label class="chk"><input name="decide" type="checkbox" checked> Разрешить подтверждать действия Домашкина</label><p class="rc-hint">После принятия ссылки уведомления о новых сообщениях дела включены по умолчанию. Доступ к самому электронному дневнику остаётся отдельным и проверяется сервером.</p><div class="cta-row"><button class="btn primary" type="submit">Создать семейное приглашение</button></div><div data-parent-invite-out></div></form></div>';
+  }
+  function domashkinFamilyThreadPanel(){
+    if(!isDomashkinCase(activeReal.c))return "";
+    const messages=(activeReal.familyThread&&activeReal.familyThread.messages)||[];
+    const rows=messages.slice(-20).map(message=>{ const participant=(activeReal.c.participants||[]).find(p=>p.principal_id===message.author_id); const author=message.author_id===authState.principal?"Вы":((participant&&participant.display_name)||"Второй родитель"); return '<div class="ev principal"><div class="eh"><b>'+esc(author)+'</b> · '+esc(fmtWhen(message.at))+'</div><div class="et">'+esc(message.retracted?"Сообщение отозвано":message.body)+'</div></div>'; }).join("");
+    return '<div class="section-t">Семейное обсуждение</div>'+(rows||'<p class="rc-hint">Напишите первое сообщение. После принятия приглашения второй родитель получит следующие сообщения через свои подключённые каналы.</p>')+'<form class="composer" data-act="family-message" style="max-width:720px;display:flex;flex-direction:column"><textarea name="message" required rows="2" maxlength="8000" style="resize:vertical;min-height:58px" placeholder="Например, я заберу после изменённого шестого урока"></textarea><button class="btn primary" type="submit">Отправить семье</button></form>';
+  }
   function realLinksPanel(){
     const plans={}, links=[];
     (activeReal.events||[]).forEach(ev=>{ const p=eventPayload(ev); if(ev.kind==="plan.branches") (p.branches||[]).forEach((branch,index)=>plans[index]=branch); if(ev.kind==="branch.started"&&p.child_case_id) links.push({id:String(p.child_case_id),title:String(p.title||((plans[p.ord]||{}).title)||"Рабочее дело")}); });
@@ -1594,7 +1925,7 @@
 
   function routeCase(id){
     if (CASE_SEEDS[id] || CASES[id] || /^gen-/.test(id)){ if(!CASES[id]&&CASE_SEEDS[id])CASES[id]=cloneCase(CASE_SEEDS[id]); if(CASES[id]){ activeReal=null; activeCaseId=id; caseTab="Обзор"; renderCase(); } return; }
-    if (hasSession()){ activeCaseId=null; renderRealCase(id); return; }
+    if (hasSession()){ activeCaseId=null; realTab=defaultRealTab(); renderRealCase(id); return; }
     go(kidOf(SPACE_NODES[currentSpace],"Главная"));
   }
   async function renderRealCase(id){
@@ -1602,12 +1933,22 @@
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const events=await loadAllEvents(id);
-      let runs=[],patches=[],drafts=[];
+      let runs=[],patches=[],drafts=[],children=[],childrenError="",personalAgents=[],familyThread=null,materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
       try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
+      try{ const mm=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/materials"); materials=Array.isArray(mm&&mm.materials)?mm.materials:[]; hiddenMaterials=Number(mm&&mm.hidden)||0; }catch(_){}
+      if(c.owner_id===authState.principal){ try{ const ce=await authFetch("GET","/calendar?case_id="+encodeURIComponent(id)+"&days=730&past=365"); calendarEvents=Array.isArray(ce&&ce.events)?ce.events:[]; }catch(error){ calendarError=(error&&error.message)||"Календарь временно недоступен."; } }
+      if(isDomashkinCase(c)&&c.owner_id===authState.principal){
+        try{ const cc=await authFetch("GET","/homework/children"); children=Array.isArray(cc)?cc:[]; }catch(error){ childrenError=(error&&error.message)||"Не удалось проверить профили детей."; }
+        try{ const aa=await authFetch("GET","/personal-agents"); personalAgents=Array.isArray(aa&&aa.agents)?aa.agents:[]; }catch(_){}
+      }
+      if(isDomashkinCase(c)){
+        try{ const list=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/threads?limit=100"); const ref=(list.threads||[]).find(thread=>thread.case_id===id); if(ref){ familyThread=await authFetch("GET","/threads/"+encodeURIComponent(ref.thread_id)); const messages=familyThread.messages||[]; if(messages.length)try{ await authFetch("POST","/threads/"+encodeURIComponent(ref.thread_id)+"/read",{seq:messages[messages.length-1].seq}); }catch(_){} } }catch(_){}
+      }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, drafts, reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, drafts, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      if(isDomashkinCase(c)&&activeReal.isOwner&&children.length) await loadSchoolDay(children[0].id,dateInputValue(new Date(Date.now()+24*60*60*1000)),false);
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
     }catch(e){
@@ -1617,15 +1958,17 @@
   }
   function drawRealCase(){
     const c=activeReal.c; const sp=SPACE_NODES[currentSpace];
+    const tabsForCase=realTabs(c); if(tabsForCase.indexOf(realTab)<0) realTab=defaultRealTab();
+    vwrap.classList.toggle("dialog-view",realTab==="Диалог");
     vwrap.innerHTML=
       '<div class="crumbs"><a href="#'+(sp?sp.id:"0")+'">'+esc(currentSpace)+'</a><span class="sep">›</span><span>'+esc(c.title||"Дело")+'</span></div>'+
       '<p class="eyebrow" style="color:var(--cyan)">Дело · настоящие данные</p>'+
       '<h1 style="margin:2px 0 0;font-size:28px">'+esc(c.title||"Без названия")+'</h1>'+
       '<div class="pmeta" style="margin-top:10px">'+statusChip(RU_STATE[c.state]||c.state||"—")+'<span>Владелец: '+esc(ownerName())+'</span><span>Участников: '+((c.participants||[]).length)+'</span>'+(c.needs_word?'<span class="chip warn">нужно ваше слово</span>':'')+'</div>'+
-      '<div class="case-tabs" id="rctabs">'+REAL_TABS.map(t=>'<button class="ct'+(t===realTab?" active":"")+'" data-rtab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
+      '<div class="case-tabs" id="rctabs">'+tabsForCase.map(t=>'<button class="ct'+(t===realTab?" active":"")+'" data-rtab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
       '<div id="rcpanel">'+realTabPanel()+'</div>';
     vwrap.parentElement.scrollTop=0;
-    const tabs=document.getElementById("rctabs"); if(tabs) tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; realTab=b.dataset.rtab; document.getElementById("rcpanel").innerHTML=realTabPanel(); tabs.querySelectorAll(".ct").forEach(x=>x.classList.toggle("active",x.dataset.rtab===realTab)); bindRealPanel(); };
+    const tabs=document.getElementById("rctabs"); if(tabs) tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; realTab=b.dataset.rtab; vwrap.classList.toggle("dialog-view",realTab==="Диалог"); document.getElementById("rcpanel").innerHTML=realTabPanel(); tabs.querySelectorAll(".ct").forEach(x=>x.classList.toggle("active",x.dataset.rtab===realTab)); bindRealPanel(); };
     bindRealPanel();
   }
   function runCard(run){
@@ -1636,11 +1979,80 @@
     const detail=p.value===undefined?"Содержание доступно только решающему участнику.":JSON.stringify(p.value);
     return '<div class="rc-strip"><h3>Нужно подтверждение · '+esc(p.op||"изменение")+'</h3><p class="rc-hint">Агент предлагает изменение уровня '+esc(String(p.risk||"—"))+'.</p><p class="rc-hint">'+esc(detail)+'</p>'+ (activeReal.canDecide?'<div class="cta-row"><button class="btn primary" data-act="patch-approve" data-patch="'+attr(p.id)+'">Подтвердить</button><button class="btn" data-act="patch-reject" data-patch="'+attr(p.id)+'">Отклонить</button></div>':'<p class="rc-note">Подтвердить или отклонить может участник с правом «решения».</p>')+'</div>';
   }
+  async function loadSchoolDay(childId,date,redraw=true){
+    if(!activeReal)return;
+    activeReal.school={childId,date,loading:true,schedule:[],assignments:[],error:""}; if(redraw)drawRealCase();
+    try{
+      const base="/homework/children/"+encodeURIComponent(childId);
+      const values=await Promise.all([authFetch("GET",base+"/schedule?lesson_date="+encodeURIComponent(date)),authFetch("GET",base+"/assignments?for_lessons_on="+encodeURIComponent(date)+"&limit=50")]);
+      activeReal.school={childId,date,loading:false,schedule:Array.isArray(values[0])?values[0]:[],assignments:Array.isArray(values[1])?values[1]:[],error:""};
+    }catch(error){ activeReal.school={childId,date,loading:false,schedule:[],assignments:[],error:(error&&error.message)||"Не удалось загрузить школьный день."}; }
+    if(redraw)drawRealCase();
+  }
+  function homeworkSummary(assignment){
+    const summary=assignment&&assignment.summary; if(!summary)return "";
+    if(typeof summary==="string")return summary;
+    const value=summary.task_summary; return typeof value==="string"?value:((value&&value.text)||"");
+  }
+  function homeworkDocumentText(assignment){
+    const summary=assignment&&assignment.summary||{}, parts=[String(summary.task_summary||assignment.task_text||"").trim()];
+    [["На что обратить внимание",summary.attention_points],["Что спросить у ребёнка",summary.questions_for_child],["Родителю",summary.parent_notes],["Нужно уточнить",summary.needs_clarification]].forEach(item=>{ const values=Array.isArray(item[1])?item[1].filter(Boolean):[]; if(values.length)parts.push(item[0]+":\n"+values.map(value=>"• "+value).join("\n")); });
+    return parts.filter(Boolean).join("\n\n");
+  }
+  function homeworkDetails(assignment){
+    if(!assignment||!assignment.summary)return "";
+    return '<details class="rc-note" style="margin-top:8px"><summary><b>Открыть разбор Домашкина</b></summary><div style="white-space:pre-wrap;margin-top:9px">'+esc(homeworkDocumentText(assignment))+'</div><div class="cta-row" style="margin-top:10px"><button class="btn small" data-act="save-homework-doc" data-id="'+attr(assignment.id)+'">Сохранить в документы дела</button></div></details>';
+  }
+  function schoolAssignmentRow(assignment,title,meta){
+    const summary=homeworkSummary(assignment), agent=domashkinHomeworkAgent(); let action="";
+    if(assignment&&!summary&&agent)action='<button class="btn small" data-act="analyze-homework" data-id="'+attr(assignment.id)+'">Разобрать</button>';
+    return '<div class="prow"><div><b>'+esc(title||"Задание")+'</b>'+(meta?'<div class="rc-hint">'+esc(meta)+'</div>':'')+(assignment?'<div style="margin-top:7px">'+esc(assignment.task_text||"Задание без текста")+'</div>':'<div class="rc-hint" style="margin-top:7px">Задание к этому уроку не найдено.</div>')+homeworkDetails(assignment)+'</div>'+action+'</div>';
+  }
+  function schoolPanel(){
+    if(!activeReal.isOwner) return '<div class="rc-note">Приглашённый родитель видит обсуждение и выданные материалы дела. Доступ к дневнику ребёнка подключается отдельно после серверной проверки прав.</div>';
+    if(activeReal.childrenError) return errorBox(activeReal.childrenError,'data-act="school-retry"');
+    if(!activeReal.children.length) return '<div class="rc-strip"><h3>Сначала подключите ребёнка</h3><p class="rc-hint">Расписание и задания не подставляются из демо: Домашкин покажет их только после подтверждённой привязки дневника.</p><div class="cta-row"><a class="btn primary" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>';
+    const school=activeReal.school||{childId:activeReal.children[0].id,date:dateInputValue(new Date(Date.now()+24*60*60*1000)),loading:true,schedule:[],assignments:[],error:""};
+    const controls='<form class="pform" data-act="school-day"><div class="pf-row"><label>Ребёнок<select name="child">'+activeReal.children.map(child=>'<option value="'+attr(child.id)+'"'+(child.id===school.childId?' selected':'')+'>'+esc(child.display_name||"Ребёнок")+'</option>').join("")+'</select></label><label>День<input name="date" type="date" required value="'+attr(school.date)+'"></label></div><div class="cta-row"><button class="btn primary" type="submit">Показать день</button><button class="btn small" type="button" data-act="school-date" data-offset="-2">Позавчера</button><button class="btn small" type="button" data-act="school-date" data-offset="-1">Вчера</button><button class="btn small" type="button" data-act="school-date" data-offset="0">Сегодня</button><button class="btn small" type="button" data-act="school-date" data-offset="1">Завтра</button></div></form>';
+    if(school.loading)return controls+'<div class="rc-strip"><p class="rc-hint">Домашкин сверяет расписание и задания…</p></div>';
+    if(school.error)return controls+errorBox(school.error,'data-act="school-retry"');
+    const bySubject={}; school.assignments.forEach(a=>{bySubject[String(a.subject||"").trim()]=a;});
+    const lessons=school.schedule.map(lesson=>{ const assignment=bySubject[String(lesson.subject||"").trim()]; return schoolAssignmentRow(assignment,(lesson.lesson_number?lesson.lesson_number+". ":"")+(lesson.subject||"Урок"),[lesson.start_time,lesson.end_time].filter(Boolean).join("–")+(lesson.room?' · каб. '+lesson.room:'')); }).join("");
+    const extra=school.assignments.filter(a=>!school.schedule.some(l=>String(l.subject||"").trim()===String(a.subject||"").trim())).map(a=>schoolAssignmentRow(a,a.subject||"Задание","")).join("");
+    const empty=!lessons&&!extra?'<div class="rc-note">На выбранный день расписание ещё не загружено. Домашкин не угадывает уроки; проверьте синхронизацию дневника.</div>':'';
+    return controls+'<div class="section-t">Уроки и задания</div><div class="lst">'+lessons+extra+'</div>'+empty+(!domashkinHomeworkAgent()?'<div class="rc-note">Для автоматического разбора включите личного Домашкина с модулем домашних заданий.</div>':'');
+  }
+  function domashkinHomeworkAgent(){ return (activeReal.personalAgents||[]).find(agent=>agent.state==="active"&&(agent.modules||[]).indexOf("homework")>=0); }
+  function smartCasePrompts(c){
+    const prompts=[];
+    if(c.needs_word)prompts.push("Что сейчас требует моего подтверждения?");
+    if(isDomashkinCase(c)){
+      const school=activeReal.school, assignments=school&&school.assignments||[];
+      prompts.push(assignments.length?"Разбери задания выбранного дня":"Что задано на завтра?","Покажи расписание на завтра","Что важно проверить родителю?");
+    }else{
+      prompts.push("Что сейчас самое важное?","Покажи ближайшие сроки","Какие документы нужны?");
+      if(c.scope==="pro")prompts.push("Какой следующий шаг по делу?");
+      else prompts.push("Составь простой план действий");
+    }
+    return [...new Set(prompts)].slice(0,4);
+  }
+  function realDialogPanel(){
+    const c=activeReal.c, assistant=assistantName(c);
+    const messages=activeReal.events.filter(e=>e.kind==="dialog").slice(-30).map(e=>{ const text=evText(e); if(!text)return ""; const mine=e.actor_kind==="principal"&&e.actor_id===authState.principal; return '<div class="bubble'+(mine?' user':'')+'"><small>'+esc(mine?"Вы":evActor(e))+' · '+esc(fmtWhen(e.created_at))+'</small>'+esc(text)+'</div>'; }).join("");
+    const reply=activeReal.reply?'<div class="bubble"><small>'+esc(assistant)+' · сейчас</small>'+esc(activeReal.reply)+'</div>':"";
+    const empty=messages||reply?"":'<div class="bubble"><small>'+esc(assistant)+'</small>Я в контексте этого дела. Можно написать, сказать голосом или приложить снимок.</div>';
+    const prompts=smartCasePrompts(c).map(text=>'<button class="smart-prompt" type="button" data-chat-suggestion="'+attr(text)+'">'+esc(text)+'</button>').join("");
+    return '<section class="case-dialog" aria-label="Диалог по делу"><div class="case-dialog-head"><div><h2>'+esc(assistant)+'</h2><p>Знает текущее дело, его инструменты и разрешённые материалы</p></div><span class="chip info">в контексте</span></div><div class="smart-prompts" aria-label="Умные подсказки">'+prompts+'</div><div class="case-thread" id="caseThread" aria-live="polite">'+messages+reply+empty+'</div><form class="chat-composer" data-act="ask-agent"><div class="chat-file-state" data-chat-file-state hidden></div><textarea name="message" rows="1" maxlength="8000" placeholder="Напишите или скажите, что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="chat-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><label class="chat-tool" aria-label="Сфотографировать"><input name="camera" type="file" accept="image/*" capture="environment"><span class="tool-icon" aria-hidden="true">📷</span><span>Камера</span></label><label class="chat-tool" aria-label="Приложить изображение или PDF"><input name="attachment" type="file" accept="image/*,application/pdf,.pdf"><span class="tool-icon" aria-hidden="true">📎</span><span>Файл</span></label><button class="btn primary chat-send" type="submit">Отправить</button></div><div class="chat-status" data-chat-status role="status" aria-live="polite"></div></form></section>';
+  }
   function realTabPanel(){
     const c=activeReal.c, canDecide=activeReal.canDecide, isOwner=activeReal.isOwner;
+    if(realTab==="Диалог") return realDialogPanel();
     if(realTab==="Обзор"){
       return '<div class="kv">'+kvRow("Цель",c.goal||"—")+kvRow("Статус",RU_STATE[c.state]||c.state||"—")+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Помощник",assistantName(c))+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+kvRow("Объектов",String((c.subjects||[]).length))+'</div>'+realLinksPanel()+
         (c.needs_word?'<div class="rc-note">По этому делу ждут вашего решения — загляните в Журнал.</div>':'')+
+        domashkinParentInvitePanel()+
+        domashkinBookPanel()+
+        domashkinFamilyThreadPanel()+
         '<div class="section-t">Написать агенту</div><form class="composer" data-act="ask-agent" style="max-width:620px;display:flex;flex-direction:column"><textarea name="message" required rows="1" style="resize:vertical;min-height:42px" placeholder="Напр., изменилось школьное расписание — что нужно сделать?" aria-label="Сообщение агенту"></textarea><button class="btn primary" type="submit">Отправить</button></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble" style="margin-top:12px">'+esc(activeReal.reply)+'</div>':'')+'</div>'+
         '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="rc-goto" data-tab="Журнал">Открыть журнал</button><button class="btn" data-act="rc-goto" data-tab="Участники">Участники</button></div>';
     }
@@ -1648,6 +2060,7 @@
       if(!activeReal.events.length) return emptyState("📓","Записей пока нет","Журнал наполнится, когда по делу пойдёт работа.","","");
       return '<div class="rc-hint">Что происходило по делу — новые записи сверху. Действия агентов помечены.</div>'+activeReal.events.slice().reverse().map(eventLine).join("");
     }
+    if(realTab==="Школа") return schoolPanel();
     if(realTab==="План"){
       const steps=c.on_request_steps||[]; let h="";
       if(c.self_steps) h+='<p class="rc-hint">Автоматических шагов: '+c.self_steps+'</p>';
@@ -1667,9 +2080,18 @@
       }
       return h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command;
     }
+    if(realTab==="Сроки"){
+      if(!isOwner) return '<div class="rc-note">Календарь пока принадлежит владельцу дела. Участникам показываются только сроки, записанные в журнале; общий календарь дела ещё подключается.</div>';
+      if(activeReal.calendarError) return errorBox(activeReal.calendarError,'data-act="calendar-retry"');
+      const rows=(activeReal.calendarEvents||[]).map(event=>'<div class="prow"><div><b>'+esc(event.title||"Событие")+'</b><div class="rc-hint">'+esc(CALENDAR_KIND[event.kind]||event.kind||"Событие")+' · '+esc(fmtWhen(event.at))+(event.until?' — '+esc(fmtWhen(event.until)):'')+(event.place?' · '+esc(event.place):'')+'</div>'+(event.note?'<div class="rc-hint">'+esc(event.note)+'</div>':'')+'</div><button class="btn small" data-act="calendar-cancel" data-id="'+attr(event.id)+'">Отменить</button></div>').join("")||'<p class="rc-hint">Событий и сроков по делу пока нет.</p>';
+      return '<div class="section-t">Календарь дела</div><div class="lst">'+rows+'</div><div class="section-t">Добавить срок или встречу</div><form class="pform" data-act="calendar-create"><div class="pf-row"><label>Вид<select name="kind"><option value="deadline">Срок</option><option value="hearing">Заседание</option><option value="meeting">Встреча</option><option value="reminder">Напоминание</option></select></label><label>Когда<input name="at" type="datetime-local" required value="'+attr(calendarInputValue())+'"></label></div><label style="display:block;margin-top:10px">Название<input name="title" required maxlength="500" placeholder="Например, подтвердить новое расписание" style="width:100%"></label><div class="pf-row" style="margin-top:10px"><label>Окончание (необязательно)<input name="until" type="datetime-local"></label><label>Место (необязательно)<input name="place" maxlength="500" placeholder="Школа, суд, онлайн"></label></div><label style="display:block;margin-top:10px">Заметка<textarea name="note" rows="3" maxlength="4000" style="width:100%;resize:vertical" placeholder="Что подготовить или проверить"></textarea></label><p class="rc-hint">Для срока напоминание по умолчанию ставится за три дня, для заседания — за сутки.</p><div class="cta-row"><button class="btn primary" type="submit">Добавить в календарь</button></div></form>';
+    }
     if(realTab==="Документы"){
-      const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<div class="cta-row"><button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>'+(d.shared?'<button class="btn small" data-act="draft-external" data-id="'+attr(d.id)+'">Ссылка</button>':'')+'</div>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
-      return '<div class="section-t">Документы дела</div><div class="lst">'+docs+'</div>'+(isOwner?'<div class="section-t">Новый документ</div><form class="pform" data-act="draft-create"><label style="display:block">Название<input name="title" required style="width:100%" placeholder="Например, новое расписание"></label><label style="display:block;margin-top:10px">Текст<textarea name="body" required rows="10" style="width:100%;resize:vertical" placeholder="Начните писать — каждая сохранённая правка станет новой версией."></textarea></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить версию</button></div></form>':'<p class="rc-note">Новые версии документа создаёт владелец дела; выданные документы доступны вам для просмотра.</p>');
+      const docs=(activeReal.drafts||[]).map(d=>'<div class="prow"><div><b>'+esc(d.title||"Без названия")+'</b><div class="rc-hint">'+esc(d.state||"черновик")+(d.shared?' · выдан участникам':' · только владельцу')+'</div></div>'+(isOwner?'<div class="cta-row"><button class="btn small" data-act="draft-pdf" data-id="'+attr(d.id)+'">PDF</button><button class="btn small" data-act="draft-docx" data-id="'+attr(d.id)+'">DOCX</button><button class="btn small" data-act="draft-share" data-id="'+attr(d.id)+'"'+(d.shared?' disabled':'')+'>'+ (d.shared?'Выдан':'Выдать')+'</button>'+(d.shared?'<button class="btn small" data-act="draft-external" data-id="'+attr(d.id)+'">Ссылка</button>':'')+'</div>':'')+'</div>').join("")||'<p class="rc-hint">Документов пока нет.</p>';
+      const materialRows=(activeReal.materials||[]).map(m=>{ const mayChange=canDecide||m.uploaded_by===authState.principal; return '<div class="prow"><div><b>'+esc(m.title||"Материал")+'</b><div class="rc-hint">'+esc(m.mime||m.kind||"файл")+' · '+esc(SEE_RU[m.sensitivity]||m.sensitivity||"обычное")+' · '+esc(m.extract_status==="ok"?"разобран":(m.extract_status==="failed"?"не разобран":"обработка ожидается"))+'</div></div><div class="cta-row"><button class="btn small" data-act="material-download" data-id="'+attr(m.id)+'" data-name="'+attr(m.title||"material")+'">Скачать</button>'+(mayChange?'<button class="btn small" data-act="material-sensitivity" data-id="'+attr(m.id)+'" data-sensitivity="'+attr(m.sensitivity||"normal")+'">Доступ</button>':'')+'</div></div>'; }).join("")||'<p class="rc-hint">Приложенных файлов пока нет.</p>';
+      const hidden=activeReal.hiddenMaterials?'<p class="rc-note">Ещё материалов скрыто вашим уровнем доступа: '+activeReal.hiddenMaterials+'. Их названия не раскрываются.</p>':'';
+      const upload=activeReal.canComment?'<div class="section-t">Приложить файл</div><form class="pform" data-act="material-upload"><label class="book-file"><input name="material" type="file" required><span class="btn small">Скрепка · выбрать файл</span><span class="book-file-name">Файл не выбран</span></label><label style="display:block;margin-top:10px">Какие сведения содержит файл<select name="sensitivity" style="width:100%">'+SEE_ALL.map(s=>'<option value="'+s+'">'+esc(SEE_RU[s])+'</option>').join("")+'</select></label><p class="rc-hint">Категория определяет, кто из участников увидит материал. Её можно изменить позже.</p><div class="cta-row"><button class="btn primary" type="submit">Загрузить в дело</button></div><div class="rc-hint" data-material-status></div></form>':'<p class="rc-note">Прикладывать материалы может участник с правом комментирования.</p>';
+      return '<div class="section-t">Материалы дела</div><div class="lst">'+materialRows+'</div>'+hidden+upload+'<div class="section-t">Совместные документы</div><div class="lst">'+docs+'</div>'+(isOwner?'<div class="section-t">Новый документ</div><form class="pform" data-act="draft-create"><label style="display:block">Название<input name="title" required style="width:100%" placeholder="Например, новое расписание"></label><label style="display:block;margin-top:10px">Текст<textarea name="body" required rows="10" style="width:100%;resize:vertical" placeholder="Начните писать — каждая сохранённая правка станет новой версией."></textarea></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить версию</button></div></form>':'<p class="rc-note">Новые версии документа создаёт владелец дела; выданные документы доступны вам для просмотра.</p>');
     }
     if(realTab==="Участники"){
       const rows=(c.participants||[]).map(p=>{
@@ -1679,7 +2101,7 @@
         return '<div class="prow"><div style="min-width:0"><b>'+esc(p.display_name||"Без имени")+'</b> · '+esc(ROLE_RU[p.role]||p.role||"")+(p.engagement?' · '+esc(ENG_RU[p.engagement]||p.engagement):'')+
           '<div class="perm-tags" style="margin-top:6px">Права: '+rights+'</div><div class="perm-tags" style="margin-top:4px">Видит: '+sees+'</div></div>'+edit+'</div>';
       }).join("");
-      let h='<div class="lst">'+rows+'</div>';
+      let h='<div class="lst">'+rows+'</div>'+domashkinParentInvitePanel();
       if(canDecide){
         h+='<div class="section-t">Пригласить участника</div>'+
           '<form class="pform" data-act="invite">'+
@@ -1696,25 +2118,84 @@
     }
     if(realTab==="Настройки"){
       let s="";
+      if(canDecide){ s+='<div class="section-t">Название и цель</div><form class="pform" data-act="case-details"><label style="display:block">Название<input name="title" required maxlength="500" value="'+attr(c.title||"")+'" style="width:100%"></label><label style="display:block;margin-top:10px">Цель<textarea name="goal" rows="4" maxlength="4000" style="width:100%;resize:vertical" placeholder="Какой результат должен быть достигнут">'+esc(c.goal||"")+'</textarea></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить реквизиты</button></div></form>'; }
       if(isOwner){ s+='<div class="section-t">Пространство</div><form class="pform" data-act="scope"><fieldset class="perms">'+[["personal","Личное"],["home","Семья"],["pro","Практика"]].map(x=>'<label class="chk"><input type="radio" name="scope" value="'+x[0]+'"'+((c.scope||"")===x[0]?' checked':'')+'> '+esc(x[1])+'</label>').join("")+'</fieldset><div class="cta-row"><button class="btn" type="submit">Сменить пространство</button></div></form>'; }
       if(canDecide){ s+='<div class="section-t">Статус дела</div><div class="cta-row">'+
         (c.state!=="closed"?'<button class="btn" data-act="state" data-state="closed">Завершить</button>':'')+
         (c.state!=="archived"?'<button class="btn" data-act="state" data-state="archived">Архивировать</button>':'')+
         ((c.state==="closed"||c.state==="archived")?'<button class="btn primary" data-act="state" data-state="active">Возобновить</button>':'')+'</div>'; }
       if(!isOwner && !canDecide) s='<p class="rc-note">Изменять дело может владелец или участник с правом «решения».</p>';
-      return s+'<p class="rc-hint">Название и цель редактируются в рабочей версии ФиксАР.</p>';
+      return s;
     }
     return "";
   }
+  let dialogRecognition=null;
+  function startDialogVoice(button,field,status){
+    const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!Recognition){ status.textContent="В этом браузере голосовой ввод недоступен. Используйте микрофон клавиатуры или напишите сообщение."; return; }
+    if(dialogRecognition){ dialogRecognition.stop(); return; }
+    const recognition=new Recognition(), before=(field.value||"").trim(); dialogRecognition=recognition;
+    recognition.lang="ru-RU"; recognition.interimResults=true; recognition.continuous=false;
+    button.classList.add("listening"); button.setAttribute("aria-pressed","true"); status.textContent="Слушаю… Нажмите микрофон ещё раз, чтобы остановить.";
+    recognition.onresult=event=>{ let spoken=""; for(let i=event.resultIndex;i<event.results.length;i++)spoken+=event.results[i][0].transcript; field.value=(before?before+" ":"")+spoken.trim(); field.dispatchEvent(new Event("input",{bubbles:true})); };
+    recognition.onerror=event=>{ status.textContent=event.error==="not-allowed"?"Браузер не дал доступ к микрофону. Разрешите его для agrigate.pro в настройках сайта.":"Не удалось распознать речь. Можно повторить или написать сообщение."; };
+    recognition.onend=()=>{ dialogRecognition=null; button.classList.remove("listening"); button.setAttribute("aria-pressed","false"); if(status.textContent.indexOf("Слушаю")===0)status.textContent=field.value.trim()?"Голос записан — проверьте текст и отправьте.":"Голос не распознан. Попробуйте ещё раз."; };
+    try{ recognition.start(); }catch(_){ recognition.onend(); }
+  }
+  async function uploadCaseMaterial(c,file,sensitivity){
+    if(!file)throw new Error("Выберите файл.");
+    if(file.size>64*1024*1024)throw new Error("Файл больше 64 МБ.");
+    const kind=(file.type||"").startsWith("image/")?"image":"file", content_b64=await fileAsBase64(file);
+    const saved=await authFetch("POST","/vault/documents",{title:file.name||"Материал",content_b64,mime:file.type||"application/octet-stream",kind,sensitivity:sensitivity||"pii",source_case_id:c.id});
+    const documentId=saved&&saved.document&&saved.document.id; if(!documentId)throw new Error("Хранилище не вернуло номер документа.");
+    await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/materials",{kind,mime:file.type||"application/octet-stream",title:file.name||"Материал",storage_ref:"vault:"+documentId,sensitivity:sensitivity||"pii"});
+    return {documentId,kind};
+  }
   function bindRealPanel(){
     const panel=document.getElementById("rcpanel"); if(!panel) return;
+    const thread=panel.querySelector("#caseThread"); if(thread)thread.scrollTop=thread.scrollHeight;
+    panel.querySelectorAll("[data-chat-suggestion]").forEach(button=>button.onclick=()=>{ const field=panel.querySelector('.chat-composer textarea[name="message"]'); if(!field)return; field.value=button.dataset.chatSuggestion||""; field.dispatchEvent(new Event("input",{bubbles:true})); field.focus(); });
+    const chatForm=panel.querySelector('.chat-composer[data-act="ask-agent"]');
+    if(chatForm){
+      const state=chatForm.querySelector("[data-chat-file-state]"), status=chatForm.querySelector("[data-chat-status]"), field=chatForm.message;
+      field.onkeydown=event=>{ if(event.key==="Enter"&&!event.shiftKey){ event.preventDefault(); chatForm.requestSubmit(); } };
+      [chatForm.camera,chatForm.attachment].forEach(input=>{ input.onchange=()=>{ const file=input.files&&input.files[0]; if(!file)return; const other=input===chatForm.camera?chatForm.attachment:chatForm.camera; other.value=""; state.hidden=false; state.textContent=(input===chatForm.camera?"Снимок: ":"Файл: ")+(file.name||"изображение"); status.textContent=input===chatForm.camera?"Снимок будет загружен в приватные материалы дела после отправки.":"Файл будет загружен в приватные материалы дела после отправки."; }; });
+      const voice=chatForm.querySelector('[data-act="voice-input"]'); if(voice)voice.onclick=()=>startDialogVoice(voice,field,status);
+    }
+    const materialInput=panel.querySelector('form[data-act="material-upload"] input[name="material"]');
+    if(materialInput) materialInput.onchange=()=>{ const name=materialInput.files&&materialInput.files[0]&&materialInput.files[0].name; const out=materialInput.closest("label").querySelector(".book-file-name"); if(out) out.textContent=name||"Файл не выбран"; };
+    const bookInput=panel.querySelector('form[data-act="textbook-upload"] input[name="book"]');
+    if(bookInput) bookInput.onchange=()=>{ const name=bookInput.files&&bookInput.files[0]&&bookInput.files[0].name; const out=bookInput.closest("label").querySelector(".book-file-name"); if(out) out.textContent=name||"Файл не выбран"; };
+    const shareInput=panel.querySelector('form[data-act="textbook-upload"] input[name="share"]');
+    if(shareInput) shareInput.onchange=()=>{ const fields=shareInput.closest("fieldset").querySelector("[data-share-fields]"); fields.hidden=!shareInput.checked; };
     panel.onclick=async e=>{
       const cp=e.target.closest("[data-copy]"); if(cp){ try{ await navigator.clipboard.writeText(cp.dataset.copy); toast("Ссылка скопирована"); }catch(_){ toast("Скопируйте ссылку вручную"); } return; }
+      const share=e.target.closest("[data-share-link]"); if(share){ const link=share.dataset.shareLink; try{ if(navigator.share) await navigator.share({title:"Приглашение в Домашкина",text:"Подключайтесь к семейному делу Домашкина",url:link}); else { await navigator.clipboard.writeText(link); toast("Ссылка скопирована"); } }catch(error){ if(error&&error.name!=="AbortError") toast("Не удалось открыть отправку — скопируйте ссылку."); } return; }
       const b=e.target.closest("[data-act]"); if(!b) return; const c=activeReal.c; const act=b.dataset.act;
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
-      if(act==="open-real-linked"){ realTab="Обзор"; location.hash="#case/"+b.dataset.id; return; }
+      if(act==="open-real-linked"){ realTab=defaultRealTab(); location.hash="#case/"+b.dataset.id; return; }
+      if(act==="draft-docx"||act==="draft-pdf"){ const draft=(activeReal.drafts||[]).find(item=>item.id===b.dataset.id); if(!draft)return; b.disabled=true; try{ if(act==="draft-pdf")await exportDraftPdf(draft); else await exportDraftDocx(draft); }catch(err){ toast((err&&err.message)||"Не удалось собрать документ."); }finally{b.disabled=false;} return; }
       if(act==="draft-share"){ b.disabled=true; try{ await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/share",{}); renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось выдать документ."); } return; }
       if(act==="draft-external"){ b.disabled=true; try{ const r=await authFetch("POST","/drafts/"+encodeURIComponent(b.dataset.id)+"/external-share",{}); const link=location.origin+"/document/"+encodeURIComponent(r.token); await navigator.clipboard.writeText(link); toast("Внешняя ссылка скопирована. Просмотр доступен 7 дней; редактирование — после регистрации и приглашения."); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось создать ссылку."); } return; }
+      if(act==="material-download"){ b.disabled=true; try{ await authDownload("/cases/"+encodeURIComponent(c.id)+"/materials/"+encodeURIComponent(b.dataset.id)+"/content",b.dataset.name); }catch(err){ toast(err.status===403?"Для скачивания подтвердите вход до уровня 2.":((err&&err.message)||"Не удалось скачать файл.")); }finally{ b.disabled=false; } return; }
+      if(act==="material-sensitivity"){ openMaterialSensitivity(c.id,b.dataset.id,b.dataset.sensitivity); return; }
+      if(act==="calendar-retry"){ renderRealCase(c.id); return; }
+      if(act==="school-retry"){ if(activeReal.school) loadSchoolDay(activeReal.school.childId,activeReal.school.date); else renderRealCase(c.id); return; }
+      if(act==="school-date"){ const date=new Date(); date.setDate(date.getDate()+Number(b.dataset.offset||0)); const child=(activeReal.school&&activeReal.school.childId)||(activeReal.children[0]&&activeReal.children[0].id); if(child)loadSchoolDay(child,dateInputValue(date)); return; }
+      if(act==="analyze-homework"){
+        const agent=domashkinHomeworkAgent(); if(!agent){ toast("Сначала включите личного Домашкина."); return; }
+        b.disabled=true; b.classList.add("thinking"); b.textContent="Разбираю…";
+        try{ const result=await authFetch("POST","/homework/assignments/"+encodeURIComponent(b.dataset.id)+"/analyze",{personal_agent_id:agent.agent_id,case_id:c.id}); const assignment=(activeReal.school.assignments||[]).find(item=>item.id===b.dataset.id); if(assignment){Object.assign(assignment,result.assignment||{});assignment.summary=result.summary;} drawRealCase(); toast("Разбор готов и сохранён в материалах этого дела."); }
+        catch(err){ b.disabled=false; b.classList.remove("thinking"); b.textContent="Разобрать"; toast((err&&err.message)||"Не удалось разобрать задание."); }
+        return;
+      }
+      if(act==="save-homework-doc"){
+        const assignment=((activeReal.school&&activeReal.school.assignments)||[]).find(item=>item.id===b.dataset.id); if(!assignment||!assignment.summary)return; b.disabled=true; b.textContent="Сохраняю…";
+        try{ const draft=await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/drafts",{title:(assignment.lesson_date?assignment.lesson_date+" · ":"")+(assignment.subject||"Разбор Домашкина"),body:homeworkDocumentText(assignment),basis:"разбор Домашкина по заданию "+assignment.id,kind:"homework_analysis"}); activeReal.drafts.unshift(draft); b.textContent="Сохранено в документах"; toast("Разбор сохранён. PDF и DOCX доступны во вкладке «Документы»."); }
+        catch(err){ b.disabled=false; b.textContent="Сохранить в документы дела"; toast((err&&err.message)||"Не удалось сохранить разбор."); }
+        return;
+      }
+      if(act==="calendar-cancel"){ if(!window.confirm("Отменить это событие? Запись останется в истории календаря."))return; b.disabled=true; try{ await authFetch("POST","/calendar/"+encodeURIComponent(b.dataset.id)+"/cancel",{}); realTab="Сроки"; renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось отменить событие."); } return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
@@ -1724,6 +2205,24 @@
     };
     panel.onsubmit=async e=>{
       const f=e.target.closest("form[data-act]"); if(!f) return; e.preventDefault(); const c=activeReal.c;
+      if(f.dataset.act==="invite-parent"){
+        const rights=["read","comment"]; if(f.decide.checked) rights.push("decide");
+        const may_see=["normal"]; if(f.pii.checked) may_see.push("pii");
+        const btn=f.querySelector('button[type="submit"]'), out=f.querySelector("[data-parent-invite-out]"); btn.disabled=true; btn.textContent="Создаю…";
+        try{ await authFetch("POST","/threads",{case_id:c.id,subject:"Семейное обсуждение Домашкина"}); const r=await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/invites",{role:"spouse",rights,may_see,engagement:"partner",note:"Семейное дело Домашкина: школа, задания и согласованные действия"});
+          const link=location.origin+"/?invite="+encodeURIComponent(r.code);
+          out.innerHTML='<div class="invite-box">Ссылка действует '+esc(String(r.expires_in_hours||72))+' ч. Второй родитель увидит условия до принятия.<code>'+esc(link)+'</code><div class="cta-row"><button class="btn small" type="button" data-copy="'+attr(link)+'">Копировать</button><button class="btn small" type="button" data-share-link="'+attr(link)+'">Отправить</button></div><p class="rc-hint">После принятия новые сообщения дела будут приходить через подключённые им каналы уведомлений.</p></div>';
+          btn.disabled=false; btn.textContent="Создать новую ссылку";
+        }catch(err){ btn.disabled=false; btn.textContent="Создать семейное приглашение"; toast((err&&err.message)||"Не удалось создать приглашение."); }
+        return;
+      }
+      if(f.dataset.act==="family-message"){
+        const btn=f.querySelector('button[type="submit"]'), message=(f.message.value||"").trim(); if(!message)return; btn.disabled=true; btn.classList.add("thinking"); btn.textContent="Отправляю…";
+        try{ let threadId=activeReal.familyThread&&activeReal.familyThread.thread_id; if(!threadId){ const started=await authFetch("POST","/threads",{case_id:c.id,subject:"Семейное обсуждение Домашкина"}); threadId=started.thread_id; } const sent=await authFetch("POST","/threads/"+encodeURIComponent(threadId)+"/messages",{body:message,sensitivity:"normal"}); toast(sent.notified?"Сообщение отправлено, семья получит уведомление.":"Сообщение сохранено. Второй родитель ещё не подключён или отключил уведомления."); await renderRealCase(c.id); }
+        catch(err){ btn.disabled=false; btn.classList.remove("thinking"); btn.textContent="Отправить семье"; toast((err&&err.message)||"Не удалось отправить сообщение семье."); }
+        return;
+      }
+      if(f.dataset.act==="school-day"){ await loadSchoolDay(f.child.value,f.date.value); return; }
       if(f.dataset.act==="invite"){
         const rights=[...f.querySelectorAll('input[name="right"]:checked')].map(x=>x.value); if(rights.indexOf("read")<0) rights.unshift("read");
         const may_see=[...f.querySelectorAll('input[name="see"]:checked')].map(x=>x.value); if(may_see.indexOf("normal")<0) may_see.unshift("normal");
@@ -1738,15 +2237,52 @@
       if(f.dataset.act==="scope"){ const v=f.querySelector('input[name="scope"]:checked'); if(!v) return; const btn=f.querySelector("button"); btn.disabled=true;
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:v.value}); REAL.loaded=false; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; toast((err&&err.message)||"Не удалось сменить пространство."); } return; }
+      if(f.dataset.act==="case-details"){ const btn=f.querySelector("button"), title=(f.title.value||"").trim(), goal=(f.goal.value||"").trim(); if(!title)return; btn.disabled=true; btn.textContent="Сохраняю…";
+        try{ await authFetch("PUT","/cases/"+encodeURIComponent(c.id)+"/details",{title,goal,expect_version:c.version}); REAL.loaded=false; realTab="Настройки"; renderRealCase(c.id); }
+        catch(err){ btn.disabled=false; btn.textContent="Сохранить реквизиты"; toast(err.status===409?"Дело изменилось в другом окне. Обновите карточку и повторите.":((err&&err.message)||"Не удалось сохранить реквизиты.")); } return; }
+      if(f.dataset.act==="calendar-create"){ const btn=f.querySelector("button"), at=new Date(f.at.value), until=f.until.value?new Date(f.until.value):null; if(isNaN(at.getTime())){ toast("Укажите дату и время события."); return; } if(until&&isNaN(until.getTime())){ toast("Проверьте время окончания."); return; } btn.disabled=true; btn.textContent="Добавляю…";
+        try{ await authFetch("POST","/calendar",{case_id:c.id,kind:f.kind.value,title:(f.title.value||"").trim(),at:at.toISOString(),until:until?until.toISOString():null,place:(f.place.value||"").trim(),note:(f.note.value||"").trim(),basis:"добавлено владельцем в FixAR v2",source:"human"}); realTab="Сроки"; renderRealCase(c.id); }
+        catch(err){ btn.disabled=false; btn.textContent="Добавить в календарь"; toast((err&&err.message)||"Не удалось добавить событие."); } return; }
       if(f.dataset.act==="draft-create"){ const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Сохраняю…";
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/drafts",{title:(f.title.value||"").trim(),body:(f.body.value||"").trim(),basis:"текст владельца из v2",kind:"document"}); realTab="Документы"; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; btn.textContent="Сохранить версию"; toast((err&&err.message)||"Не удалось сохранить документ."); } return; }
+      if(f.dataset.act==="material-upload"){
+        const file=f.material.files&&f.material.files[0], btn=f.querySelector('button[type="submit"]'), status=f.querySelector("[data-material-status]");
+        if(!file)return; if(file.size>64*1024*1024){ status.textContent="Файл больше 64 МБ."; return; }
+        btn.disabled=true; btn.classList.add("thinking"); btn.textContent="Загружаю…"; status.textContent="Сохраняю файл в приватном хранилище…";
+        try{ await uploadCaseMaterial(c,file,f.sensitivity.value); realTab="Документы"; renderRealCase(c.id); }
+        catch(err){ status.textContent=(err&&err.message)||"Не удалось приложить файл."; btn.disabled=false; btn.classList.remove("thinking"); btn.textContent="Загрузить в дело"; }
+        return;
+      }
+      if(f.dataset.act==="textbook-upload"){
+        const file=f.book.files&&f.book.files[0], btn=f.querySelector('button[type="submit"]'), status=f.querySelector("[data-book-status]");
+        if(!file)return; if(file.size>64*1024*1024){ status.textContent="Файл больше 64 МБ."; return; }
+        if(f.share.checked && f.rights_basis.value==="open_license" && !f.license_url.value.trim()){ status.textContent="Укажите ссылку на открытую лицензию."; return; }
+        btn.disabled=true; btn.classList.add("thinking"); btn.textContent="Загружаю…"; status.textContent="Книга сохраняется в приватном хранилище…";
+        try{
+          const content_b64=await fileAsBase64(file);
+          const saved=await authFetch("POST","/vault/documents",{title:file.name||"Учебник",content_b64,mime:file.type||"application/pdf",kind:"file",sensitivity:"pii",source_case_id:c.id});
+          const documentId=saved&&saved.document&&saved.document.id; if(!documentId)throw new Error("Хранилище не вернуло номер документа.");
+          await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/materials",{kind:"file",mime:file.type||"application/pdf",title:file.name||"Учебник",storage_ref:"vault:"+documentId,sensitivity:"pii"});
+          const textbook=await authFetch("POST","/homework/textbooks",{child_id:f.child.value,vault_document_id:documentId,subject:f.subject.value.trim(),title:file.name||"Учебник",sensitivity:"pii"});
+          status.textContent="Извлекаю текст учебника…";
+          const extracted=await authFetch("POST","/homework/textbooks/"+encodeURIComponent(textbook.id)+"/extract",{});
+          let message=extracted.status==="ready"?"Учебник загружен и готов для разбора заданий.":"Учебник сохранён, но для этого PDF потребуется уточнение или распознавание.";
+          if(f.share.checked){ await authFetch("POST","/homework/textbooks/"+encodeURIComponent(textbook.id)+"/share-proposals",{rights_basis:f.rights_basis.value,license_url:f.license_url.value.trim(),attested:true}); message+=" Заявка в общий корпус отправлена на проверку прав."; }
+          activeReal.textbookStatus=message; status.textContent=message; f.reset(); const fields=f.querySelector("[data-share-fields]"); if(fields)fields.hidden=true; const name=f.querySelector(".book-file-name"); if(name)name.textContent="Файл не выбран";
+        }catch(err){ status.textContent=(err&&err.message)||"Не удалось загрузить учебник."; }
+        finally{ btn.disabled=false; btn.classList.remove("thinking"); btn.textContent="Загрузить и разобрать"; }
+        return;
+      }
       if(f.dataset.act==="ask-agent"){
-        const input=f.querySelector('[name="message"]'), btn=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; btn.disabled=true; btn.classList.add("thinking"); btn.setAttribute("aria-busy","true");
-        try{ await askCaseAgent(message); input.value=""; drawRealCase(); }
+        const input=f.querySelector('[name="message"]'), btn=f.querySelector('button[type="submit"]'), camera=f.querySelector('[name="camera"]'), attachment=f.querySelector('[name="attachment"]'), file=(camera&&camera.files&&camera.files[0])||(attachment&&attachment.files&&attachment.files[0]), status=f.querySelector("[data-chat-status]"), message=(input.value||"").trim(); if(!message&&!file)return; btn.disabled=true; btn.classList.add("thinking"); btn.setAttribute("aria-busy","true");
+        try{ if(file){ if(status)status.textContent="Загружаю изображение в приватные материалы дела…"; await uploadCaseMaterial(c,file,"pii"); if(camera)camera.value=""; if(attachment)attachment.value=""; const fileState=f.querySelector("[data-chat-file-state]"); if(fileState)fileState.hidden=true; } if(status)status.textContent="Агент изучает контекст дела…"; await askCaseAgent(message||(file&&file.type.startsWith("image/")?"Посмотри приложенное изображение и объясни, что на нём важно для этого дела.":"Посмотри приложенный файл и скажи, что важно для этого дела.")); input.value=""; drawRealCase(); }
         catch(err){ toast((err&&err.message)||"Агент пока не ответил. Повторите позже."); btn.disabled=false; btn.classList.remove("thinking"); btn.removeAttribute("aria-busy"); } return;
       }
     };
+  }
+  function openMaterialSensitivity(caseId,materialId,current){
+    modalOpen("Доступ к материалу",'<p class="lead">Выберите категорию сведений. Материал увидят только участники, которым разрешена эта категория.</p><form id="material-sensitivity" class="pform"><label>Категория<select name="sensitivity" style="width:100%">'+SEE_ALL.map(s=>'<option value="'+s+'"'+(s===current?' selected':'')+'>'+esc(SEE_RU[s])+'</option>').join("")+'</select></label><label style="display:block;margin-top:10px">Причина изменения<input name="reason" maxlength="300" placeholder="Например, документ содержит персональные данные" style="width:100%"></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить</button></div></form>',body=>{ const form=body.querySelector("#material-sensitivity"); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"); button.disabled=true; button.textContent="Сохраняю…"; try{ await authFetch("PUT","/cases/"+encodeURIComponent(caseId)+"/materials/"+encodeURIComponent(materialId)+"/sensitivity",{sensitivity:form.sensitivity.value,reason:(form.reason.value||"").trim()}); modalClose(); realTab="Документы"; renderRealCase(caseId); }catch(error){ button.disabled=false; button.textContent="Сохранить"; toast((error&&error.message)||"Не удалось изменить доступ."); } }; });
   }
   function openMaySee(caseId,pid){
     const p=(activeReal.c.participants||[]).find(x=>x.principal_id===pid)||{}; const cur=p.may_see||["normal"];
@@ -1774,20 +2310,23 @@
         catch(err){ btn.disabled=false; btn.textContent=approve?"Подтвердить изменение":"Отклонить изменение"; toast((err&&err.message)||"Не удалось сохранить решение."); } }; });
   }
   function applyAgentAction(action){
-    if(!activeReal||!action||typeof action!=="object") return false;
-    const allowed={open_plan:"План",open_participants:"Участники",open_journal:"Журнал",open_overview:"Обзор"};
-    if(allowed[action.type]){ realTab=allowed[action.type]; drawRealCase(); return true; }
+    if(!action||typeof action!=="object") return false;
     if(action.type==="switch_space" && SPACE_NODES[action.space]){ switchSpace(action.space); return true; }
+    if(!activeReal) return false;
+    const allowed={open_plan:"План",open_participants:"Участники",open_journal:"Журнал",open_overview:"Обзор",open_deadlines:"Сроки",open_documents:"Документы",open_settings:"Настройки"};
+    if(allowed[action.type]){ realTab=allowed[action.type]; rememberInteraction("open_tab",realTab); drawRealCase(); return true; }
     if(action.type==="open_case" && typeof action.case_id==="string" && action.case_id===activeReal.c.id){ location.hash="#case/"+action.case_id; return true; }
     return false;
   }
   async function askCaseAgent(message){
-    if(!activeReal) throw new Error("Сначала откройте настоящее дело: агент отвечает в его защищённом контексте.");
-    const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)};
+    await ensureSession(); rememberInteraction("agent_ask",activeReal?"case":"page"); await flushInteractions();
+    const page_context=currentPageContext();
+    if(!activeReal){ let talk=store("fixar-v2-page-talk"); if(!talk){ talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10); put("fixar-v2-page-talk",talk); } const general=await authFetch("POST","/dialog/general",{message,talk_id:talk,page_context}); applyAgentAction(general.ui_action); loadCredits(true); return general.reply||"Фиксарик принял сообщение."; }
+    const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),page_context};
     if(binding){ body.domain=binding.domain; body.agent=binding.agent; }
     const r=await authFetch("POST","/dialog",body);
     if(binding){ activeReal.c.domain=binding.domain; activeReal.c.selected_agent_id=binding.agent; try{localStorage.removeItem(practiceCaseStorageKey(activeReal.c.id));}catch(_){} }
-    activeReal.reply=r.reply||"Агент принял сообщение."; applyAgentAction(r.ui_action); return activeReal.reply;
+    activeReal.reply=r.reply||"Агент принял сообщение."; applyAgentAction(r.ui_action); loadCredits(true); return activeReal.reply;
   }
   function openCreateCase(){
     const practice=currentSpace==="Практика"?selectedPractice():null;
@@ -1802,7 +2341,7 @@
         try{ await ensureSession(); const c=await authFetch("POST","/cases",{title:(f.title.value||"").trim()||defaultTitle,goal:(f.goal.value||"").trim(),...(isPractice?{side:"offer_help"}:{})});
           try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:isPractice?"pro":"home"}); }catch(_){}
           if(isPractice) rememberPracticeCase(c.id,practice);
-          REAL.loaded=false; modalClose(); realTab="Обзор"; currentSpace=space; rebuildNav(); renderRealCase(c.id);
+          REAL.loaded=false; modalClose(); realTab=defaultRealTab(); currentSpace=space; rebuildNav(); renderRealCase(c.id);
         }catch(err){ btn.disabled=false; btn.textContent="Создать дело"; toast((err&&err.message)||"Не удалось создать дело."); } }; });
   }
   window.openCreateCase=openCreateCase;
@@ -1830,6 +2369,36 @@
     if(onMount) onMount(_m.querySelector("#mbody"));
   }
   function modalClose(){ if(_m){ _m.classList.remove("open"); document.body.style.overflow=""; } if(_mReturn&&_mReturn.focus) _mReturn.focus(); }
+
+  function maybeOpenFixarikFunnel(){
+    if(fixarikFunnelOpened||!authState.ready)return;
+    const query=new URLSearchParams(location.search);
+    if(query.get("from")!=="fixarik"||query.get("new_case")!=="1")return;
+    if(!authState.token||!authState.principal){ openAccount(); return; }
+    fixarikFunnelOpened=true;
+    history.replaceState(null,"",location.pathname+location.hash);
+    const channel=query.get("channel")==="tg"?"Telegram":"MAX";
+    currentSpace="Личное"; rebuildNav();
+    modalOpen("Первое дело с Фиксариком",
+      '<p class="lead">Вход через '+channel+' завершён. Опишите реальную задачу — она станет защищённым личным делом, а Фиксарик сразу подготовит первый разбор.</p>'+
+      '<form id="fixarikfunnel" class="pform"><label style="display:block">Название дела<input name="title" required maxlength="160" placeholder="Например, Организовать переезд" style="width:100%"></label>'+
+      '<label style="display:block;margin-top:10px">Что нужно сделать<textarea name="problem" required rows="5" maxlength="6000" placeholder="Опишите результат, срок и важные ограничения" style="width:100%;resize:vertical"></textarea></label>'+
+      '<p class="rc-note">До 10 000 стартовых кредитов сервер начислит при первом платном действии. Просмотр баланса ничего не начисляет.</p>'+
+      '<label class="chk" style="display:flex;gap:9px;align-items:flex-start;margin-top:12px"><input name="consent" type="checkbox" required> <span>Создать личное дело и передать этот текст Фиксарику для первого разбора. Разбор может расходовать стартовые кредиты; внешние действия без отдельного подтверждения запрещены.</span></label>'+
+      '<div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело и начать разбор</button></div></form>',
+      body=>{ const form=body.querySelector("#fixarikfunnel"); form.title.focus(); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"), title=form.title.value.trim(), problem=form.problem.value.trim(); if(!title||!problem)return; button.disabled=true; button.classList.add("thinking"); button.textContent="Создаю дело…";
+        let created=null;
+        try{
+          created=await authFetch("POST","/cases",{title,goal:problem,side:"need_help"});
+          try{ await authFetch("POST","/cases/"+encodeURIComponent(created.id)+"/scope",{scope:"personal"}); }catch(_){}
+          REAL.loaded=false; modalClose(); realTab=defaultRealTab(); location.hash="#case/"+created.id;
+          await renderRealCase(created.id);
+          try{ await askCaseAgent(problem); drawRealCase(); }
+          catch(error){ activeReal.reply="Дело создано, но первый разбор пока не получен: "+((error&&error.message)||"агент недоступен"); drawRealCase(); }
+          await loadRealCases(true); loadCredits(true);
+        }catch(error){ button.disabled=false; button.classList.remove("thinking"); button.textContent="Создать дело и начать разбор"; toast((error&&error.message)||"Не удалось создать дело."); }
+      }; });
+  }
 
   // ===== P5: состояния — загрузка / пусто / ошибка =====
   let loadToken = 0;
@@ -1876,7 +2445,7 @@
       head += '<p>Раздел «'+esc(node.name)+'» · '+node.children.length+' пункт(ов).</p></div>';
       vwrap.innerHTML = head+tileGrid(node);
     } else {
-      head += '</div><div class="stub"><span class="tag">Экран · дизайн v2</span><p>«'+esc(node.name)+'» — конечный экран в дизайне v2 (форма, список или карточка).</p></div>';
+      head += '</div><div class="stub"><span class="tag">Ещё не подключено</span><p>Раздел «'+esc(node.name)+'» есть в целевой архитектуре, но его данные и действия ещё не перенесены в v2. Демонстрационные записи вместо ваших данных не показываются.</p></div>';
       vwrap.innerHTML = head;
     }
     vwrap.parentElement.scrollTop = 0;
@@ -1886,6 +2455,8 @@
   // --- Роутинг ---
   function go(id){
     const node = byId[id]; if (!node) return;
+    vwrap.classList.remove("dialog-view");
+    activeReal=null; activeCaseId=null;
     const sp = spaceOf(node);
     if (sp && sp !== currentSpace){ currentSpace = sp; rebuildNav(); }
     if ((location.hash.slice(1).split("~")[0]) !== id) location.hash = "#"+id;
@@ -1930,20 +2501,23 @@
 
   // Композер (демо): «Отправить» добавляет реплику и канонический ответ — кнопка не «мёртвая»
   async function composerSend(comp){
-    const inp=comp.querySelector("input"); const v=(inp.value||"").trim(); if(!v) return;
+    const inp=comp.querySelector("input"); if(!inp)return; const v=(inp.value||"").trim(); if(!v) return;
     if(currentSpace==="Семья"){ await openFamilyDialog(v); return; }
     const mk=(cls,html)=>{ const d=document.createElement("div"); d.className="bubble"+(cls?" "+cls:""); d.innerHTML=html; return d; };
     comp.parentElement.insertBefore(mk("user", esc(v)), comp); inp.value="";
     setTimeout(()=>{ comp.parentElement.insertBefore(mk("", "Это демо-экран: в рабочей версии запрос уйдёт агенту дела. <small>ФиксАР · сейчас</small>"), comp); comp.scrollIntoView({block:"nearest"}); }, 300);
   }
-  document.getElementById("view").addEventListener("click", e=>{ const b=e.target.closest(".composer button"); if(b){ e.preventDefault(); composerSend(b.closest(".composer")); } });
+  document.getElementById("view").addEventListener("click", e=>{ const b=e.target.closest(".composer button"), comp=b&&b.closest(".composer"); if(b&&comp&&comp.querySelector("input")){ e.preventDefault(); composerSend(comp); } });
   document.getElementById("view").addEventListener("keydown", e=>{ if(e.key==="Enter"){ const i=e.target.closest(".composer input"); if(i){ e.preventDefault(); composerSend(i.closest(".composer")); } } });
+  document.addEventListener("click",e=>{ const el=e.target.closest("button,a[href],[data-act]"); if(!el)return; const target=el.dataset.act||el.id||(el.tagName==="A"?"link":"control"); rememberInteraction("click",target); },true);
+  document.addEventListener("submit",e=>{ const form=e.target.closest("form"); if(form)rememberInteraction("submit",form.dataset.act||form.id||"form"); },true);
+  window.addEventListener("hashchange",()=>rememberInteraction("navigate",location.hash.indexOf("#case/")===0?"case":"screen"));
 
   // Аккаунт: триггеры (мобильная шапка + подвал навигации) и загрузка личности
   document.getElementById("acct").addEventListener("click", openAccount);
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
-  document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab="Обзор"; location.hash="#case/"+rr.dataset.id; } });
+  document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab=defaultRealTab(); location.hash="#case/"+rr.dataset.id; } });
   const agentDock=document.getElementById("agentdock"), agentDockToggle=document.getElementById("agentdocktoggle");
   function setAgentDockCompact(compact){ agentDock.classList.toggle("compact",compact); agentDockToggle.setAttribute("aria-expanded",String(!compact)); agentDockToggle.querySelector("span").textContent=compact?"Открыть":"Свернуть"; try{ localStorage.setItem("fixar-v2-agent-dock-compact",compact?"1":"0"); }catch(_){} }
   let savedDock; try{ savedDock=localStorage.getItem("fixar-v2-agent-dock-compact"); }catch(_){} setAgentDockCompact(savedDock===null?window.matchMedia("(max-width: 760px)").matches:savedDock==="1");

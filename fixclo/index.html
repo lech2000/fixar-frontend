@@ -41,15 +41,53 @@
      платформу.<br><br>Настройка займёт пару минут и ничего не стоит.</p>
   <div class="module-note" id="presetNote" hidden></div>
 
+  <section class="pilot-welcome" id="pilotWelcome" hidden aria-labelledby="pilotWelcomeTitle">
+    <div class="pilot-quickstart">
+      <p class="pilot-welcome-kicker">Короткая инструкция</p>
+      <h2 id="pilotWelcomeTitle">Подключите Домашкина за несколько минут</h2>
+      <ol>
+        <li><b>Сохраните готовые настройки.</b> Менять их необязательно.</li>
+        <li><b>Подтвердите вход</b> и добавьте имя или псевдоним ребёнка и класс.</li>
+        <li><b>Учебники подберутся сами.</b> Дневник подключайте только для автоматической загрузки заданий.</li>
+        <li><b>Выберите Telegram или MAX</b> и нажмите «Включить Домашкина».</li>
+      </ol>
+      <p class="hint">Можно остановиться и вернуться позже — сохранённые шаги не пропадут.</p>
+    </div>
+    <details class="pilot-invite">
+      <summary>
+        <span class="pilot-welcome-kicker">Пригласить другого родителя</span>
+        <b>Готовое приглашение</b>
+        <small>Текст и прямые ссылки на Домашкина</small>
+      </summary>
+      <div class="pilot-invite-body">
+      <textarea id="domashkinInviteText" readonly>Привет! Попробуй Домашкина — помощника для родителей школьников. Он объясняет задания простыми словами, помогает проверить работу и, если подключить дневник, сам подхватывает домашнее задание.
+
+Telegram: https://t.me/do_mashkin_bot
+MAX: https://max.ru/id780154675028_1_bot
+Сайт: https://agrigate.pro/fixclo/?preset=education.domashkin&amp;pilot=domashkin</textarea>
+      <div class="bar pilot-invite-links">
+        <a class="btn" href="https://t.me/do_mashkin_bot" target="_blank" rel="noopener noreferrer">Домашкин в Telegram</a>
+        <a class="btn ghost" href="https://max.ru/id780154675028_1_bot" target="_blank" rel="noopener noreferrer">Домашкин в MAX</a>
+        <a class="btn ghost" href="https://agrigate.pro/fixclo/?preset=education.domashkin&amp;pilot=domashkin">Открыть сайт</a>
+      </div>
+      <div class="bar">
+        <button class="btn" id="copyDomashkinInvite" type="button">Скопировать приглашение</button>
+        <button class="btn ghost" id="shareDomashkinInvite" type="button">Поделиться</button>
+      </div>
+      <p class="hint" id="domashkinInviteStatus" role="status" aria-live="polite"></p>
+      </div>
+    </details>
+  </section>
+
 
   <section class="pilot-staircase" id="pilotStaircase" hidden
            aria-label="Настройка Домашкина по шагам">
     <nav class="pilot-ladder" aria-label="Этапы настройки">
-      <p class="pilot-ladder-kicker">Шаги подключения</p>
+      <p class="pilot-ladder-kicker">Ваш прогресс</p>
       <ol id="pilotStepList">
         <li><button type="button" data-pilot-step="agent">
           <span class="pilot-step-mark" aria-hidden="true">1</span>
-          <span><b>Домашкин</b><small>Проверить настройки</small></span>
+          <span><b>Домашкин</b><small>Сохранить готовое</small></span>
         </button></li>
         <li><button type="button" data-pilot-step="identity">
           <span class="pilot-step-mark" aria-hidden="true">2</span>
@@ -61,7 +99,7 @@
         </button></li>
         <li><button type="button" data-pilot-step="textbooks">
           <span class="pilot-step-mark" aria-hidden="true">4</span>
-          <span><b>Учебники</b><small>Выбрать нужные</small></span>
+          <span><b>Учебники</b><small>Подберутся сами</small></span>
         </button></li>
         <li><button type="button" data-pilot-step="pedu">
           <span class="pilot-step-mark" aria-hidden="true">5</span>
@@ -588,8 +626,8 @@
   }
   var ИМЕНА_OAUTH = {google: "Google", yandex: "Яндекс", vk: "VK ID"};
   var СТУПЕНИ_ПИЛОТА = [
-    {code: "agent", title: "Проверьте Домашкина",
-      description: "Мы уже всё заполнили — менять ничего не нужно."},
+    {code: "agent", title: "Сохраните готового Домашкина",
+      description: "Настройки уже заполнены. Просто нажмите «Сохранить»."},
     {code: "identity", title: "Подтвердите, что это вы",
       description: "Чтобы добавить данные ребёнка, войдите ещё одним способом: через Google, Яндекс или VK ID."},
     {code: "learning_profile", title: "Расскажите о ребёнке",
@@ -779,15 +817,10 @@
        постоянного адреса в коде (имя берётся у MAX при запуске), а @FixAR_bot
        в Телеграме — бот привязки, не собеседник. */
     $("pageLead").innerHTML =
-      "<strong>Здравствуйте! Вы подключаете Домашкина</strong> — онлайн-помощника " +
-      "с домашними заданиями. Это один из многих сервисов платформы ФиксАР." +
-      "<br><br>Мы рады, что вы с нами. Познакомиться со всей платформой поможет " +
-      "Фиксарик — <a href=\"https://agrigate.pro/\">откройте его</a>, он расскажет, " +
-      "что здесь есть и с чего начать. Скоро Фиксарик начнёт каждый день " +
-      "присылать короткие статьи и обзоры возможностей, чтобы вы постепенно " +
-      "освоили всё." +
-      "<br><br>А чтобы Домашкин начал помогать вашему ребёнку, пройдите несколько " +
-      "простых шагов ниже.";
+      "<strong>Домашкин помогает родителям разбирать школьные задания.</strong> " +
+      "Настройте его один раз, а дальше пишите в привычный чат Telegram или MAX.";
+    var приветствиеПилота = $("pilotWelcome");
+    if (приветствиеПилота) приветствиеПилота.hidden = false;
     перенестиНаСтупень("agent", ["presetNote", "agentNameStep", "agentPurposeStep",
       "advancedSettings", "agentSummary"]);
     /* ОПИСАНИЕ И РАСЧЁТ СТОИМОСТИ СКРЫТЫ ЦЕЛИКОМ — просьба владельца убрать
@@ -839,6 +872,37 @@
         номерСтупени(ТЕКУЩАЯ_СТУПЕНЬ) + 1);
       показатьСтупень(СТУПЕНИ_ПИЛОТА[index].code, true);
     });
+    var копироватьПриглашение = $("copyDomashkinInvite");
+    var поделитьсяПриглашением = $("shareDomashkinInvite");
+    var текстПриглашения = $("domashkinInviteText");
+    var статусПриглашения = $("domashkinInviteStatus");
+    async function скопироватьПриглашение(){
+      var текст = текстПриглашения.value;
+      try{
+        await navigator.clipboard.writeText(текст);
+      } catch(e){
+        текстПриглашения.focus();
+        текстПриглашения.select();
+        if (!document.execCommand("copy")) throw e;
+      }
+      статусПриглашения.textContent = "Приглашение скопировано.";
+    }
+    if (копироватьПриглашение && поделитьсяПриглашением && текстПриглашения && статусПриглашения){
+      копироватьПриглашение.addEventListener("click", function(){
+        скопироватьПриглашение().catch(function(){
+          статусПриглашения.textContent = "Не получилось скопировать. Выделите текст и скопируйте вручную.";
+        });
+      });
+      if (typeof navigator === "undefined" || !navigator.share) поделитьсяПриглашением.hidden = true;
+      поделитьсяПриглашением.addEventListener("click", function(){
+        navigator.share({title: "Домашкин", text: текстПриглашения.value})
+          .then(function(){ статусПриглашения.textContent = "Приглашение отправлено."; })
+          .catch(function(e){
+            if (e && e.name === "AbortError") return;
+            статусПриглашения.textContent = "Не получилось открыть отправку. Скопируйте приглашение.";
+          });
+      });
+    }
     async function проверитьДневник(){
       /* Спрашиваем ПЛОЩАДКУ, а не человека: включена ли у него синхронизация
          дневника и лежат ли ключи. Три исхода, и у каждого свой следующий шаг. */

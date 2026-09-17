@@ -58,7 +58,7 @@
   var domashkinActions = document.getElementById("domashkinActions");
   var continueDomashkin = document.getElementById("continueDomashkin");
   var returnToMax = document.getElementById("returnToMax");
-  var FALLBACK_NEXT = "/fixclo/?channel=max";
+  var FALLBACK_NEXT = "/v2/?from=fixarik&channel=max&new_case=1";
   var DOMASHKIN_GUIDED_NEXT = "/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin";
 
   function fail(message) {
@@ -75,9 +75,6 @@
     try {
       var target = new URL(value, location.origin);
       if (target.origin !== location.origin) return FALLBACK_NEXT;
-      if (target.pathname !== "/fixclo/" && target.pathname !== "/fixclo") {
-        return FALLBACK_NEXT;
-      }
       // Fragment не переносим: одноразовый ticket уже погашен.
       var destination = target.pathname + target.search;
       return destination === FALLBACK_NEXT || destination === DOMASHKIN_GUIDED_NEXT

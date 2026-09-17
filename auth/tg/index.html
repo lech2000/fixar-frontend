@@ -59,7 +59,7 @@
   var back = document.getElementById("back");
   var domashkinActions = document.getElementById("domashkinActions");
   var returnToTelegram = document.getElementById("returnToTelegram");
-  var FALLBACK_NEXT = "/fixclo/?channel=tg";
+  var FALLBACK_NEXT = "/v2/?from=fixarik&channel=tg&new_case=1";
   var DOMASHKIN_TG_GUIDED_NEXT = "/fixclo/?preset=education.domashkin&channel=tg&pilot=domashkin";
 
   function fail(message) {
@@ -67,6 +67,19 @@
     head.className = "error";
     text.textContent = message;
     back.hidden = false;
+  }
+
+  function safeNext(value) {
+    if (typeof value !== "string" || !value || value.length > 1024) return FALLBACK_NEXT;
+    try {
+      var target = new URL(value, location.origin);
+      if (target.origin !== location.origin) return FALLBACK_NEXT;
+      var destination = target.pathname + target.search;
+      return destination === FALLBACK_NEXT || destination === DOMASHKIN_TG_GUIDED_NEXT
+        ? destination : FALLBACK_NEXT;
+    } catch (e) {
+      return FALLBACK_NEXT;
+    }
   }
 
   // Билет лежит во фрагменте: браузер не посылает его CDN и веб-серверу.
@@ -119,10 +132,9 @@
       domashkinActions.hidden = false;
       return;
     }
-    text.textContent = "Telegram подключён с уровнем 1: это вход и черновая настройка. " +
-      "Если личный вход ещё не подтверждён до уровня 2, конструктор покажет следующий шаг. " +
-      "Открываем конструктор…";
-    setTimeout(function () { location.replace(FALLBACK_NEXT); }, 700);
+    text.textContent = "Telegram подключён. Открываем создание первого дела с Фиксариком…";
+    var next = safeNext(d.next);
+    setTimeout(function () { location.replace(next); }, 700);
   }).catch(function (error) {
     fail(error.message || "Не удалось войти. В Telegram отправьте боту /setup и повторите.");
   });
