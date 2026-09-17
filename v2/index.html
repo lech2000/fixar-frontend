@@ -1687,8 +1687,8 @@
   window.openFamilyDialog=openFamilyDialog;
   const caseMeta = c => ((c.participants||[]).length)+" уч. · обновлено "+fmtWhen(c.updated_at);
   function eventPayload(ev){ const p=ev&&ev.payload; if(typeof p!=="string") return p||{}; try{return JSON.parse(p)||{};}catch(_){return{};} }
-  const assistantName = c => { if(c&&c.selected_agent_id){ const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id); return practice?practiceTitle(practice):c.selected_agent_id; } return (c&&c.scope)==="home" ? "Домашкин" : "Фиксарик"; };
-  const isDomashkinCase = c => !!c && (c.scope==="home" || c.domain==="household" || c.selected_agent_id==="chores" || /домашкин/i.test(c.title||""));
+  const isDomashkinCase = c => !!c && /домашкин/i.test(c.title||"");
+  const assistantName = c => { if(isDomashkinCase(c)) return "Домашкин"; if(c&&c.selected_agent_id){ const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id); return practice?practiceTitle(practice):c.selected_agent_id; } return "Фиксарик"; };
   function domashkinBookPanel(){
     if(!isDomashkinCase(activeReal.c) || !activeReal.isOwner) return "";
     const children=activeReal.children||[];
