@@ -30,14 +30,27 @@
   button.главная { background: var(--знак); border-color: var(--знак); color: #fff; }
   button[disabled] { opacity: .5; cursor: default; }
   .ряд { display: flex; gap: 8px; flex-wrap: wrap; }
-  #окно { width: 100%; border-radius: 12px; border: 1px solid var(--кант);
-          display: block; touch-action: manipulation; }
-  #набор { width: 100%; padding: 11px; border-radius: 10px;
-           border: 1px solid var(--кант); background: var(--бумага);
-           color: var(--текст); font: inherit; }
+  #браузер { position: relative; margin: 0 auto; background: #fff; overflow: hidden; }
+  #окно { width: 100%; height: 100%; border: 0; display: block;
+          touch-action: manipulation; object-fit: contain; }
+  #прямойВвод { position: absolute; z-index: 2; margin: 0; min-width: 0;
+                border: 2px solid var(--знак); border-radius: 4px;
+                background: #fff; color: #16181d; font: 16px/1.2 -apple-system,
+                "Segoe UI", Roboto, sans-serif; padding: 3px 6px; outline: 0; }
   .строка { margin-top: 10px; }
   .беда { color: var(--тревога); }
   code { font-size: 13px; }
+  body.вход-идёт { overflow: hidden; }
+  body.вход-идёт header, body.вход-идёт #начало { display: none; }
+  body.вход-идёт main { width: 100%; max-width: none; height: 100dvh; padding: 0; }
+  body.вход-идёт #рабочее { display: flex; flex-direction: column; align-items: center; height: 100dvh;
+                           margin: 0; padding: 0; border: 0; border-radius: 0; }
+  body.вход-идёт #браузер { flex: 0 0 auto; min-height: 0; max-width: 100%; }
+  .панель { display: flex; width: 100%; gap: 7px; padding: 8px; flex-wrap: wrap;
+            border-top: 1px solid var(--кант); background: var(--бумага); }
+  .панель button { padding: 9px 11px; }
+  .панель .готово { margin-left: auto; }
+  body.вход-идёт #состояние { width: 100%; margin: 0; padding: 5px 10px 8px; background: var(--бумага); }
 </style>
 </head>
 <body>
@@ -60,23 +73,19 @@
   </div>
 
   <div class="карта" id="рабочее" hidden>
-    <img id="окно" alt="Окно входа в дневник">
-    <div class="строка">
-      <input id="набор" type="text" autocomplete="off" autocapitalize="none"
-             autocorrect="off" spellcheck="false"
-             placeholder="Наберите здесь и нажмите «Ввести»">
+    <div id="браузер">
+      <img id="окно" alt="Страница входа в дневник">
+      <input id="прямойВвод" type="text" hidden autocapitalize="none"
+             autocorrect="off" spellcheck="false" aria-label="Поле страницы входа">
     </div>
-    <div class="строка ряд">
-      <button id="ввести">Ввести</button>
+    <div class="панель">
       <button id="энтер">Enter</button>
       <button id="назад">Назад</button>
       <button id="ниже">Ниже ↓</button>
-    </div>
-    <div class="строка ряд">
-      <button class="главная" id="готово">Я вошёл — забрать ключи</button>
+      <button class="главная готово" id="готово">Я вошёл — подключить</button>
       <button id="закрыть">Закрыть окно</button>
     </div>
-    <p class="тихо" id="состояние">Тапайте прямо по картинке — это живая страница.</p>
+    <p class="тихо" id="состояние">Нажимайте и вводите данные прямо на странице.</p>
   </div>
 
   <div class="карта" id="итог" hidden></div>
