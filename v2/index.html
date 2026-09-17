@@ -194,6 +194,7 @@
     .pform{ margin-top:12px;display:flex;flex-direction:column;gap:12px;max-width:680px }
     .pf-row{ display:grid;grid-template-columns:1fr 1fr;gap:12px } .pf-row label,.pform>label{ display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted) }
     .pform input,.pform select{ padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:#081e27;color:var(--text);outline:none;font:inherit } .pform input:focus,.pform select:focus{ border-color:var(--cyan) }
+    .fixarik-settings{display:grid;gap:18px}.settings-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.settings-card{padding:16px;border:1px solid var(--line-soft);border-radius:16px;background:var(--panel)}.settings-card h3{margin:0 0 7px;font-size:16px}.settings-card p{margin:0;color:var(--muted);line-height:1.5}.channel-state{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}.pack-search-results{display:grid;gap:10px;margin-top:14px}.pack-search-result{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 16px;border:1px solid var(--line-soft);border-radius:14px;background:var(--panel)}.pack-search-result h3{margin:0 0 4px;font-size:15px}.pack-search-result p{margin:0;color:var(--muted);line-height:1.4}.pack-search-result small{display:block;margin-top:6px;color:var(--dim)}
     .book-upload{ margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(155deg,var(--panel),var(--panel-2)) }
     .book-upload h3{ margin:0 0 4px;font-size:16px }.book-upload p{ margin:0;color:var(--muted);font-size:13px }
     .book-file{ display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border:1px dashed rgba(98,230,242,.4);border-radius:12px;background:rgba(98,230,242,.05);cursor:pointer;color:var(--text) }
@@ -208,7 +209,7 @@
     .toggle .knob{ flex:0 0 40px;width:40px;height:22px;border-radius:999px;background:rgba(255,255,255,.12);position:relative;transition:background var(--dur) }
     .toggle .knob::after{ content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#cfe;transition:transform var(--dur) }
     .toggle.on .knob{ background:var(--cyan) } .toggle.on .knob::after{ transform:translateX(18px);background:#06202a }
-    @media (max-width:760px){ .kvr{ grid-template-columns:1fr;gap:2px } .pf-row{ grid-template-columns:1fr } }
+    @media (max-width:760px){ .kvr{ grid-template-columns:1fr;gap:2px } .pf-row,.settings-grid{ grid-template-columns:1fr } .pack-search-result{grid-template-columns:1fr}.pack-search-result .btn{width:100%} }
     /* Состояния (P5) */
     @keyframes shimmer{ 0%{ background-position:200% 0 } 100%{ background-position:-200% 0 } }
     .sk{ background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.10),rgba(255,255,255,.04));background-size:200% 100%;animation:shimmer 1.2s linear infinite;border-radius:10px }
@@ -791,6 +792,10 @@
 │     ├─ Настройки
 │     └─ Удалённые
 ├─ Настройки
+│  ├─ Фиксарик
+│  │  ├─ Каналы
+│  │  ├─ Важные сообщения
+│  │  └─ Паки разработчиков
 │  ├─ Профиль
 │  ├─ Пространства
 │  │  ├─ Создать пространство
@@ -1162,7 +1167,8 @@
     "Практика": findNode("Для работы · Практика"),
     "Разработка": findNode("Для работы · Разработка")
   };
-  const ACCOUNT_NODES = [findNode("Общие разделы аккаунта"), findNode("Настройки"), findNode("Помощь")].filter(Boolean);
+  const ACCOUNT_SETTINGS_NODE = ROOT.children.find(node=>node.name==="Настройки");
+  const ACCOUNT_NODES = [findNode("Общие разделы аккаунта"), ACCOUNT_SETTINGS_NODE, findNode("Помощь")].filter(Boolean);
   const kidOf = (node,name) => { const k=node&&node.children.find(c=>c.name===name); return k?k.id:(node?node.id:"0"); };
   let currentSpace = "Семья";
   let listFilter = "Все";
@@ -1182,7 +1188,7 @@
   function renderFoot(){
     const el=document.getElementById("protofoot");
     const others=Object.keys(SPACE_NODES).filter(k=>k!==currentSpace);
-    const notif=findNode("Центр уведомлений"), settings=findNode("Настройки");
+    const notif=findNode("Центр уведомлений"), settings=ACCOUNT_SETTINGS_NODE;
     const ctx=[["Публичная часть","Публичная часть"],["Первый запуск","Первый запуск"],["Структура дела","Внутренняя структура любого дела"],["Юридические","Юридические документы"]];
     el.innerHTML =
       '<div class="nav-div">Сменить пространство</div>'+
@@ -1342,7 +1348,8 @@
         '<div class="ch"><p class="eyebrow">'+esc(currentSpace)+'</p><h2>'+esc(b.name)+'</h2></div>'+
         '<div class="cb">'+body+'</div></article>';
     }).join(""):"";
-    const settings=(currentSpace==="Личное"||currentSpace==="Семья")?'<div class="rc-strip"><h3>Помощники</h3><p class="rc-hint">Настройки открываются в проверенных экранах прежней версии: согласия, каналы и детские данные остаются там под серверной проверкой прав.</p><div class="cta-row"><a class="btn" href="/fixclo/">Настроить Фиксарика</a><a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>':'';
+    const fixarikSettings=findNode("Фиксарик");
+    const settings=(currentSpace==="Личное"||currentSpace==="Семья")?'<div class="rc-strip"><h3>Помощники</h3><p class="rc-hint">Каналы Фиксарика, границы чтения и опубликованные паки разработчиков собраны в одном месте. Детские данные Домашкина по-прежнему открываются только после серверной проверки прав.</p><div class="cta-row">'+(fixarikSettings?'<button class="btn" onclick="go(\''+fixarikSettings.id+'\')">Настроить Фиксарика</button>':'')+'<a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>':'';
     const honest=hasSession()?'<div class="rc-strip"><h3>Сводка пространства</h3><p class="rc-hint">Показываем только подтверждённые данные аккаунта. Общие сроки, метрики и рекомендации появятся здесь после подключения календаря и уведомлений.</p></div>':'';
     return '<div class="'+(friendly?'friendly-home':'')+'">'+(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"")+(realMode()?realDashStrip():'')+quick+settings+honest+(cards?'<div class="dash">'+cards+'</div>':'')+'</div>';
   }
@@ -1474,6 +1481,56 @@
     return b;
   }
 
+  const CHANNEL_INFO = {
+    tg:{title:"Telegram",note:"Фиксарик видит сообщения своему боту и явно пересланные ему сообщения. Личные чаты без бота недоступны."},
+    max:{title:"MAX",note:"Фиксарик работает в своём диалоге с ботом. Другие диалоги MAX он не читает."},
+    vk_bot:{title:"ВКонтакте",note:"Подключается переписка с сообществом Фиксарика, а не личные диалоги VK ID."}
+  };
+  function screenFixarikSettings(node){
+    return crumbsBlock(node)+'<div class="fixarik-settings">'+
+      '<div class="vhead"><p class="eyebrow">Личный помощник</p><h1>Настройки Фиксарика</h1><p>Здесь видно, где Фиксарик действительно подключён, что он вправе читать и какие расширения можно добавить. Скрытого доступа к личным перепискам нет.</p></div>'+
+      '<div><div class="section-t">Каналы</div><div class="settings-grid" id="fixarik-channels"><div class="settings-card"><p>Проверяю подключения…</p></div></div></div>'+
+      '<div class="settings-card"><h3>Как сообщать о важном</h3><p>Сейчас Фиксарик разбирает сообщения, отправленные непосредственно ему, и события ваших дел. Наблюдение за выбранными групповыми чатами появится только через отдельный пак-коннектор с явным разрешением на каждый чат.</p><div class="cta-row"><a class="btn primary" href="/fixclo/">Настроить самого Фиксарика</a><button class="btn" type="button" data-open-account>Вход и аккаунт</button></div></div>'+
+      '<div><div class="section-t">Паки и коннекторы разработчиков</div><div class="settings-card"><form class="pform" id="developer-pack-search"><div class="pf-row"><label>Что найти<input name="q" maxlength="120" placeholder="Например, важные сообщения или календарь"></label><label>Вид<select name="kind"><option value="">Все расширения</option><option value="Connector">Коннекторы</option><option value="Pack">Паки</option><option value="Solution">Решения</option></select></label></div><div class="cta-row"><button class="btn primary" type="submit">Найти в каталоге</button></div></form><div class="pack-search-results" id="developer-pack-results" aria-live="polite"><p class="rc-hint">Загружаю опубликованные расширения…</p></div></div></div>'+
+      '</div>';
+  }
+  function channelCard(code,connected,label){
+    const info=CHANNEL_INFO[code];
+    return '<article class="settings-card"><h3>'+esc(info.title)+'</h3><p>'+esc(info.note)+'</p><div class="channel-state"><span class="chip'+(connected?'':' warn')+'">'+(connected?'подключён':'не подключён')+'</span><span class="rc-hint">'+esc(label||'')+'</span></div></article>';
+  }
+  async function loadFixarikChannels(){
+    const box=document.getElementById("fixarik-channels"); if(!box)return;
+    if(!authState.token||!authState.principal){ box.innerHTML='<div class="settings-card"><h3>Сначала войдите</h3><p>После входа здесь появятся только ваши подтверждённые подключения.</p><div class="cta-row"><button class="btn primary" type="button" data-channel-signin>Войти</button></div></div>'; const button=box.querySelector("[data-channel-signin]"); if(button)button.onclick=openAccount; return; }
+    try{
+      const response=await authFetch("GET","/channels"),channels=response.channels||[];
+      box.innerHTML=Object.keys(CHANNEL_INFO).map(code=>{ const found=channels.find(channel=>channel.channel===code); return channelCard(code,!!found,found?(found.label||""):""); }).join("");
+    }catch(error){ box.innerHTML='<div class="settings-card"><h3>Подключения не загрузились</h3><p>'+esc((error&&error.message)||"Попробуйте позже.")+'</p></div>'; }
+  }
+  function packResultCard(pack){
+    const type={Connector:"коннектор",Pack:"пак",Solution:"решение"}[pack.kind]||pack.kind||"расширение";
+    return '<article class="pack-search-result"><div><h3>'+esc(pack.title||pack.name||"Без названия")+'</h3><p>'+esc(pack.summary||"Описание не указано.")+'</p><small>'+esc(type)+' · '+esc(pack.publisher_name||pack.namespace||"разработчик не указан")+' · '+esc(pack.version||"")+(pack.on_canary?' · ограниченный круг':'')+'</small></div><button class="btn" type="button" data-pack-details="'+attr(pack.id)+'">Подробнее</button></article>';
+  }
+  async function searchDeveloperPacks(form){
+    const results=document.getElementById("developer-pack-results"); if(!results)return;
+    const button=form&&form.querySelector("button[type=submit]"); if(button)button.disabled=true;
+    results.innerHTML='<p class="rc-hint">Ищу только опубликованные расширения…</p>';
+    try{
+      if(!authState.token)await ensureSession();
+      const query=form?(form.q.value||"").trim():"",kind=form?form.kind.value:"";
+      const response=await authFetch("POST","/storefront/search",{q:query,kind,limit:20}),packs=response.packs||[];
+      results.innerHTML=packs.length?packs.map(packResultCard).join(""):'<div class="rc-note">'+esc(response.why_empty||"Опубликованных расширений пока нет. Поиск уже подключён и покажет их после публикации разработчиками.")+'</div>';
+    }catch(error){ results.innerHTML='<div class="rc-note">Каталог не загрузился: '+esc((error&&error.message)||"попробуйте позже")+'. Это не означает, что паков нет.</div>'; }
+    finally{ if(button)button.disabled=false; }
+  }
+  async function openDeveloperPack(versionId){
+    if(!authState.principal)return openAccount();
+    try{
+      const pack=await authFetch("GET","/storefront/packs/"+encodeURIComponent(authState.principal)+"/"+encodeURIComponent(versionId));
+      const requested=(pack.requested_capabilities||[]).map(item=>'<div class="perm"><span class="dot"></span><b>'+esc(item["сможет"]||item.code||"Право")+'</b><span>'+esc(item["не сможет"]||"")+'</span></div>').join("");
+      modalOpen(pack.title||pack.name||"Пак разработчика",'<p class="lead">'+esc(pack.summary||"Описание не указано.")+'</p><div class="prow"><span>Разработчик</span><b>'+esc(pack.publisher_name||"не указан")+'</b></div><div class="prow"><span>Версия</span><b>'+esc(pack.version||"")+'</b></div>'+(requested?'<div class="section-t">Запрашиваемые права</div>'+requested:'')+'<p class="rc-note">Карточка показывает опубликованное описание до установки. Установка и выдача прав выполняются отдельно и только после вашего подтверждения.</p>');
+    }catch(error){ toast((error&&error.message)||"Карточка пака не загрузилась."); }
+  }
+
   function screenOnboarding(node){
     const steps=node.children;
     const spaces=[["Личное","Ваши дела — только для вас"],["Семья","Общее пространство семьи"],["Практика","Клиенты и ведение дел"],["Разработка","Проекты, паки и агенты"]];
@@ -1505,6 +1562,7 @@
     "Публичная часть / Главная": screenLanding,
     "Публичная часть / Каталог решений": screenCatalog,
     "Публичная часть / Страница пака": screenPack,
+    "Настройки / Фиксарик": screenFixarikSettings,
     "Первый запуск": screenOnboarding,
     "Внутренняя структура любого дела": screenCase
   };
@@ -1523,6 +1581,13 @@
       vwrap.querySelector('#casepanel').innerHTML = casePanel(byId[btn.dataset.ctab]); });
     const fb=vwrap.querySelector('.filter-bar');
     if(fb) fb.addEventListener('click',e=>{ const b=e.target.closest('[data-filter]'); if(b) applyFilter(b.dataset.node,b.dataset.filter); });
+    const fixarikSearch=vwrap.querySelector('#developer-pack-search');
+    if(fixarikSearch){
+      fixarikSearch.onsubmit=event=>{ event.preventDefault(); searchDeveloperPacks(fixarikSearch); };
+      const accountButton=vwrap.querySelector('[data-open-account]'); if(accountButton)accountButton.onclick=openAccount;
+      const results=vwrap.querySelector('#developer-pack-results'); if(results)results.onclick=event=>{ const button=event.target.closest('[data-pack-details]'); if(button)openDeveloperPack(button.dataset.packDetails); };
+      loadFixarikChannels(); searchDeveloperPacks(fixarikSearch);
+    }
     bindListRows();
   }
 
