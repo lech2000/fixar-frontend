@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#071c26">
   <title>ФиксАР — v2 (навигатор архитектуры)</title>
+  <script src="/lang-en.js"></script>
+  <script src="/v2/i18n.js"></script>
   <script>
     (function(){
       try{
@@ -66,6 +68,7 @@
     .brand-mark{ display:grid;place-items:center;width:34px;height:34px;border-radius:10px;
       background:linear-gradient(145deg,#78ef9f,#1ab25a);box-shadow:0 0 20px rgba(67,224,130,.25);font-size:21px }
     .brand b{ font-size:17px; font-weight:850 } .brand span{ color:var(--muted); font-size:12px; margin-left:auto }
+    .lang-switch{display:inline-grid;place-items:center;min-width:38px;height:32px;padding:0 9px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font:750 12px/1 ui-monospace,SFMono-Regular,Consolas,monospace;cursor:pointer}.lang-switch:hover{border-color:var(--cyan)}
     .search{ padding:6px 14px 12px }
     .search input{ width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px;
       background:var(--field); color:var(--text); outline:none }
@@ -384,7 +387,7 @@
   <div class="pv-badge" id="pvbadge" aria-hidden="true">предпросмотр v2 · демо-данные</div>
   <div class="app">
     <aside class="side" id="side" aria-label="Архитектура ФиксАР">
-      <div class="brand"><span class="brand-mark" aria-hidden="true">✱</span><b>ФиксАР</b><span>v2 · IA</span></div>
+      <div class="brand"><span class="brand-mark" aria-hidden="true">✱</span><b>ФиксАР</b><span>v2 · IA</span><button class="lang-switch" type="button" data-lang-switch>EN</button></div>
       <div class="search"><input id="q" type="search" placeholder="Поиск по разделам…" aria-label="Поиск по разделам"></div>
       <div class="switch" id="switch"></div>
       <nav id="nav"></nav>
@@ -397,6 +400,7 @@
         <span class="brand-mark" aria-hidden="true" style="width:30px;height:30px;font-size:18px">✱</span>
         <b>ФиксАР</b>
         <button class="credit-pill" id="mobilecredits" type="button" hidden>кредиты —</button>
+        <button class="lang-switch" type="button" data-lang-switch>EN</button>
         <button class="acct-btn" id="acct" aria-label="Аккаунт" aria-haspopup="dialog"><span class="av" id="acctav">Г</span><span class="nm" id="acctnm">Гость</span></button>
       </div>
       <div class="vwrap" id="vwrap"></div>
@@ -965,7 +969,7 @@
   function currentPageContext(){
     const hash=location.hash.slice(1), node=byId[hash.split("~",1)[0]], controls=[];
     document.querySelectorAll("#view button,#view a[href],#agentdock button").forEach(el=>{ if(el.offsetParent===null||el.disabled||controls.length>=30)return; const name=(el.dataset.act||el.id||el.getAttribute("href")||"действие").slice(0,60), label=(el.textContent||el.getAttribute("aria-label")||"").trim().replace(/\s+/g," ").slice(0,60); controls.push(label?(name+" — "+label):name); });
-    return {space:currentSpace||"",screen:activeReal?"Дело":((node&&node.name)||"Главная"),tab:activeReal?realTab:"",route:hash.indexOf("case/")===0?"case/current":("screen/"+(hash||"home").replace(/[^A-Za-zА-Яа-яЁё0-9_.:/ -]/g,"")),available_actions:controls};
+    return {space:currentSpace||"",screen:activeReal?"Дело":((node&&node.name)||"Главная"),tab:activeReal?realTab:"",route:hash.indexOf("case/")===0?"case/current":("screen/"+(hash||"home").replace(/[^A-Za-zА-Яа-яЁё0-9_.:/ -]/g,"")),language:(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru",available_actions:controls};
   }
   function rememberInteraction(action,target){
     interactionQueue.push({event_id:"ui_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,9),action,target:String(target||"").replace(/[^A-Za-zА-Яа-яЁё0-9_.:/ -]/g,"").slice(0,120),page:currentPageContext()});
@@ -1541,12 +1545,14 @@
   };
   function screenAppearanceSettings(node){
     const appearance=readAppearance(),fixarik=node.children.find(child=>child.name==="Фиксарик");
+    const language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru";
     const modes=[["system","Как на устройстве"],["light","Светлая"],["dark","Тёмная"]];
     const palettes=[["fixar","FixAR",185],["calm","Спокойная",215],["family","Семья",153],["practice","Практика",275]];
     return crumbsBlock(node)+'<div class="appearance">'+
       '<div class="vhead"><p class="eyebrow">Ваш интерфейс</p><h1>Оформление под вас</h1><p>Выберите свет, характер и оттенок. Изменения видны сразу и сохраняются только на этом устройстве.</p></div>'+
       '<section class="theme-preview" aria-label="Предпросмотр оформления"><p class="eyebrow">ФиксАР рядом</p><h2>Важное видно. Лишнее не мешает.</h2><p>Короткие заголовки, спокойный ритм и один понятный следующий шаг на каждом экране.</p><div class="cta-row"><span class="btn primary">Главное действие</span><span class="btn">Второй шаг</span></div></section>'+
-      '<section class="settings-card"><div class="appearance-group"><div class="appearance-label">Свет</div><div class="choice-row" data-theme-choices>'+modes.map(item=>'<button class="choice'+(appearance.mode===item[0]?' active':'')+'" type="button" data-theme-mode="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div></div>'+
+      '<section class="settings-card"><div class="appearance-group"><div class="appearance-label">Язык</div><div class="choice-row" data-language-choices><button class="choice'+(language==='ru'?' active':'')+'" type="button" data-language="ru" aria-pressed="'+(language==='ru')+'">Русский</button><button class="choice'+(language==='en'?' active':'')+'" type="button" data-language="en" aria-pressed="'+(language==='en')+'">English</button></div></div>'+
+      '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Свет</div><div class="choice-row" data-theme-choices>'+modes.map(item=>'<button class="choice'+(appearance.mode===item[0]?' active':'')+'" type="button" data-theme-mode="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div></div>'+
       '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Палитра</div><div class="choice-row" data-palette-choices>'+palettes.map(item=>'<button class="choice palette-choice'+(appearance.preset===item[0]?' active':'')+'" type="button" data-palette="'+item[0]+'" data-hue="'+item[2]+'" aria-pressed="'+(appearance.preset===item[0])+'"><span class="palette-dot" style="--swatch:'+item[2]+'"></span>'+item[1]+'</button>').join("")+'</div></div>'+
       '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="accent-hue">Точный оттенок</label><div class="hue-control"><input id="accent-hue" type="range" min="140" max="310" step="1" value="'+appearance.hue+'" aria-describedby="hue-help"><output class="hue-value" id="hue-value" for="accent-hue">'+appearance.hue+'°</output></div><p id="hue-help">Меняется только акцент. Яркость текста и контраст интерфейса остаются безопасными.</p></div>'+
       '<div class="cta-row"><button class="btn" type="button" data-reset-appearance>Вернуть оформление FixAR</button></div></section>'+
@@ -1645,6 +1651,7 @@
         const slider=appearancePanel.querySelector('#accent-hue'),output=appearancePanel.querySelector('#hue-value'); if(slider)slider.value=value.hue; if(output)output.value=value.hue+'°';
       };
       appearancePanel.addEventListener('click',event=>{
+        const language=event.target.closest('button[data-language]'); if(language){ if(window.FixarV2I18n)window.FixarV2I18n.choose(language.dataset.language); return; }
         const mode=event.target.closest('button[data-theme-mode]'); if(mode){ sync(applyAppearance({mode:mode.dataset.themeMode},true)); return; }
         const palette=event.target.closest('button[data-palette]'); if(palette){ sync(applyAppearance({preset:palette.dataset.palette,hue:Number(palette.dataset.hue)},true)); return; }
         if(event.target.closest('[data-reset-appearance]'))sync(applyAppearance({mode:'system',preset:'fixar',hue:185},true));
@@ -2135,7 +2142,7 @@
     if(!Recognition){ status.textContent="В этом браузере голосовой ввод недоступен. Используйте микрофон клавиатуры или напишите сообщение."; return; }
     if(dialogRecognition){ dialogRecognition.stop(); return; }
     const recognition=new Recognition(), before=(field.value||"").trim(); dialogRecognition=recognition;
-    recognition.lang="ru-RU"; recognition.interimResults=true; recognition.continuous=false;
+    recognition.lang=(window.FixarV2I18n&&window.FixarV2I18n.english)?"en-US":"ru-RU"; recognition.interimResults=true; recognition.continuous=false;
     button.classList.add("listening"); button.setAttribute("aria-pressed","true"); status.textContent="Слушаю… Нажмите микрофон ещё раз, чтобы остановить.";
     recognition.onresult=event=>{ let spoken=""; for(let i=event.resultIndex;i<event.results.length;i++)spoken+=event.results[i][0].transcript; field.value=(before?before+" ":"")+spoken.trim(); field.dispatchEvent(new Event("input",{bubbles:true})); };
     recognition.onerror=event=>{ status.textContent=event.error==="not-allowed"?"Браузер не дал доступ к микрофону. Разрешите его для agrigate.pro в настройках сайта.":"Не удалось распознать речь. Можно повторить или написать сообщение."; };
