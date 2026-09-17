@@ -1,7 +1,7 @@
 const STORAGE_KEY = "fixar.day.prototype.v1";
 const app = document.querySelector("#app");
 const modal = document.querySelector("#modal");
-const initial = { space: "family", lang: "ru", hue: 155, dismissed: false, cases: {}, documents: [] };
+const initial = { space: "family", lang: "ru", hue: 155, theme: "light", dismissed: false, cases: {}, documents: [] };
 let state = structuredClone(initial);
 try {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
@@ -9,6 +9,7 @@ try {
     state = { ...initial, ...saved };
     if (!["family", "personal", "practice"].includes(state.space)) state.space = "family";
     if (!["ru", "en"].includes(state.lang)) state.lang = "ru";
+    if (!["light", "dark"].includes(state.theme)) state.theme = "light";
     if (!Number.isFinite(state.hue) || state.hue < 100 || state.hue > 280) state.hue = 155;
     if (!state.cases || typeof state.cases !== "object" || Array.isArray(state.cases)) state.cases = {};
     if (!Array.isArray(state.documents)) state.documents = [];
@@ -22,6 +23,7 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&a
 const label = pair => esc(pair[state.lang === "en" ? 1 : 0]);
 const paths = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
+  moon: '<path d="M20 16.5A8.5 8.5 0 0 1 7.5 4 8.5 8.5 0 1 0 20 16.5Z"/>',
   cases: '<rect x="3" y="6" width="18" height="15" rx="3"/><path d="M8 6V3h8v3M3 12h18m-11 0v3h4v-3"/>',
   compass: '<circle cx="12" cy="12" r="9"/><path d="m16 8-3 5-5 3 3-5Z"/>',
   file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Zm0 0v6h6M8 13h8m-8 4h5"/>',
@@ -133,7 +135,7 @@ function heading(eyebrow, title, subtitle = "") {
   return `<header class="page-heading"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1>${subtitle ? `<p>${subtitle}</p>` : ""}</div></header>`;
 }
 function themeStrip() {
-  return `<section class="theme-strip" aria-label="${tx("Настройка цвета", "Colour playground")}"><span class="theme-strip-title">${icon("sliders", 17)}<span>${tx("Цвет настроения", "Mood colour")}</span></span><input class="theme-range" data-hue type="range" min="100" max="280" value="${state.hue}" aria-label="${tx("Оттенок интерфейса", "Interface hue")}"><output data-hue-output>${state.hue}°</output><span class="theme-dot" aria-hidden="true"></span><button type="button" data-action="reset-hue">${tx("Сбросить", "Reset")}</button></section>`;
+  return `<section class="theme-strip" aria-label="${tx("Настройка оформления", "Appearance playground")}"><span class="theme-strip-title">${icon("sliders", 17)}<span>${tx("Цвет настроения", "Mood colour")}</span></span><input class="theme-range" data-hue type="range" min="100" max="280" value="${state.hue}" aria-label="${tx("Оттенок интерфейса", "Interface hue")}"><output data-hue-output>${state.hue}°</output><span class="theme-dot" aria-hidden="true"></span><button type="button" data-action="reset-hue">${tx("Сбросить", "Reset")}</button><div class="theme-mode" role="group" aria-label="${tx("Светлая или тёмная тема", "Light or dark theme")}"><button type="button" data-action="choose-theme" data-id="light" aria-pressed="${state.theme === "light"}">${icon("sun", 14)}<span>${tx("Светлая", "Light")}</span></button><button type="button" data-action="choose-theme" data-id="dark" aria-pressed="${state.theme === "dark"}">${icon("moon", 14)}<span>${tx("Тёмная", "Dark")}</span></button></div></section>`;
 }
 function composer(agentId = "") {
   return `<form class="composer" id="composer" data-agent="${agentId}"><label for="message">${tx("С чего начнём?", "Where shall we start?")}</label><textarea id="message" name="message" rows="2" maxlength="2000" required placeholder="${tx("Напишите, что хочется упростить…", "What would you like to make easier?")}"></textarea><div class="composer-footer"><small>${tx("Демо-диалог · покажем пример ответа, без обращения к ИИ", "Demo conversation · a sample response, no AI connection")}</small><button class="btn primary" type="submit">${tx("Отправить", "Send")}${icon("send", 17)}</button></div></form>`;
@@ -169,6 +171,7 @@ function componentsScreen() {
 function render(moveFocus = false) {
   const current = route(), space = spaces[state.space];
   document.documentElement.lang = state.lang;
+  document.documentElement.dataset.theme = state.theme;
   document.documentElement.style.setProperty("--hue", state.hue);
   document.title = `FixAR · ${tx("Мой день · прототип", "My day · prototype")}`;
   const screen = current.startsWith("case/") ? caseScreen(current.split("/")[1]) : current === "discover" ? discoverScreen() : current === "documents" ? documentsScreen() : current === "components" ? componentsScreen() : current === "cases" ? heading(tx("ПОМОЩЬ, У КОТОРОЙ ЕСТЬ ПРОДОЛЖЕНИЕ", "HELP THAT GOES SOMEWHERE"), tx("Дела ваших помощников", "Your assistants’ cases"), tx("Результаты, договорённости и следующие шаги — вместе.", "Results, agreements, and next steps, all together.")) + `<div class="agent-grid">${space.agents.map(agentCard).join("")}</div>` : dayScreen();
@@ -209,6 +212,8 @@ function action(name, agentId, source) {
     openModal(tx("Ваш FixAR", "Your FixAR"), `<nav class="side-nav">${navigation()}<a class="nav-item" href="#components">${icon("sliders")}${tx("Дизайн-система", "Design system")}</a><a class="nav-item" href="/v2/">${icon("arrow")}${tx("Рабочий FixAR", "Live FixAR")}</a></nav>`);
   } else if (name === "choose-language" && ["ru", "en"].includes(agentId)) {
     state.lang = agentId; persist(); render(); document.querySelector(`[data-action="choose-language"][data-id="${agentId}"]`).focus();
+  } else if (name === "choose-theme" && ["light", "dark"].includes(agentId)) {
+    state.theme = agentId; persist(); render(); document.querySelector(`[data-action="choose-theme"][data-id="${agentId}"]`).focus();
   } else if (name === "reset-hue") {
     state.hue = spaces[state.space].hue; persist(); render(); document.querySelector('[data-action="reset-hue"]').focus();
   } else if (name === "dismiss" || name === "restore") {
@@ -219,7 +224,7 @@ function action(name, agentId, source) {
   } else if (name === "reset") {
     openModal(tx("Начать заново?", "Start again?"), `<p>${tx("Удалятся только сохранённые шаги этого прототипа на устройстве.", "Only saved progress for this prototype on this device will be removed.")}</p><div class="dialog-actions">${button(tx("Сбросить демо", "Reset demo"), "confirm-reset", "check", "primary")}${button(tx("Продолжить изучение", "Keep exploring"), "close", "arrow")}</div>`);
   } else if (name === "confirm-reset") {
-    closeModal(); state = { ...structuredClone(initial), lang: state.lang }; lastQuestion = ""; expanded = true; persist(); location.hash = "day"; render(true);
+    closeModal(); state = { ...structuredClone(initial), lang: state.lang, theme: state.theme, hue: state.hue }; lastQuestion = ""; expanded = true; persist(); location.hash = "day"; render(true);
   } else if (!agents[agentId]) return;
   else if (name === "save") {
     if (!state.documents.includes(agentId)) state.documents.push(agentId);
