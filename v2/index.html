@@ -382,9 +382,10 @@
       .chat-actions{ flex-wrap:nowrap }.chat-tool{ width:43px;min-width:43px;padding:8px;font-size:0 }.chat-tool .tool-icon{ font-size:19px }.chat-send{ flex:1;margin-left:2px;justify-content:center;font-size:15px }
     }
   </style>
+  <link rel="stylesheet" href="/v2/my-day.css">
 </head>
 <body>
-  <div class="pv-badge" id="pvbadge" aria-hidden="true">предпросмотр v2 · демо-данные</div>
+  <div class="pv-badge" id="pvbadge" aria-hidden="true">предпросмотр v2 · знакомство</div>
   <div class="app">
     <aside class="side" id="side" aria-label="Архитектура ФиксАР">
       <div class="brand"><span class="brand-mark" aria-hidden="true">✱</span><b>ФиксАР</b><span>v2 · IA</span><button class="lang-switch" type="button" data-lang-switch>EN</button></div>
@@ -1080,7 +1081,7 @@
     if(av) av.textContent=meInitials(); if(nm) nm.textContent=meName();
     if(typeof renderSwitch==="function") renderSwitch();
     if(typeof renderFoot==="function") renderFoot();
-    const badge=document.getElementById("pvbadge"); if(badge) badge.textContent = hasSession()?"предпросмотр v2 · ваши данные":"предпросмотр v2 · демо-данные";
+    const badge=document.getElementById("pvbadge"); if(badge) badge.textContent = hasSession()?"предпросмотр v2 · ваши данные":"предпросмотр v2 · знакомство";
     if(typeof loadRealCases==="function" && hasSession()){ loadRealCases(true).then(()=>{ if(typeof refreshCurrentView==="function") refreshCurrentView(); }); }
     loadCredits();
     maybeOpenFixarikFunnel();
@@ -1377,38 +1378,55 @@
     modalOpen("Согласие на работу FixAR",'<p class="lead"><b>FixAR · '+esc(practice.title)+'</b></p><p>'+esc(practice.limits)+'</p><p class="rc-note">Отправляя дело в практику, вы поручаете FixAR помогать только в этом деле. Он не действует от вашего имени, не подписывает документы, не совершает платежи и просит подтверждение перед каждым внешним действием.</p><form id="fixarconsent" class="pform"><label style="display:flex;gap:9px;align-items:flex-start"><input name="consent" type="checkbox" required> <span>Понимаю границы AI-практики FixAR и согласен(на) на помощь в этом деле.</span></label><label style="display:block;margin-top:12px">Название дела<input name="title" required placeholder="Например, изменить расписание занятий" style="width:100%"></label><label style="display:block;margin-top:10px">Цель (необязательно)<input name="goal" placeholder="Что должно получиться" style="width:100%"></label><div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело с FixAR</button></div></form>',body=>{ const form=body.querySelector("#fixarconsent"); form.title.focus(); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"); button.disabled=true; button.textContent="Создаю…"; try{ const created=await authFetch("POST","/cases",{title:form.title.value.trim(),goal:form.goal.value.trim(),side:"need_help"}); await authFetch("PUT","/cases/"+encodeURIComponent(created.id)+"/routing",{domain:practice.domain,selected_agent_id:practice.agent,reason:"fixar-practice:v1:"+practice.domain,expect_domain:"",expect_selected_agent_id:""}); REAL.loaded=false; modalClose(); realTab=defaultRealTab(); currentSpace="Личное"; rebuildNav(); renderRealCase(created.id); }catch(error){ button.disabled=false; button.textContent="Создать дело с FixAR"; toast((error&&error.message)||"Не удалось создать дело."); } }; });
   }
 
+  const uiText=(ru,en)=>(window.FixarV2I18n&&window.FixarV2I18n.english)?en:ru;
+  function myDayAppearance(){
+    const appearance=readAppearance(),resolvedTheme=document.documentElement.dataset.theme||"dark",language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru";
+    return '<section class="my-day-appearance" aria-label="'+uiText("Настройка оформления","Appearance playground")+'">'+
+      '<span>◉ '+uiText("Цвет настроения","Mood colour")+'</span><input type="range" min="140" max="310" step="1" value="'+appearance.hue+'" data-my-day-hue aria-label="'+uiText("Оттенок интерфейса","Interface hue")+'"><output data-my-day-hue-output>'+appearance.hue+'°</output>'+
+      '<div class="my-day-segment" role="group" aria-label="'+uiText("Светлая или тёмная тема","Light or dark theme")+'"><button type="button" data-my-day-theme="light" aria-pressed="'+(resolvedTheme==="light")+'">'+uiText("Светлая","Light")+'</button><button type="button" data-my-day-theme="dark" aria-pressed="'+(resolvedTheme==="dark")+'">'+uiText("Тёмная","Dark")+'</button></div>'+
+      '<div class="my-day-segment" role="group" aria-label="Language"><button type="button" data-my-day-language="ru" aria-pressed="'+(language==="ru")+'">RU</button><button type="button" data-my-day-language="en" aria-pressed="'+(language==="en")+'">EN</button></div></section>';
+  }
+  function myDayCopy(){
+    if(currentSpace==="Семья")return {highlight:uiText("Вечер можно освободить","Make room for your evening"),body:uiText("Соберите семейные дела в один понятный план. Остальное — время вместе.","Bring family tasks into one simple plan. The rest is time together."),prompts:[["Что важно сделать семье сегодня?","What matters for the family today?"],["Помоги разобраться с ближайшими сроками","Help me review upcoming deadlines"]],symbol:"⌂"};
+    if(currentSpace==="Личное")return {highlight:uiText("Оставьте время для себя","Leave some time for yourself"),body:uiText("Важное — на виду. Фиксарик поможет разложить заботы на небольшие шаги.","Keep what matters in sight. Fixarik turns everyday concerns into small steps."),prompts:[["Помоги спланировать день","Help me plan my day"],["Какой следующий шаг по моим делам?","What is the next step in my cases?"]],symbol:"✦"};
+    if(currentSpace==="Практика")return {highlight:uiText("Начните с ясного вопроса","Start with a clear question"),body:uiText("Соберите факты и документы. Профильный помощник подскажет, с чего начать подготовку.","Collect the facts and documents. A specialist assistant shows where to start."),prompts:[["Помоги сформулировать задачу","Help me frame the task"],["Какие материалы подготовить?","What materials should I prepare?"]],symbol:"§"};
+    return {highlight:uiText("От идеи к безопасной публикации","From an idea to a safe release"),body:uiText("Инструменты владельца, паки и проверки собраны вокруг следующего проверяемого шага.","Owner tools, packs, and checks revolve around the next verifiable step."),prompts:[["Что требует проверки?","What needs review?"],["Покажи следующий шаг публикации","Show the next release step"]],symbol:"⌘"};
+  }
+  function myDayCases(){
+    if(!hasSession()||!REAL||!REAL.loaded)return [];
+    return realCasesForSpace(currentSpace).slice().sort((left,right)=>String(right.updated_at||"").localeCompare(String(left.updated_at||"")));
+  }
+  function myDayAgentCard(kind){
+    const domashkin=kind==="domashkin",cases=(REAL&&REAL.cases)||[];
+    const assistantCase=domashkin
+      ? cases.find(c=>isDomashkinCase(c)&&c.state!=="archived")
+      : cases.find(c=>/фиксарик|fixarik/i.test(c.title||"")&&c.state!=="archived");
+    const name=domashkin?uiText("Домашкин","Domashkin"):uiText("Фиксарик","Fixarik");
+    const role=domashkin?uiText("Школа без вечерней суеты","Calmer school evenings"):uiText("Порядок в повседневных делах","Everyday life, a little more organised");
+    const ready=!!assistantCase;
+    const update=ready
+      ? uiText("Помощник работает в отдельном деле. Откройте его, чтобы увидеть диалог, действия и материалы.","This assistant works in a separate case. Open it to see the conversation, actions, and materials.")
+      : (domashkin?uiText("Подключите дневник и каналы. Данные ребёнка откроются только после серверной проверки прав.","Connect the school diary and channels. Child data opens only after server-side permission checks."):uiText("Настройте каналы и границы чтения, затем заведите для Фиксарика отдельное дело.","Configure channels and reading boundaries, then create a separate Fixarik case."));
+    const action=ready?'data-my-day-case="'+attr(assistantCase.id)+'"':(domashkin?'data-my-day-domashkin':'data-my-day-fixarik');
+    return '<article class="my-day-agent"><div class="my-day-agent-top"><span class="my-day-avatar" aria-hidden="true">'+(domashkin?'⌂':'✦')+'</span><span class="my-day-status '+(ready?'':'attention')+'">'+(ready?uiText("Отдельное дело","Separate case"):uiText("Нужна настройка","Setup needed"))+'</span></div><h3>'+name+'</h3><p class="role">'+role+'</p><p class="update">'+update+'</p><button class="my-day-text-button" type="button" '+action+'>'+(ready?uiText("Открыть дело","Open case"):uiText("Настроить","Set up"))+' →</button></article>';
+  }
+  function myDayRail(){
+    const cases=myDayCases();
+    if(!hasSession())return '<aside class="my-day-rail"><section class="my-day-rail-card"><h2>'+uiText("Осваивайтесь в своём темпе","Make yourself at home")+'</h2><p>'+uiText("Пара шагов — и здесь станет привычно.","A couple of steps to feel at home.")+'</p><div class="my-day-steps"><button class="my-day-step" type="button" data-my-day-account><span class="my-day-step-icon">1</span><span><strong>'+uiText("Войдите в FixAR","Sign in to FixAR")+'</strong><small>'+uiText("Сохранить свои пространства и дела","Keep your spaces and cases")+'</small></span><span>→</span></button><button class="my-day-step" type="button" data-act="create-case"><span class="my-day-step-icon">2</span><span><strong>'+uiText("Создайте первое дело","Create your first case")+'</strong><small>'+uiText("Начните с реальной задачи","Start with a real task")+'</small></span><span>→</span></button></div></section></aside>';
+    const rows=cases.slice(0,3).map((item,index)=>'<button class="my-day-step" type="button" data-my-day-case="'+attr(item.id)+'"><span class="my-day-step-icon">'+(index+1)+'</span><span><strong>'+esc(item.title||uiText("Без названия","Untitled"))+'</strong><small>'+esc(fmtWhen(item.updated_at)||uiText("Открыть дело","Open case"))+'</small></span><span>→</span></button>').join("");
+    return '<aside class="my-day-rail"><section class="my-day-rail-card"><h2>'+uiText("Следующие шаги","Next steps")+'</h2><p>'+uiText("Продолжите с того места, где нужна ваша мысль.","Continue where your input matters.")+'</p><div class="my-day-steps">'+(rows||'<button class="my-day-step" type="button" data-act="create-case"><span class="my-day-step-icon">+</span><span><strong>'+uiText("Создать первое дело","Create your first case")+'</strong><small>'+uiText("Опишите желаемый результат","Describe the outcome you need")+'</small></span><span>→</span></button>')+'</div></section><section class="my-day-safety"><b>'+uiText("Только подтверждённые данные.","Verified data only.")+'</b> '+uiText("Детские сведения и подключения не подставляются из демонстрации.","Child data and connections are never filled with demo content.")+'</section></aside>';
+  }
+  function myDayHome(node){
+    const copy=myDayCopy(),cases=myDayCases(),friendly=currentSpace==="Личное"||currentSpace==="Семья";
+    const agents=currentSpace==="Семья"?["domashkin","fixarik"]:["fixarik","domashkin"];
+    const prompts=copy.prompts.map(pair=>'<button class="my-day-prompt" type="button" data-my-day-prompt="'+attr(uiText(pair[0],pair[1]))+'">'+esc(uiText(pair[0],pair[1]))+'</button>').join("");
+    const assistants=friendly?'<div class="my-day-section-head"><h2>'+uiText("Ваши помощники","In good company")+'</h2><small>'+uiText("У каждого — своё дело","A case for every assistant")+'</small></div><div class="my-day-agent-grid">'+agents.map(myDayAgentCard).join("")+'</div>':"";
+    const extras=(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"");
+    return '<main class="my-day-home">'+myDayAppearance()+'<header class="my-day-heading"><div><p class="eyebrow">'+uiText("ВАШЕ ПРОСТРАНСТВО ДЛЯ ЖИЗНИ","A LITTLE SPACE FOR YOUR LIFE")+'</p><h1>'+uiText("Меньше забот.<br>Больше вашей жизни.","Less to manage.<br>More life to live.")+'</h1><p>'+uiText("Вы решаете, что важно. Мы помогаем с остальным.","You choose what matters. We help with the rest.")+'</p></div><span class="my-day-badge">'+(hasSession()?uiText("Ваши данные","Your data"):uiText("Спокойное знакомство","A calm introduction"))+'</span></header><div class="my-day-layout"><div class="my-day-main"><section class="my-day-highlight"><div><span class="eyebrow">'+uiText("ОДНА ХОРОШАЯ МЫСЛЬ НА СЕГОДНЯ","ONE GOOD IDEA FOR TODAY")+'</span><h2>'+copy.highlight+'</h2><p>'+copy.body+'</p><button class="my-day-text-button" type="button" '+(cases[0]?'data-my-day-case="'+attr(cases[0].id)+'"':'data-act="create-case"')+'>'+(cases[0]?uiText("Продолжить главное дело","Continue the main case"):uiText("Начать с одного дела","Start with one case"))+' →</button></div><div class="my-day-orbit" aria-hidden="true"><div class="my-day-orbit-card">'+copy.symbol+'<b>'+esc(currentSpace)+'</b></div></div></section><form class="my-day-composer" data-act="my-day-ask"><label>'+uiText("С чего начнём?","Where shall we start?")+'</label><textarea name="message" rows="2" maxlength="8000" required placeholder="'+uiText("Напишите, что хочется упростить…","What would you like to make easier?")+'"></textarea><div class="my-day-composer-foot"><small>'+uiText("Фиксарик видит текущую страницу и может передать вопрос профильному помощнику.","Fixarik sees this page and can hand the question to a specialist assistant.")+'</small><button class="btn primary" type="submit">'+uiText("Отправить","Send")+'</button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Умные подсказки","Smart suggestions")+'">'+prompts+'</div>'+assistants+'</div>'+myDayRail()+'</div>'+extras+'</main>';
+  }
+
   function dashboard(node){
-    const d = SPACE_DATA[currentSpace] || {};
-    const friendly=currentSpace==="Личное"||currentSpace==="Семья";
-    const quick=friendly?(()=>{ const items=currentSpace==="Семья"
-      ? [["Семейный диалог","Спросить Домашкина"],["Общие дела","Открыть дела"],["Сроки и изменения","Ближайшие даты"]]
-      : [["Диалог с ФиксАР","Спросить Фиксарика"],["Мои активные дела","Открыть дела"],["Сроки и изменения","Ближайшие даты"]];
-      return '<div class="quick-jumps" aria-label="Быстрые переходы">'+items.map((item,index)=>{ const id=kidOf(node,item[0]); const action=currentSpace==="Семья"&&index===0?'onclick="openFamilyDialog()"':'onclick="go(\''+id+'\')"'; return id?'<button class="quick-jump" type="button" '+action+'><b>'+esc(item[1])+'</b><span>'+esc(item[0])+' →</span></button>':''; }).join("")+'</div>';
-    })():"";
-    const cards = !hasSession()?node.children.map(b=>{
-      const c = d[b.name] || {}; const isDialog = /диалог|помощник/i.test(b.name);
-      const role = isDialog?"b-dialog":(/сегодня/i.test(b.name)?"b-today":(/сроки/i.test(b.name)?"b-deadlines":(/сводка/i.test(b.name)?"b-summary":"b-list")));
-      let body;
-      if (isDialog){
-        body='<div class="bubble">'+esc(c.dialog||"Чем помочь по вашим делам?")+'</div>'+
-             '<div class="composer"><input placeholder="Расскажите своими словами…" aria-label="Сообщение"><button aria-label="Отправить">→</button></div>';
-      } else if (c.rows){
-        body=c.rows.map(r=>{ const right = r[2] ? '<span class="chip'+(/сроч/i.test(r[2])?" warn":"")+'">'+esc(r[2])+'</span>' : '<span class="when">'+esc(r[1]||"")+'</span>'; return '<div class="row"><b>'+esc(r[0])+'</b>'+right+'</div>'; }).join("");
-      } else if (c.rank){
-        body=c.rank.map((r,i)=>'<div class="row"><b>'+(i+1)+'. '+esc(r[0])+'</b><span class="when">'+esc(r[1])+'</span></div>').join("");
-      } else if (c.metrics){
-        body='<div class="minmetrics">'+c.metrics.map(m=>'<div><b>'+esc(m[0])+'</b><span>'+esc(m[1])+'</span></div>').join("")+'</div>';
-      } else {
-        body='<div class="row"><b>'+esc(b.name)+'</b><span class="when">открыть</span></div>';
-      }
-      return '<article class="card '+role+'"'+(isDialog?' style="grid-row:span 2"':'')+'>'+
-        '<div class="ch"><p class="eyebrow">'+esc(currentSpace)+'</p><h2>'+esc(b.name)+'</h2></div>'+
-        '<div class="cb">'+body+'</div></article>';
-    }).join(""):"";
-    const fixarikSettings=findNode("Фиксарик");
-    const settings=(currentSpace==="Личное"||currentSpace==="Семья")?'<div class="rc-strip"><h3>Помощники</h3><p class="rc-hint">Каналы Фиксарика, границы чтения и опубликованные паки разработчиков собраны в одном месте. Детские данные Домашкина по-прежнему открываются только после серверной проверки прав.</p><div class="cta-row">'+(fixarikSettings?'<button class="btn" onclick="go(\''+fixarikSettings.id+'\')">Настроить Фиксарика</button>':'')+'<a class="btn" href="/fixclo/?preset=education.domashkin&amp;channel=max&amp;pilot=domashkin">Настроить Домашкина</a></div></div>':'';
-    const honest=hasSession()?'<div class="rc-strip"><h3>Сводка пространства</h3><p class="rc-hint">Показываем только подтверждённые данные аккаунта. Общие сроки, метрики и рекомендации появятся здесь после подключения календаря и уведомлений.</p></div>':'';
-    return '<div class="'+(friendly?'friendly-home':'')+'">'+(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"")+(realMode()?realDashStrip():'')+quick+settings+honest+(cards?'<div class="dash">'+cards+'</div>':'')+'</div>';
+    return myDayHome(node);
   }
 
   function ownerToolsPanel(){
@@ -2338,15 +2356,15 @@
   function openCreateCase(){
     const practice=currentSpace==="Практика"?selectedPractice():null;
     if(currentSpace==="Практика"&&!practice){ toast("Сначала выберите кабинет в разделе «Практика»."); return; }
-    const isPractice=!!practice, space=isPractice?"Практика":"Семья", defaultTitle=isPractice?"Новое дело кабинета":"Семейное дело", placeholder=isPractice?"Напр., Договор клиента":"Напр., Переезд семьи";
-    modalOpen(isPractice?"Новое дело кабинета":"Новое семейное дело",
+    const isPractice=!!practice, personal=currentSpace==="Личное", space=isPractice?"Практика":(personal?"Личное":"Семья"), defaultTitle=isPractice?"Новое дело кабинета":(personal?"Личное дело":"Семейное дело"), placeholder=isPractice?"Напр., Договор клиента":(personal?"Напр., Организовать переезд":"Напр., Переезд семьи");
+    modalOpen(isPractice?"Новое дело кабинета":(personal?"Новое личное дело":"Новое семейное дело"),
       '<p class="lead">Создаётся настоящее дело в пространстве «'+esc(space)+'». Вы — владелец; участников можно пригласить позже.'+(isPractice?' Агент и база знаний будут взяты из выбранного кабинета «'+esc(practiceTitle(practice))+'».':'')+'</p>'+
       '<form id="ccf" class="pform"><label style="display:block">Название<input name="title" required placeholder="'+esc(placeholder)+'" style="width:100%"></label>'+
       '<label style="display:block;margin-top:10px">Цель (необязательно)<input name="goal" placeholder="Чего хотим достичь" style="width:100%"></label>'+
       '<div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело</button></div></form>',
       body=>{ const f=body.querySelector("#ccf"); f.title.focus(); f.onsubmit=async e=>{ e.preventDefault(); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Создаю…";
         try{ await ensureSession(); const c=await authFetch("POST","/cases",{title:(f.title.value||"").trim()||defaultTitle,goal:(f.goal.value||"").trim(),...(isPractice?{side:"offer_help"}:{})});
-          try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:isPractice?"pro":"home"}); }catch(_){}
+          try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:isPractice?"pro":(personal?"personal":"home")}); }catch(_){}
           if(isPractice) rememberPracticeCase(c.id,practice);
           REAL.loaded=false; modalClose(); realTab=defaultRealTab(); currentSpace=space; rebuildNav(); renderRealCase(c.id);
         }catch(err){ btn.disabled=false; btn.textContent="Создать дело"; toast((err&&err.message)||"Не удалось создать дело."); } }; });
@@ -2440,12 +2458,13 @@
     const custom = SCREENS[pathKey(node)];
     if (custom){ vwrap.innerHTML = custom(node); vwrap.parentElement.scrollTop = 0; bindScreen(); return; }
     const isMain = node.name==="Главная";
+    if(isMain){
+      loadThen(()=>dashboard(node), '<div class="my-day-home">'+skelCard(2)+skelCard(5)+'</div>', ()=>{ bindScreen(); setAgentDockCompact(true); if(currentSpace==="Практика"&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(refreshCurrentView); });
+      return;
+    }
     let head = '<div class="crumbs">'+crumbHtml(node)+'</div>'+
       '<div class="vhead"><p class="eyebrow">'+esc(isMain?currentSpace:eyebrowFor(node))+'</p><h1>'+esc(isMain?("Главная — "+currentSpace):node.name)+'</h1>';
-    if (isMain){
-      head += '<p>Ваше пространство «'+esc(currentSpace)+'»: важное, дела и сроки под наблюдением агентов.</p></div>';
-      loadThen(()=>head+dashboard(node), skeletonDash(head), ()=>{ bindScreen(); if(currentSpace==="Практика"&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(refreshCurrentView); }); return;
-    } else if (isListNode(node)){
+    if (isListNode(node)){
       head += '<p>Фильтр по состоянию · клик открывает дело.</p></div>';
       loadThen(()=>head+renderList(node), skeletonList(head), bindScreen); return;
     } else if (node.children.length){
@@ -2525,12 +2544,30 @@
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
   document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab=defaultRealTab(); location.hash="#case/"+rr.dataset.id; } });
+  document.getElementById("view").addEventListener("click",event=>{
+    const caseButton=event.target.closest("[data-my-day-case]"); if(caseButton){ realTab=defaultRealTab(); location.hash="#case/"+caseButton.dataset.myDayCase; return; }
+    if(event.target.closest("[data-my-day-account]")){ openAccount(); return; }
+    if(event.target.closest("[data-my-day-domashkin]")){ location.href="/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin"; return; }
+    if(event.target.closest("[data-my-day-fixarik]")){ const settings=findNode("Фиксарик"); if(settings)go(settings.id); return; }
+    const theme=event.target.closest("[data-my-day-theme]"); if(theme){ applyAppearance({mode:theme.dataset.myDayTheme},true); refreshCurrentView(); return; }
+    const language=event.target.closest("[data-my-day-language]"); if(language&&window.FixarV2I18n){ window.FixarV2I18n.choose(language.dataset.myDayLanguage); return; }
+    const prompt=event.target.closest("[data-my-day-prompt]"); if(prompt){ const form=event.target.closest(".my-day-main").querySelector('.my-day-composer'),field=form&&form.elements.message; if(field){ field.value=prompt.dataset.myDayPrompt; field.dispatchEvent(new Event("input",{bubbles:true})); field.focus(); } }
+  });
+  document.getElementById("view").addEventListener("input",event=>{ const hue=event.target.closest("[data-my-day-hue]"); if(!hue)return; const value=Number(hue.value),output=event.target.closest(".my-day-appearance").querySelector("[data-my-day-hue-output]"); applyAppearance({preset:"custom",hue:value},true); if(output)output.value=value+"°"; });
+  document.getElementById("view").addEventListener("submit",async event=>{
+    const form=event.target.closest('form[data-act="my-day-ask"]'); if(!form)return;
+    event.preventDefault(); const field=form.elements.message,button=form.querySelector('button[type="submit"]'),answer=form.querySelector("[data-my-day-answer]"),message=(field.value||"").trim(); if(!message)return;
+    button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.hidden=false; answer.textContent=uiText("Фиксарик думает…","Fixarik is thinking…");
+    try{ answer.textContent=await askCaseAgent(message); field.value=""; field.style.height=""; }
+    catch(error){ answer.textContent=(error&&error.message)||uiText("Фиксарик пока не ответил. Попробуйте ещё раз.","Fixarik has not answered yet. Please try again."); }
+    finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); }
+  });
   const agentDock=document.getElementById("agentdock"), agentDockToggle=document.getElementById("agentdocktoggle");
   function setAgentDockCompact(compact){ agentDock.classList.toggle("compact",compact); agentDockToggle.setAttribute("aria-expanded",String(!compact)); agentDockToggle.querySelector("span").textContent=compact?"Открыть":"Свернуть"; try{ localStorage.setItem("fixar-v2-agent-dock-compact",compact?"1":"0"); }catch(_){} }
   let savedDock; try{ savedDock=localStorage.getItem("fixar-v2-agent-dock-compact"); }catch(_){} setAgentDockCompact(savedDock===null?window.matchMedia("(max-width: 760px)").matches:savedDock==="1");
   agentDockToggle.addEventListener("click",()=>setAgentDockCompact(!agentDock.classList.contains("compact")));
   document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.textContent="Агент думает…";
-    try{ answer.textContent=await askCaseAgent(message); input.value=""; }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); } });
+    try{ answer.textContent=await askCaseAgent(message); input.value=""; setTimeout(()=>setAgentDockCompact(true),900); }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); } });
   document.addEventListener("input",e=>{ const field=e.target.closest("textarea[name=message]"); if(!field)return; field.style.height="auto"; field.style.height=Math.min(field.scrollHeight,180)+"px"; });
   bootIdentity();
 

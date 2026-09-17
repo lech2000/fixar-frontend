@@ -1,0 +1,122 @@
+.my-day-home {
+  --my-day-radius: 24px;
+  --my-day-surface: color-mix(in srgb, var(--panel) 94%, transparent);
+  --my-day-soft: color-mix(in srgb, var(--accent-soft) 72%, var(--panel));
+  --my-day-line: color-mix(in srgb, var(--line) 88%, transparent);
+  --my-day-shadow: 0 18px 48px color-mix(in srgb, var(--bg) 24%, transparent);
+  display: grid;
+  gap: 24px;
+}
+
+.my-day-home h1,
+.my-day-home h2,
+.my-day-home h3,
+.my-day-home p { margin: 0; }
+
+.my-day-appearance {
+  display: grid;
+  grid-template-columns: auto minmax(110px, 220px) 44px auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 10px 8px 15px;
+  border: 1px solid var(--my-day-line);
+  border-radius: 15px;
+  background: var(--my-day-surface);
+  box-shadow: var(--shadow);
+}
+
+.my-day-appearance > span {
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.my-day-appearance input { width: 100%; accent-color: var(--cyan); }
+.my-day-appearance output { color: var(--muted); font: 650 11px/1 ui-monospace, monospace; }
+.my-day-segment { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); }
+.my-day-segment button { min-height: 32px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 750; }
+.my-day-segment button[aria-pressed="true"] { color: var(--on-accent); background: var(--cyan); }
+
+.my-day-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.my-day-heading .eyebrow { margin-bottom: 10px; color: var(--muted); }
+.my-day-heading h1 { max-width: 18ch; font-size: clamp(38px, 5.4vw, 68px); font-weight: 650; letter-spacing: -.062em; line-height: .98; text-wrap: balance; }
+.my-day-heading p { max-width: 560px; margin-top: 16px; color: var(--muted); font-size: clamp(16px, 1.7vw, 19px); line-height: 1.55; }
+.my-day-badge { flex: none; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--my-day-surface); font-size: 12px; }
+
+.my-day-layout { display: grid; grid-template-columns: minmax(0, 1fr) 292px; gap: 24px; align-items: start; }
+.my-day-main { min-width: 0; }
+.my-day-highlight { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 150px; align-items: center; min-height: 214px; padding: 30px; border: 1px solid var(--accent-border); border-radius: var(--my-day-radius); background: linear-gradient(135deg, var(--my-day-soft), color-mix(in srgb, var(--panel) 92%, transparent)); }
+.my-day-highlight h2 { max-width: 15ch; margin: 12px 0 10px; font-size: clamp(26px, 3vw, 36px); letter-spacing: -.045em; line-height: 1.05; }
+.my-day-highlight p { max-width: 510px; color: var(--muted); }
+.my-day-orbit { position: relative; width: 145px; height: 145px; }
+.my-day-orbit::before { content: ""; position: absolute; inset: 4px; border: 1px solid var(--accent-border); border-radius: 50%; transform: rotate(-20deg) scaleY(.76); }
+.my-day-orbit-card { position: absolute; inset: 22px 12px 17px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 20px; background: var(--panel); box-shadow: var(--my-day-shadow); transform: rotate(-8deg); font-size: 34px; }
+.my-day-orbit-card b { display: block; font-size: 14px; letter-spacing: -.02em; }
+
+.my-day-composer { display: grid; gap: 11px; margin-top: 20px; padding: 18px 20px 15px; border: 1px solid var(--line); border-radius: 20px; background: var(--my-day-surface); box-shadow: var(--my-day-shadow); }
+.my-day-composer label { font-size: 17px; font-weight: 750; }
+.my-day-composer textarea { width: 100%; min-height: 84px; max-height: 220px; padding: 4px 0; border: 0; outline: 0; resize: none; background: transparent; color: var(--text); font: inherit; font-size: 17px; line-height: 1.5; }
+.my-day-composer-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+.my-day-composer-foot small { max-width: 470px; color: var(--muted); }
+.my-day-answer { padding: 12px 14px; border-radius: 14px; background: var(--accent-soft); line-height: 1.5; white-space: pre-wrap; }
+
+.my-day-prompts { display: flex; gap: 8px; overflow-x: auto; padding: 10px 1px 2px; scrollbar-width: none; }
+.my-day-prompts::-webkit-scrollbar { display: none; }
+.my-day-prompt { flex: 0 0 auto; min-height: 38px; padding: 8px 12px; border: 1px solid var(--accent-border); border-radius: 999px; background: var(--accent-soft); color: var(--text); cursor: pointer; font-size: 12.5px; }
+
+.my-day-section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 32px 0 14px; }
+.my-day-section-head h2 { font-size: 21px; letter-spacing: -.025em; }
+.my-day-section-head small { color: var(--muted); }
+.my-day-agent-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.my-day-agent { min-height: 236px; padding: 22px; border: 1px solid var(--my-day-line); border-radius: 20px; background: var(--my-day-surface); box-shadow: var(--shadow); }
+.my-day-agent-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.my-day-avatar { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 17px; background: var(--accent-soft); color: var(--cyan); font-size: 24px; }
+.my-day-status { padding: 4px 9px; border-radius: 999px; background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); font-size: 11px; white-space: nowrap; }
+.my-day-status.attention { color: var(--amber); background: color-mix(in srgb, var(--amber) 12%, transparent); }
+.my-day-agent h3 { margin-top: 17px; font-size: 19px; }
+.my-day-agent .role { margin-top: 2px; color: var(--muted); font-size: 13px; }
+.my-day-agent .update { min-height: 50px; margin-top: 15px; line-height: 1.45; }
+.my-day-text-button { display: inline-flex; align-items: center; gap: 8px; margin-top: 17px; padding: 0; border: 0; background: transparent; color: var(--cyan); cursor: pointer; font-weight: 750; }
+
+.my-day-rail { display: grid; gap: 14px; }
+.my-day-rail-card { padding: 21px; border: 1px solid var(--my-day-line); border-radius: 20px; background: var(--my-day-surface); box-shadow: var(--shadow); }
+.my-day-rail-card h2 { font-size: 18px; }
+.my-day-rail-card > p { margin-top: 7px; color: var(--muted); font-size: 13px; }
+.my-day-steps { display: grid; gap: 8px; margin-top: 15px; }
+.my-day-step { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 10px; width: 100%; min-height: 58px; padding: 10px; border: 1px solid var(--line-soft); border-radius: 14px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.my-day-step:hover { border-color: var(--accent-border); }
+.my-day-step-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 11px; background: var(--accent-soft); color: var(--cyan); }
+.my-day-step strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.my-day-step small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.my-day-safety { padding: 16px 18px; border: 1px solid var(--line-soft); border-radius: 16px; background: color-mix(in srgb, var(--panel) 86%, transparent); color: var(--muted); font-size: 12.5px; }
+.my-day-safety b { color: var(--text); }
+
+@media (max-width: 900px) {
+  .my-day-layout { grid-template-columns: 1fr; }
+  .my-day-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .pv-badge { display: none; }
+  .my-day-home { gap: 19px; }
+  .my-day-appearance { grid-template-columns: auto minmax(72px, 1fr) 40px; gap: 8px; }
+  .my-day-appearance > span { font-size: 0; }
+  .my-day-appearance > span::before { content: "◉"; font-size: 15px; }
+  .my-day-appearance .my-day-segment { grid-column: span 3; }
+  .my-day-appearance .my-day-segment button { flex: 1; }
+  .my-day-heading { align-items: flex-start; }
+  .my-day-heading h1 { font-size: clamp(38px, 13vw, 52px); }
+  .my-day-badge { display: none; }
+  .my-day-layout, .my-day-main { display: flex; flex-direction: column; }
+  .my-day-composer { order: -3; width: 100%; margin-top: 0; padding: 17px; }
+  .my-day-prompts { order: -2; width: 100%; }
+  .my-day-highlight { order: -1; grid-template-columns: minmax(0, 1fr) 76px; min-height: 176px; margin-top: 10px; padding: 22px; }
+  .my-day-highlight h2 { font-size: 25px; }
+  .my-day-orbit { width: 100px; margin-left: -20px; transform: scale(.78); transform-origin: center right; }
+  .my-day-agent-grid, .my-day-rail { grid-template-columns: 1fr; }
+  .my-day-agent { min-height: 0; }
+  .my-day-composer textarea { min-height: 104px; font-size: 17px; }
+  .my-day-composer-foot { align-items: stretch; flex-direction: column; }
+  .my-day-composer-foot .btn { width: 100%; justify-content: center; }
+}
