@@ -101,6 +101,21 @@
     return state.пакеты;
   }
 
+  function дорожка() {
+    var col = document.querySelector(".col");
+    if (!col || col.querySelector(".entry-roadmap")) return;
+    var section = document.createElement("section");
+    section.className = "entry-roadmap";
+    section.setAttribute("aria-label", "Как устроена работа в FixAR");
+    section.innerHTML =
+      '<article><span>1</span><div><b>Начните с одного вопроса</b><small>Без длинной анкеты и обязательной регистрации.</small></div></article>' +
+      '<article><span>2</span><div><b>Сохраните работу в деле</b><small>Диалог, документы и сроки останутся в одном контексте.</small></div></article>' +
+      '<article><span>3</span><div><b>Подтверждайте важное</b><small>Платежи, отправки и другие внешние действия — только после вашего слова.</small></div></article>';
+    col.appendChild(section);
+  }
+
+  document.addEventListener("DOMContentLoaded", дорожка);
+
   /* Наружу — ровно то, что нужно сценариям страниц. */
   window.ДВЕРЬ = { api: api, вход: вход, эл: эл, сказать: сказать,
                    пакеты: пакеты, фрагмент: фрагмент,
