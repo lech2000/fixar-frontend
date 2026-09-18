@@ -190,7 +190,10 @@
 
 @media (max-width: 560px) {
   .storage-notice { bottom: max(9px, env(safe-area-inset-bottom)); width: calc(100vw - 18px); padding: 14px; border-radius: 17px; }
-  .storage-notice-actions { grid-template-columns: 1fr; }
+  .storage-notice { gap: 9px; }
+  .storage-notice-copy span { font-size: 11.5px; line-height: 1.35; }
+  .storage-notice-actions { grid-template-columns: 1fr 1fr; }
+  .storage-notice-actions button { min-height: 38px; padding: 7px 9px; font-size: 12px; }
   .legal-center { gap: 14px; }
   .legal-hero { grid-template-columns: 50px minmax(0, 1fr); gap: 14px; padding: 19px; border-radius: 21px; }
   .legal-hero-mark { width: 50px; height: 50px; border-radius: 16px; font-size: 24px; }
@@ -222,6 +225,9 @@
 .my-day-home h3 { font-weight: 650; letter-spacing: -.025em; }
 
 .my-day-mood { display: grid; justify-self: start; gap: 9px; width: min(100%, 560px); }
+.my-day-mood-actions { display: flex; align-items: center; gap: 9px; }
+.my-day-signin { min-height: 46px; padding: 0 18px; border: 1px solid var(--line); border-radius: 999px; background: var(--my-day-surface); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 750; }
+.my-day-signin:hover { border-color: var(--cyan); }
 .my-day-mood-catcher {
   position: relative;
   isolation: isolate;
@@ -282,6 +288,28 @@
 .my-day-segment { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); }
 .my-day-segment button { min-height: 32px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 750; }
 .my-day-segment button[aria-pressed="true"] { color: var(--on-accent); background: var(--cyan); }
+
+.my-day-guest { gap: clamp(22px, 4vw, 38px); padding-bottom: 40px; }
+.my-day-guest-heading { display: grid; justify-items: center; text-align: center; }
+.my-day-guest-brand { display: flex; align-items: center; gap: 10px; margin-bottom: clamp(24px, 5vw, 44px); }
+.my-day-guest-brand b { font-size: 24px; font-weight: 750; letter-spacing: -.05em; }
+.my-day-guest-brand > span:last-child { color: var(--muted); font-size: 12px; }
+.my-day-guest-heading .eyebrow { color: var(--cyan); }
+.my-day-guest-heading h1 { max-width: 15ch; margin-top: 8px; font-size: clamp(42px, 7vw, 72px); font-weight: 630; letter-spacing: -.065em; line-height: .98; text-wrap: balance; }
+.my-day-guest-heading > p:last-child { max-width: 610px; margin-top: 18px; color: var(--muted); font-size: clamp(15px, 2vw, 18px); line-height: 1.55; }
+.my-day-guest .my-day-main { width: min(780px, 100%); margin: 0 auto; }
+.my-day-guest-composer { margin-top: 0; padding: clamp(20px, 3vw, 28px); border-color: var(--accent-border); border-radius: 26px; }
+.my-day-guest-composer textarea { min-height: 142px; max-height: 300px; font-size: clamp(17px, 2vw, 20px); }
+.my-day-guest .my-day-prompts { justify-content: center; }
+.my-day-roadmap { display: grid; gap: 18px; padding-top: 8px; }
+.my-day-roadmap-head { text-align: center; }
+.my-day-roadmap-head .eyebrow { color: var(--muted); }
+.my-day-roadmap-head h2 { margin-top: 6px; font-size: clamp(24px, 3vw, 34px); }
+.my-day-roadmap-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.my-day-roadmap-grid article { display: grid; align-content: start; gap: 14px; min-height: 170px; padding: 18px; border: 1px solid var(--my-day-line); border-radius: 20px; background: color-mix(in srgb, var(--my-day-surface) 86%, transparent); }
+.my-day-roadmap-grid article > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 12px; background: var(--accent-soft); color: var(--cyan); font-weight: 800; }
+.my-day-roadmap-grid h3 { font-size: 15px; }
+.my-day-roadmap-grid p { margin-top: 7px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
 
 @keyframes my-day-mood-flow {
   to { background-position: -320% 50%; }
@@ -815,13 +843,15 @@
   .case-next-rail > .eyebrow { grid-column: 1 / -1; }
   .case-gentle-note { grid-column: 1 / -1; }
   .owner-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .my-day-roadmap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 600px) {
-  .pv-badge { display: none; }
   .my-day-home { gap: 19px; }
   .my-day-mood { width: 100%; }
-  .my-day-mood-catcher { width: 100%; }
+  .my-day-mood-actions { align-items: stretch; }
+  .my-day-mood-catcher { flex: 1; width: auto; padding-inline: 14px; }
+  .my-day-signin { flex: none; padding-inline: 15px; }
   .my-day-mood-controls label { grid-template-columns: auto minmax(70px, 1fr) 38px; }
   .my-day-mood-row { align-items: stretch; flex-direction: column; }
   .my-day-mood-row .my-day-segment { display: flex; }
@@ -840,6 +870,14 @@
   .my-day-composer textarea { min-height: 104px; font-size: 17px; }
   .my-day-composer-foot { align-items: stretch; flex-direction: column; }
   .my-day-composer-foot .btn { width: 100%; justify-content: center; }
+  .my-day-guest { gap: 24px; }
+  .my-day-guest-brand { margin-bottom: 18px; }
+  .my-day-guest-heading h1 { font-size: 43px; }
+  .my-day-guest-composer { padding: 18px; }
+  .my-day-guest-composer textarea { min-height: 130px; }
+  .my-day-guest .my-day-prompts { justify-content: flex-start; }
+  .my-day-roadmap-grid { grid-template-columns: 1fr; }
+  .my-day-roadmap-grid article { grid-template-columns: 34px minmax(0, 1fr); min-height: 0; }
   .my-cases { gap: 17px; }
   .my-cases-heading { align-items: flex-start; }
   .my-cases-heading h1 { font-size: 34px; }
