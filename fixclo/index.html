@@ -162,7 +162,7 @@ MAX: https://max.ru/id780154675028_1_bot
                перестала подключать что-либо вовсе. /dnevnik/ забирает ключи
                сам, проверка «Готово» спрашивает площадку, как и прежде. -->
           <a class="btn" id="peduConnect"
-             href="/dnevnik/"
+             href="/dnevnik/?from=domashkin"
              target="_blank" rel="noopener noreferrer">Подключить дневник</a>
           <p class="hint" id="peduConnectStatus" role="status" aria-live="polite">
             Вход ещё не начат.
@@ -936,7 +936,7 @@ MAX: https://max.ru/id780154675028_1_bot
         return false;
       }
       статус.innerHTML = "Дневник пока не подключён. " +
-        "Подключить можно <a href='/dnevnik/' target='_blank' rel='noopener'>" +
+        "Подключить можно <a href='/dnevnik/?from=domashkin' target='_blank' rel='noopener'>" +
         "через наше окно входа</a> — или " +
         "<a href='#' id='peduSkip'>продолжить без дневника</a>.";
       var пропустить = $("peduSkip");

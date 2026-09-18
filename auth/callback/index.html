@@ -75,6 +75,10 @@
   var BACK_KEY = "fixar.link.back";
   var LOGIN_KEY = "fixar.login.state";
   var LOGIN_BACK_KEY = "fixar.login.back";
+  /* Подключение почты — не вход в ФиксАР. Оно использует тот же публичный
+     redirect URI, но отдельную одноразовую метку и owner-only ручку. */
+  var OWNER_YANDEX360_KEY = "fixar.owner.yandex360.state";
+  var OWNER_YANDEX360_BACK = "/v2/#owner/integrations";
   var КУДА = [
     "/",
     "/start/",
@@ -108,17 +112,79 @@
 
   var q = new URLSearchParams(location.search);
   var code = q.get("code"), state = q.get("state");
+  var ждалиПочту = null;
+  try { ждалиПочту = localStorage.getItem(OWNER_YANDEX360_KEY); } catch (e) {}
+  var почтаВладельца = !!(ждалиПочту && state && ждалиПочту === state);
+
+  /* Если в браузере висит незавершённая владельческая авторизация, иной
+     state нельзя пробовать как обычный вход: это разные полномочия. */
+  if (ждалиПочту && state && !почтаВладельца) {
+    back.href = OWNER_YANDEX360_BACK;
+    back.hidden = false;
+    fail(T("Это подключение почты начато в другой вкладке. Вернитесь в кабинет владельца и повторите."));
+    return;
+  }
 
   // Поставщик сообщает об отказе своим полем, а не молчанием: человек нажал
   // «отменить» — это не ошибка, и пугать его нечем.
   if (q.get("error")) {
+    if (почтаВладельца) {
+      try { localStorage.removeItem(OWNER_YANDEX360_KEY); } catch (e) {}
+      back.href = OWNER_YANDEX360_BACK;
+      back.textContent = T("Вернуться к почте 360");
+    }
     fail(q.get("error") === "access_denied"
-      ? T("Вы отменили вход. Разговор на месте — дело осталось вашим.")
+      ? (почтаВладельца
+        ? T("Вы отменили подключение. Доступ к почте не выдавался.")
+        : T("Вы отменили вход. Разговор на месте — дело осталось вашим."))
       : T("Поставщик вернул ошибку: ") + q.get("error"));
     return;
   }
   if (!code || !state) {
     fail(T("Поставщик не вернул код. Попробуйте войти ещё раз."));
+    return;
+  }
+
+  if (почтаВладельца) {
+    var ownerToken = null;
+    try {
+      ownerToken = localStorage.getItem(KEY);
+      localStorage.removeItem(OWNER_YANDEX360_KEY);
+    } catch (e) {}
+    back.href = OWNER_YANDEX360_BACK;
+    back.textContent = T("Вернуться к почте 360");
+    if (!ownerToken) {
+      fail(T("Подключение не завершено: вход владельца в этом браузере не найден."));
+      return;
+    }
+    fetch(API + "/ops/owner/yandex360/finish", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + ownerToken
+      },
+      body: JSON.stringify({state: state, code: code})
+    }).then(function (response) {
+      return response.text().then(function (raw) {
+        var data;
+        try { data = raw ? JSON.parse(raw) : {}; }
+        catch (e) { data = {detail: raw}; }
+        if (!response.ok) {
+          var detail = data && data.detail;
+          var message = typeof detail === "string" ? detail
+            : (detail && (detail.message || detail.reason));
+          throw new Error(message || ("HTTP " + response.status));
+        }
+        return data;
+      });
+    }).then(function (data) {
+      head.textContent = T("Яндекс 360 подключён");
+      text.textContent = T("Ящик ") + (data.mailbox || "") +
+        T(" прошёл проверку IMAP. Возвращаемся в кабинет владельца…");
+      setTimeout(function () { location.replace(OWNER_YANDEX360_BACK); }, 1100);
+    }).catch(function (error) {
+      fail(error.message || T("Не удалось подключить Яндекс 360."));
+    });
     return;
   }
 
