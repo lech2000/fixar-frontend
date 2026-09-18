@@ -2532,7 +2532,7 @@
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
       if(act==="state"){ const st=b.dataset.state; const nm={closed:"завершить",archived:"архивировать",active:"возобновить"}; if(!window.confirm("Точно "+(nm[st]||st)+" это дело?")) return; b.disabled=true;
-        try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/state",{target_state:st,reason:"смена статуса из предпросмотра v2"}); REAL.loaded=false; renderRealCase(c.id); }
+        try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/state",{target_state:st,reason:"смена статуса из предпросмотра v2"}); REAL.loaded=false; await loadRealCases(true); toast(st==="closed"?"Дело завершено и осталось в фильтре «Завершённые».":(st==="archived"?"Дело перенесено в архив.":"Дело снова активно.")); await renderRealCase(c.id); }
         catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось изменить статус."); } return; }
     };
     panel.onsubmit=async e=>{
@@ -2687,6 +2687,10 @@
     return '<div class="rc-strip"><h3>Ваши дела · '+esc(currentSpace)+' ('+rc.length+')</h3>'+rows+'<div class="cta-row" style="margin-top:10px"><button class="btn primary" data-act="create-case">Создать дело</button>'+fixar+'</div></div>';
   }
   function refreshCurrentView(){ const h=location.hash.slice(1); if(h.indexOf("case/")===0||h==="demo/states") return; if(h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; } const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; const node=byId[id]; if(node) render(node); }
+  function loadCasesThen(build,skel,after){
+    const t=++loadToken; vwrap.innerHTML=skel; vwrap.parentElement.scrollTop=0;
+    loadRealCases().then(()=>{ if(t!==loadToken)return; vwrap.innerHTML=build(); vwrap.parentElement.scrollTop=0; if(after)after(); });
+  }
 
   /* ── Общий модальный лист (для создания дела и правки доступа) ── */
   let _m=null,_mReturn=null;
@@ -2768,11 +2772,11 @@
     if (custom){ vwrap.innerHTML = custom(node); vwrap.parentElement.scrollTop = 0; bindScreen(); return; }
     const isMain = node.name==="Главная";
     if(isMain){
-      loadThen(()=>dashboard(node), '<div class="my-day-home">'+skelCard(2)+skelCard(5)+'</div>', ()=>{ bindScreen(); setAgentDockCompact(true); if(currentSpace==="Практика"&&hasSession()&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(refreshCurrentView); });
+      loadCasesThen(()=>dashboard(node), '<div class="my-day-home">'+skelCard(2)+skelCard(5)+'</div>', ()=>{ bindScreen(); setAgentDockCompact(true); if(currentSpace==="Практика"&&hasSession()&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(refreshCurrentView); });
       return;
     }
     if(isListNode(node)){
-      loadThen(()=>renderList(node), skeletonList(""), bindScreen);
+      loadCasesThen(()=>renderList(node), skeletonList(""), bindScreen);
       return;
     }
     let head = '<div class="crumbs">'+crumbHtml(node)+'</div>'+
