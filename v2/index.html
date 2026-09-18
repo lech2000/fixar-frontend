@@ -16,7 +16,9 @@
         var dark=mode==="dark"||(mode==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.theme=dark?"dark":"light";
         document.documentElement.dataset.themeMode=mode;
-        document.documentElement.style.setProperty("--accent-h",String(Number(saved.hue)||155));
+        var hue=Number(saved.hue);
+        if(!Number.isFinite(hue))hue=155;
+        document.documentElement.style.setProperty("--accent-h",String(((Math.round(hue)%360)+360)%360));
       }catch(_){ document.documentElement.dataset.theme="dark"; }
     })();
   </script>
@@ -944,6 +946,7 @@
   const AUTH_KEYS  = ["fixar.token","fixar.start.token","aios_token"];
   const AUTH_LOGIN_STATE = "fixar.login.state";  // одноразовая метка входа (CSRF)
   const AUTH_LOGIN_BACK  = "fixar.login.back";   // куда вернуть после входа
+  const OWNER_YANDEX360_STATE = "fixar.owner.yandex360.state";
   const AUTH_REDIRECT = "https://agrigate.pro/auth/callback";
   const AUTH_BACK     = "/v2/";                  // добавлен в белый список /auth/callback
   const BRAND = { google:{cls:"g",t:"Google"}, yandex:{cls:"y",t:"Яндекс"}, vk:{cls:"vk",t:"VK ID"},
@@ -958,15 +961,16 @@
   const put   = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
   const drop  = k => { try { localStorage.removeItem(k); } catch(e){} };
   const APPEARANCE_KEY = "fixar-v2-appearance";
+  function safeHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:155; }
   function readAppearance(){
     try{
       const value=JSON.parse(store(APPEARANCE_KEY)||"{}");
-      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:Math.max(140,Math.min(310,Number(value.hue)||155)),preset:value.preset||"fixar"};
-    }catch(_){ return {mode:"system",hue:155,preset:"fixar"}; }
+      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:safeHue(value.hue),preset:value.preset||"fixar",moodCaught:value.moodCaught===true};
+    }catch(_){ return {mode:"system",hue:155,preset:"fixar",moodCaught:false}; }
   }
   function applyAppearance(next,persist){
     const current=readAppearance(),value=Object.assign({},current,next||{});
-    value.hue=Math.max(140,Math.min(310,Number(value.hue)||155));
+    value.hue=safeHue(value.hue);
     const dark=value.mode==="dark"||(value.mode==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme=dark?"dark":"light";
     document.documentElement.dataset.themeMode=value.mode;
@@ -1393,11 +1397,13 @@
 
   const uiText=(ru,en)=>(window.FixarV2I18n&&window.FixarV2I18n.english)?en:ru;
   function myDayAppearance(){
-    const appearance=readAppearance(),resolvedTheme=document.documentElement.dataset.theme||"dark",language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru";
-    return '<section class="my-day-appearance" aria-label="'+uiText("Настройка оформления","Appearance playground")+'">'+
-      '<span>◉ '+uiText("Цвет настроения","Mood colour")+'</span><input type="range" min="140" max="310" step="1" value="'+appearance.hue+'" data-my-day-hue aria-label="'+uiText("Оттенок интерфейса","Interface hue")+'"><output data-my-day-hue-output>'+appearance.hue+'°</output>'+
-      '<div class="my-day-segment" role="group" aria-label="'+uiText("Светлая или тёмная тема","Light or dark theme")+'"><button type="button" data-my-day-theme="light" aria-pressed="'+(resolvedTheme==="light")+'">'+uiText("Светлая","Light")+'</button><button type="button" data-my-day-theme="dark" aria-pressed="'+(resolvedTheme==="dark")+'">'+uiText("Тёмная","Dark")+'</button></div>'+
-      '<div class="my-day-segment" role="group" aria-label="Language"><button type="button" data-my-day-language="ru" aria-pressed="'+(language==="ru")+'">RU</button><button type="button" data-my-day-language="en" aria-pressed="'+(language==="en")+'">EN</button></div></section>';
+    const appearance=readAppearance(),language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru",caught=appearance.moodCaught;
+    const modes=[["system",uiText("Авто","Auto")],["light",uiText("Светлая","Light")],["dark",uiText("Тёмная","Dark")]];
+    return '<section class="my-day-mood" data-my-day-mood style="--caught-h:'+appearance.hue+'" aria-label="'+uiText("Настройка оформления","Appearance playground")+'">'+
+      '<button class="my-day-mood-catcher'+(caught?' caught':'')+'" type="button" data-my-day-mood-catch aria-expanded="false" aria-controls="my-day-mood-controls"><span class="my-day-mood-spark" aria-hidden="true">✦</span><span data-my-day-mood-label>'+(caught?uiText("Настроить вручную","Fine-tune manually"):uiText("Поймай своё настроение","Catch your mood"))+'</span></button>'+
+      '<div class="my-day-mood-controls" id="my-day-mood-controls" data-my-day-mood-controls hidden><label><span>'+uiText("Цвет","Colour")+'</span><input type="range" min="0" max="359" step="1" value="'+appearance.hue+'" data-my-day-hue aria-label="'+uiText("Оттенок интерфейса","Interface hue")+'"><output data-my-day-hue-output>'+appearance.hue+'°</output></label>'+
+      '<div class="my-day-mood-row"><div class="my-day-segment" role="group" aria-label="'+uiText("Тема интерфейса","Interface theme")+'">'+modes.map(item=>'<button type="button" data-my-day-theme="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div>'+
+      '<div class="my-day-segment" role="group" aria-label="Language"><button type="button" data-my-day-language="ru" aria-pressed="'+(language==="ru")+'">RU</button><button type="button" data-my-day-language="en" aria-pressed="'+(language==="en")+'">EN</button></div></div></div></section>';
   }
   function myDayCopy(){
     if(currentSpace==="Семья")return {highlight:uiText("Вечер можно освободить","Make room for your evening"),body:uiText("Соберите семейные дела в один понятный план. Остальное — время вместе.","Bring family tasks into one simple plan. The rest is time together."),prompts:[["Что важно сделать семье сегодня?","What matters for the family today?"],["Помоги разобраться с ближайшими сроками","Help me review upcoming deadlines"]],symbol:"⌂"};
@@ -1448,6 +1454,7 @@
     ["users","Пользователи","Состояние аккаунтов без контактов и токенов"],
     ["acquisition","Привлечение","Источники и новые пользователи"],
     ["settings","Настройки","Вход новых посетителей и параметры кабинета"],
+    ["integrations","Почта 360","Корпоративный ящик и проверка входящей почты"],
     ["broadcast","Ленты","Черновики и подтверждение публикаций"],
     ["audit","Аудит","Журнал действий владельца"]
   ];
@@ -1495,6 +1502,13 @@
     ownerRouteSettings=settings;
     return '<form class="owner-settings-v2" data-owner-settings><section class="owner-setting tone-0"><h2>Новые посетители</h2><p>Настоящий серверный рубильник: выключение закрывает создание новых аккаунтов.</p><label class="owner-check"><input type="checkbox" name="enabled" '+(settings.new_visitors_enabled?'checked':'')+'> Разрешить новому браузеру начать</label></section><section class="owner-setting tone-2"><h2>Публичное объявление</h2><p>Показывается всем на первом экране. Только обычный текст.</p><textarea name="notice" maxlength="500" rows="5">'+esc(settings.public_notice||"")+'</textarea></section><section class="owner-setting tone-3"><h2>Параметры кабинета</h2><div class="owner-setting-fields"><label>Окно метрик, часов<input name="hours" type="number" min="1" max="720" value="'+attr(settings.metrics_window_hours)+'" required></label><label>Обновление, секунд<input name="refresh" type="number" min="15" max="900" value="'+attr(settings.auto_refresh_seconds)+'" required></label><label>Людей на странице<input name="pageSize" type="number" min="10" max="100" value="'+attr(settings.user_page_size)+'" required></label></div></section><div class="owner-actions"><button class="btn primary" type="submit">Сохранить настройки</button><small>Версия '+ownerNumber(settings.version)+' · '+esc(ownerDate(settings.updated_at))+'</small></div></form>';
   }
+  function ownerYandex360(data){
+    const ready=!!data.configured,connected=!!data.connected,last=data.last_checked_at?ownerDate(data.last_checked_at):"ещё не проверялось";
+    const missing=(data.missing||[]).map(value=>'<code>'+esc(value)+'</code>').join(" · ");
+    if(!ready)return '<section class="owner-mail-hero tone-warn"><div><p class="eyebrow">ЯНДЕКС 360 · НАСТРОЙКА</p><h2>OAuth-приложение ещё не готово</h2><p>Нужны серверные параметры: '+(missing||"конфигурация OAuth")+'. Значения в браузер не передаются.</p></div></section>';
+    if(!connected)return '<section class="owner-mail-hero"><div><p class="eyebrow">ТОЛЬКО ЧТЕНИЕ · IMAP</p><h2>Подключите почту @'+esc(data.allowed_domain||"agrigate.pro")+'</h2><p>Яндекс покажет точный список разрешений. ФиксАР получит чтение входящих писем, но не сможет отправлять или удалять их. Токен останется зашифрованным на сервере.</p><div class="owner-actions"><button class="btn primary" type="button" data-yandex360-connect>Войти через Яндекс OAuth</button></div></div><aside><b>Что произойдёт</b><ol><li>Вы выберете корпоративный аккаунт.</li><li>Яндекс попросит разрешение на чтение.</li><li>ФиксАР сразу проверит INBOX и вернёт вас сюда.</li></ol></aside></section>';
+    return '<div class="owner-mail-grid"><section class="owner-mail-hero connected"><div><p class="eyebrow">ЯНДЕКС 360 · ПОДКЛЮЧЕНО</p><h2>'+esc(data.mailbox||"Корпоративная почта")+'</h2><p>Входящая почта доступна ФиксАРу в режиме только чтения. OAuth-токен не хранится в браузере и никогда не показывается в ответах API.</p><div class="owner-actions"><button class="btn primary" type="button" data-yandex360-test>Проверить сейчас</button><button class="btn" type="button" data-yandex360-reconnect>Сменить аккаунт</button><button class="btn danger" type="button" data-yandex360-disconnect>Отключить</button></div></div><aside><b>Последняя проверка</b><strong>'+esc(last)+'</strong><small>'+esc(data.last_error||"IMAP принимает OAuth-доступ")+'</small></aside></section><section class="owner-block owner-wide"><div class="owner-block-head"><h2>Границы доступа</h2><small>read-only IMAP</small></div><div class="owner-mail-boundaries"><article><b>Можно</b><p>увидеть папки и прочитать входящие письма выбранного ящика</p></article><article><b>Нельзя</b><p>отправлять письма, удалять сообщения или управлять организацией</p></article><article><b>Отзыв</b><p>кнопка отключения стирает локальные токены и просит Яндекс отозвать доступ</p></article></div></section></div>';
+  }
   function ownerAudit(data){ const names={settings_read:"открыты настройки",settings_updated:"изменены настройки",metrics_read:"открыты метрики",users_read:"открыта таблица пользователей",audit_read:"открыт журнал"}; const rows=(data.events||[]).map(row=>'<tr><td>'+esc(ownerDate(row.at))+'</td><td>'+esc(names[row.action]||row.action||"—")+'</td><td>'+esc(row.actor||"—")+'</td><td><small>'+esc(JSON.stringify(row.details||{}))+'</small></td></tr>'); return '<section class="owner-block"><div class="owner-block-head"><h2>Журнал доступа</h2><small>Без копий пользовательских данных</small></div>'+ownerTable(["Когда","Действие","Кто","Детали"],rows)+'</section>'; }
   function ownerBroadcast(data){
     const outlets=data.outlets||[],drafts=data.drafts||[],published=data.published||[];
@@ -1508,11 +1522,12 @@
     if(tab==="overview"||tab==="acquisition"){ const settings=await authFetch("GET","/ops/owner/settings"); ownerRouteSettings=settings.settings; return authFetch("GET","/ops/owner/metrics?hours="+encodeURIComponent((settings.settings||{}).metrics_window_hours||24)); }
     if(tab==="users"){ const query=(options&&options.q)||"",sort=(options&&options.sort)||"recent"; const data=await authFetch("GET","/ops/owner/users?page=1&limit=50&sort="+encodeURIComponent(sort)+"&include_retired=false&q="+encodeURIComponent(query)); data.query=query; data.sort=sort; return data; }
     if(tab==="settings"){ const data=await authFetch("GET","/ops/owner/settings"); return data.settings||{}; }
+    if(tab==="integrations")return authFetch("GET","/ops/owner/yandex360");
     if(tab==="audit")return authFetch("GET","/ops/owner/audit?limit=150");
     const [outlets,drafts,published]=await Promise.all([authFetch("GET","/ops/owner/broadcast/outlets?include_disabled=true"),authFetch("GET","/ops/owner/broadcast/posts?state=draft&limit=50"),authFetch("GET","/ops/owner/broadcast/posts?state=published&limit=30")]);
     return {outlets:outlets.outlets||[],drafts:drafts.posts||[],published:published.posts||[]};
   }
-  function ownerBody(tab,data){ if(tab==="overview")return ownerOverview(data); if(tab==="users")return ownerUsers(data); if(tab==="acquisition")return ownerAcquisition(data); if(tab==="settings")return ownerSettingsPanel(data); if(tab==="broadcast")return ownerBroadcast(data); return ownerAudit(data); }
+  function ownerBody(tab,data){ if(tab==="overview")return ownerOverview(data); if(tab==="users")return ownerUsers(data); if(tab==="acquisition")return ownerAcquisition(data); if(tab==="settings")return ownerSettingsPanel(data); if(tab==="integrations")return ownerYandex360(data); if(tab==="broadcast")return ownerBroadcast(data); return ownerAudit(data); }
   async function renderOwnerRoute(requested,options){
     const tab=ownerTool(requested)[0],token=++ownerRouteToken;
     currentSpace="Разработка"; rebuildNav(); closeNav(); vwrap.classList.remove("dialog-view");
@@ -1528,6 +1543,11 @@
     const refresh=vwrap.querySelector("[data-owner-refresh]"); if(refresh)refresh.onclick=()=>renderOwnerRoute(tab);
     const users=vwrap.querySelector("[data-owner-users]"); if(users){ users.elements.sort.value=data.sort||"recent"; users.onsubmit=event=>{ event.preventDefault(); renderOwnerRoute("users",{q:users.elements.q.value.trim(),sort:users.elements.sort.value}); }; }
     const settings=vwrap.querySelector("[data-owner-settings]"); if(settings)settings.onsubmit=async event=>{ event.preventDefault(); const fields=settings.elements,button=settings.querySelector("button[type=submit]"),enabled=fields.enabled.checked; if(ownerRouteSettings&&ownerRouteSettings.new_visitors_enabled&&!enabled&&!confirm("Закрыть вход новым посетителям? Уже вошедшие продолжат работать.")){ fields.enabled.checked=true; return; } button.disabled=true; try{ const response=await authFetch("PUT","/ops/owner/settings",{expected_version:ownerRouteSettings.version,new_visitors_enabled:enabled,public_notice:fields.notice.value,metrics_window_hours:Number(fields.hours.value),auto_refresh_seconds:Number(fields.refresh.value),user_page_size:Number(fields.pageSize.value),confirmation:enabled?"":"close-new-visitors"}); ownerRouteSettings=response.settings; toast("Настройки сохранены и записаны в аудит."); renderOwnerRoute("settings"); }catch(error){ button.disabled=false; toast((error&&error.message)||"Настройки не сохранены."); } };
+    const connectYandex=async button=>{ button.disabled=true; try{ const response=await authFetch("POST","/ops/owner/yandex360/start",{}); put(OWNER_YANDEX360_STATE,response.state); location.href=response.authorize_url; }catch(error){ button.disabled=false; toast((error&&error.message)||"Подключение Яндекс 360 не началось."); } };
+    const yandexConnect=vwrap.querySelector("[data-yandex360-connect]"); if(yandexConnect)yandexConnect.onclick=()=>connectYandex(yandexConnect);
+    const yandexReconnect=vwrap.querySelector("[data-yandex360-reconnect]"); if(yandexReconnect)yandexReconnect.onclick=()=>connectYandex(yandexReconnect);
+    const yandexTest=vwrap.querySelector("[data-yandex360-test]"); if(yandexTest)yandexTest.onclick=async()=>{ yandexTest.disabled=true; try{ await authFetch("POST","/ops/owner/yandex360/test",{}); toast("Яндекс 360 отвечает: INBOX доступен."); renderOwnerRoute("integrations"); }catch(error){ yandexTest.disabled=false; toast((error&&error.message)||"Почта не прошла проверку."); } };
+    const yandexDisconnect=vwrap.querySelector("[data-yandex360-disconnect]"); if(yandexDisconnect)yandexDisconnect.onclick=async()=>{ if(!confirm("Отключить Яндекс 360? ФиксАР перестанет получать входящие письма."))return; yandexDisconnect.disabled=true; try{ await authFetch("POST","/ops/owner/yandex360/disconnect",{confirmation:"disconnect-yandex360"}); drop(OWNER_YANDEX360_STATE); toast("Яндекс 360 отключён, локальные токены удалены."); renderOwnerRoute("integrations"); }catch(error){ yandexDisconnect.disabled=false; toast((error&&error.message)||"Не удалось отключить почту."); } };
     const postForm=vwrap.querySelector("[data-owner-post]"); if(postForm)postForm.onsubmit=async event=>{ event.preventDefault(); const fields=postForm.elements,button=postForm.querySelector("button"); button.disabled=true; try{ await authFetch("POST","/ops/owner/broadcast/posts",{outlet_id:fields.outlet.value,body:fields.body.value.trim()}); renderOwnerRoute("broadcast"); }catch(error){ button.disabled=false; toast((error&&error.message)||"Черновик не сохранён."); } };
     vwrap.querySelectorAll("[data-owner-publish]").forEach(button=>button.onclick=async()=>{ const post=(data.drafts||[]).find(item=>String(item.id)===button.dataset.ownerPublish); if(!post||!confirm("Пост уйдёт в сообщество и будет виден всем. Опубликовать?"))return; button.disabled=true; try{ await authFetch("POST","/ops/owner/broadcast/posts/"+encodeURIComponent(post.id)+"/publish",{expected_body_sha256:await ownerFingerprint(post)}); renderOwnerRoute("broadcast"); }catch(error){ button.disabled=false; toast((error&&error.message)||"Пост не опубликован."); } });
     vwrap.querySelectorAll("[data-owner-reject]").forEach(button=>button.onclick=async()=>{ const note=prompt("Почему не публикуем? Это увидит ведущий.",""); if(note===null)return; button.disabled=true; try{ await authFetch("POST","/ops/owner/broadcast/posts/"+encodeURIComponent(button.dataset.ownerReject)+"/reject",{note}); renderOwnerRoute("broadcast"); }catch(error){ button.disabled=false; toast((error&&error.message)||"Черновик не отклонён."); } });
@@ -1695,7 +1715,7 @@
       '<section class="settings-card"><div class="appearance-group"><div class="appearance-label">Язык</div><div class="choice-row" data-language-choices><button class="choice'+(language==='ru'?' active':'')+'" type="button" data-language="ru" aria-pressed="'+(language==='ru')+'">Русский</button><button class="choice'+(language==='en'?' active':'')+'" type="button" data-language="en" aria-pressed="'+(language==='en')+'">English</button></div></div>'+
       '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Свет</div><div class="choice-row" data-theme-choices>'+modes.map(item=>'<button class="choice'+(appearance.mode===item[0]?' active':'')+'" type="button" data-theme-mode="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div></div>'+
       '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Палитра</div><div class="choice-row" data-palette-choices>'+palettes.map(item=>'<button class="choice palette-choice'+(appearance.preset===item[0]?' active':'')+'" type="button" data-palette="'+item[0]+'" data-hue="'+item[2]+'" aria-pressed="'+(appearance.preset===item[0])+'"><span class="palette-dot" style="--swatch:'+item[2]+'"></span>'+item[1]+'</button>').join("")+'</div></div>'+
-      '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="accent-hue">Точный оттенок</label><div class="hue-control"><input id="accent-hue" type="range" min="140" max="310" step="1" value="'+appearance.hue+'" aria-describedby="hue-help"><output class="hue-value" id="hue-value" for="accent-hue">'+appearance.hue+'°</output></div><p id="hue-help">Меняется только акцент. Яркость текста и контраст интерфейса остаются безопасными.</p></div>'+
+      '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="accent-hue">Точный оттенок</label><div class="hue-control"><input id="accent-hue" type="range" min="0" max="359" step="1" value="'+appearance.hue+'" aria-describedby="hue-help"><output class="hue-value" id="hue-value" for="accent-hue">'+appearance.hue+'°</output></div><p id="hue-help">Меняется только акцент. Яркость текста и контраст интерфейса остаются безопасными.</p></div>'+
       '<div class="cta-row"><button class="btn" type="button" data-reset-appearance>Вернуть оформление FixAR</button></div></section>'+
       (fixarik?'<section class="settings-card"><h3>Помощники и каналы</h3><p>Подключения Фиксарика, доступ к перепискам и паки разработчиков настраиваются отдельно.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+fixarik.id+'\')">Настройки Фиксарика</button></div></section>':'')+
       (legal?'<section class="settings-card"><h3>Данные и согласия</h3><p>Посмотрите, что хранится на устройстве, какие документы опубликованы и разрешена ли передача данных за рубеж.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+legal.id+'\')">Открыть центр данных</button></div></section>':'')+
@@ -2790,11 +2810,12 @@
     if(event.target.closest("[data-my-day-account]")){ openAccount(); return; }
     if(event.target.closest("[data-my-day-domashkin]")){ location.href="/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin"; return; }
     if(event.target.closest("[data-my-day-fixarik]")){ const settings=findNode("Фиксарик"); if(settings)go(settings.id); return; }
-    const theme=event.target.closest("[data-my-day-theme]"); if(theme){ applyAppearance({mode:theme.dataset.myDayTheme},true); refreshCurrentView(); return; }
+    const catcher=event.target.closest("[data-my-day-mood-catch]"); if(catcher){ const mood=catcher.closest("[data-my-day-mood]"),controls=mood.querySelector("[data-my-day-mood-controls]"),label=catcher.querySelector("[data-my-day-mood-label]"); if(!catcher.classList.contains("caught")){ const hue=Math.floor(Math.random()*360); applyAppearance({preset:"mood",hue,moodCaught:true},true); mood.style.setProperty("--caught-h",hue); catcher.classList.add("caught"); label.textContent=uiText("Настроить вручную","Fine-tune manually"); const slider=controls.querySelector("[data-my-day-hue]"),output=controls.querySelector("[data-my-day-hue-output]"); slider.value=hue; output.value=hue+"°"; return; } const open=controls.hidden; controls.hidden=!open; catcher.setAttribute("aria-expanded",String(open)); if(open)controls.querySelector("input").focus(); return; }
+    const theme=event.target.closest("[data-my-day-theme]"); if(theme){ const mood=theme.closest("[data-my-day-mood]"); applyAppearance({mode:theme.dataset.myDayTheme,moodCaught:true},true); mood.querySelectorAll("[data-my-day-theme]").forEach(button=>button.setAttribute("aria-pressed",String(button===theme))); return; }
     const language=event.target.closest("[data-my-day-language]"); if(language&&window.FixarV2I18n){ window.FixarV2I18n.choose(language.dataset.myDayLanguage); return; }
     const prompt=event.target.closest("[data-my-day-prompt]"); if(prompt){ const form=event.target.closest(".my-day-main").querySelector('.my-day-composer'),field=form&&form.elements.message; if(field){ field.value=prompt.dataset.myDayPrompt; field.dispatchEvent(new Event("input",{bubbles:true})); field.focus(); } }
   });
-  document.getElementById("view").addEventListener("input",event=>{ const hue=event.target.closest("[data-my-day-hue]"); if(!hue)return; const value=Number(hue.value),output=event.target.closest(".my-day-appearance").querySelector("[data-my-day-hue-output]"); applyAppearance({preset:"custom",hue:value},true); if(output)output.value=value+"°"; });
+  document.getElementById("view").addEventListener("input",event=>{ const hue=event.target.closest("[data-my-day-hue]"); if(!hue)return; const value=Number(hue.value),mood=event.target.closest("[data-my-day-mood]"),output=mood&&mood.querySelector("[data-my-day-hue-output]"); applyAppearance({preset:"custom",hue:value,moodCaught:true},true); if(mood)mood.style.setProperty("--caught-h",value); if(output)output.value=value+"°"; });
   document.getElementById("view").addEventListener("submit",async event=>{
     const form=event.target.closest('form[data-act="my-day-ask"]'); if(!form)return;
     event.preventDefault(); const field=form.elements.message,button=form.querySelector('button[type="submit"]'),answer=form.querySelector("[data-my-day-answer]"),message=(field.value||"").trim(); if(!message)return;

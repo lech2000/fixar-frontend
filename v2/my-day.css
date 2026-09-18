@@ -221,30 +221,76 @@
 .my-day-home h2 { font-weight: 620; letter-spacing: -.03em; line-height: 1.25; }
 .my-day-home h3 { font-weight: 650; letter-spacing: -.025em; }
 
-.my-day-appearance {
-  display: grid;
-  grid-template-columns: auto minmax(110px, 220px) 44px auto auto;
+.my-day-mood { display: grid; justify-self: start; gap: 9px; width: min(100%, 560px); }
+.my-day-mood-catcher {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  justify-content: center;
   align-items: center;
-  gap: 12px;
-  min-height: 52px;
-  padding: 8px 10px 8px 15px;
+  gap: 9px;
+  width: fit-content;
+  min-height: 46px;
+  padding: 0 20px;
+  border: 1px solid rgba(255, 255, 255, .38);
+  border-radius: 999px;
+  color: #fff;
+  background: hsl(var(--caught-h) 62% 48%);
+  box-shadow: 0 10px 30px hsl(var(--caught-h) 70% 50% / .28);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 780;
+  letter-spacing: -.01em;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, .34);
+  transition: transform 180ms ease, box-shadow 240ms ease, background 240ms ease;
+}
+.my-day-mood-catcher::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -6px;
+  border-radius: inherit;
+  background: inherit;
+  filter: blur(15px);
+  opacity: .5;
+}
+.my-day-mood-catcher:not(.caught) {
+  background: linear-gradient(100deg, #ff6d9d, #a978ff, #42c7ff, #44dc9c, #ffd56a, #ff7d68, #ff6d9d);
+  background-size: 320% 100%;
+  box-shadow: 0 12px 35px rgba(134, 106, 255, .3);
+  animation: my-day-mood-flow 5.6s linear infinite;
+}
+.my-day-mood-catcher:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 14px 38px hsl(var(--caught-h) 70% 50% / .34); }
+.my-day-mood-catcher:not(.caught):hover { box-shadow: 0 16px 42px rgba(89, 205, 255, .34); }
+.my-day-mood-catcher:active { transform: translateY(0) scale(.99); }
+.my-day-mood-spark { font-size: 16px; line-height: 1; }
+.my-day-mood-controls {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
   border: 1px solid var(--my-day-line);
   border-radius: 15px;
   background: var(--my-day-surface);
   box-shadow: var(--my-day-shadow);
 }
-
-.my-day-appearance > span {
-  font-size: 12px;
-  font-weight: 650;
-  white-space: nowrap;
-}
-
-.my-day-appearance input { width: 100%; accent-color: var(--cyan); }
-.my-day-appearance output { color: var(--muted); font: 650 11px/1 ui-monospace, monospace; }
+.my-day-mood-controls[hidden] { display: none; }
+.my-day-mood-controls label { display: grid; grid-template-columns: auto minmax(110px, 1fr) 42px; align-items: center; gap: 10px; padding: 0 5px; }
+.my-day-mood-controls label > span { color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .09em; }
+.my-day-mood-controls input { width: 100%; accent-color: var(--cyan); }
+.my-day-mood-controls output { color: var(--muted); font: 650 11px/1 ui-monospace, monospace; text-align: right; }
+.my-day-mood-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .my-day-segment { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); }
 .my-day-segment button { min-height: 32px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 750; }
 .my-day-segment button[aria-pressed="true"] { color: var(--on-accent); background: var(--cyan); }
+
+@keyframes my-day-mood-flow {
+  to { background-position: -320% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .my-day-mood-catcher:not(.caught) { animation: none; background-position: 50% 50%; }
+  .my-day-mood-catcher { transition: none; }
+}
 
 .my-day-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .my-day-heading .eyebrow { margin-bottom: 10px; color: var(--muted); }
@@ -692,6 +738,24 @@
 .owner-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
 .owner-settings-v2 > .owner-actions { grid-column: 1 / -1; }
 .owner-actions small { color: var(--muted); }
+.owner-actions .danger { color: #ffaaa0; border-color: color-mix(in srgb, #ff8888 38%, var(--line)); }
+.owner-mail-grid { display: grid; gap: 14px; }
+.owner-mail-hero { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(240px, .5fr); gap: 24px; padding: clamp(22px, 4vw, 38px); border: 1px solid var(--line); border-radius: 24px; background: linear-gradient(135deg, color-mix(in srgb, var(--cyan) 10%, var(--panel)), var(--panel)); box-shadow: var(--shadow); }
+.owner-mail-hero.connected { background: linear-gradient(135deg, color-mix(in srgb, var(--green) 11%, var(--panel)), var(--panel)); }
+.owner-mail-hero.tone-warn { grid-template-columns: 1fr; background: linear-gradient(135deg, color-mix(in srgb, var(--amber) 11%, var(--panel)), var(--panel)); }
+.owner-mail-hero .eyebrow { margin: 0 0 9px; color: var(--cyan); font-size: 11px; font-weight: 850; letter-spacing: .13em; }
+.owner-mail-hero h2 { margin: 0; font-size: clamp(25px, 3vw, 38px); letter-spacing: -.04em; }
+.owner-mail-hero p { max-width: 62ch; margin: 12px 0 18px; color: var(--muted); }
+.owner-mail-hero aside { align-self: stretch; padding: 18px; border: 1px solid var(--line-soft); border-radius: 17px; background: color-mix(in srgb, var(--field) 82%, transparent); }
+.owner-mail-hero aside b,.owner-mail-hero aside strong,.owner-mail-hero aside small { display: block; }
+.owner-mail-hero aside strong { margin: 15px 0 5px; font-size: 17px; }
+.owner-mail-hero aside small { color: var(--muted); }
+.owner-mail-hero aside ol { margin: 13px 0 0; padding-left: 20px; color: var(--muted); font-size: 13px; }
+.owner-mail-hero aside li + li { margin-top: 8px; }
+.owner-mail-boundaries { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.owner-mail-boundaries article { padding: 15px; border-radius: 15px; background: var(--field); }
+.owner-mail-boundaries b { display: block; margin-bottom: 5px; }
+.owner-mail-boundaries p { margin: 0; color: var(--muted); font-size: 12px; }
 .owner-post-form { display: grid; gap: 13px; }
 .owner-drafts { display: grid; gap: 12px; }
 .owner-draft { display: grid; gap: 12px; padding: 17px; border: 1px solid var(--line); border-radius: 16px; background: var(--field); }
@@ -727,11 +791,12 @@
 @media (max-width: 600px) {
   .pv-badge { display: none; }
   .my-day-home { gap: 19px; }
-  .my-day-appearance { grid-template-columns: auto minmax(72px, 1fr) 40px; gap: 8px; }
-  .my-day-appearance > span { font-size: 0; }
-  .my-day-appearance > span::before { content: "◉"; font-size: 15px; }
-  .my-day-appearance .my-day-segment { grid-column: span 3; }
-  .my-day-appearance .my-day-segment button { flex: 1; }
+  .my-day-mood { width: 100%; }
+  .my-day-mood-catcher { width: 100%; }
+  .my-day-mood-controls label { grid-template-columns: auto minmax(70px, 1fr) 38px; }
+  .my-day-mood-row { align-items: stretch; flex-direction: column; }
+  .my-day-mood-row .my-day-segment { display: flex; }
+  .my-day-mood-row .my-day-segment button { flex: 1; }
   .my-day-heading { align-items: flex-start; }
   .my-day-heading h1 { font-size: 34px; }
   .my-day-badge { display: none; }
@@ -820,5 +885,7 @@
   .owner-settings-v2 > .owner-actions,
   .owner-wide { grid-column: auto; }
   .owner-user-search { grid-template-columns: 1fr; }
+  .owner-mail-hero,
+  .owner-mail-boundaries { grid-template-columns: 1fr; }
   .owner-block { padding: 17px; }
 }
