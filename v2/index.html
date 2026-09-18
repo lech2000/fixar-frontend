@@ -1245,8 +1245,10 @@
   const ACCOUNT_SETTINGS_NODE = ROOT.children.find(node=>node.name==="Настройки");
   const ACCOUNT_NODES = [findNode("Общие разделы аккаунта"), ACCOUNT_SETTINGS_NODE, findNode("Помощь")].filter(Boolean);
   const kidOf = (node,name) => { const k=node&&node.children.find(c=>c.name===name); return k?k.id:(node?node.id:"0"); };
+  const CASE_VIEW_KEY = "fixar-v2-case-view";
   let currentSpace = "Семья";
   let listFilter = "Все";
+  let caseViewMode = store(CASE_VIEW_KEY)==="notes" ? "notes" : "list";
   function spaceOf(node){ let n=node; while(n){ for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } n=n.parent; } return null; }
   function switchSpace(k){ if(k===currentSpace) return; rememberInteraction("switch_space",k); currentSpace=k; rebuildNav(); go(kidOf(SPACE_NODES[k],"Главная")); }
   window.switchSpace = switchSpace;
@@ -1582,7 +1584,7 @@
   }
   function caseListItem(c){
     const status=caseListStatus(c),participants=(c.participants||[]).length;
-    return {title:c.title||uiText("Без названия","Untitled"),status,meta:(participants?participants+" "+uiText("уч.","people")+" · ":"")+uiText("обновлено ","updated ")+fmtWhen(c.updated_at),id:c.id,real:true,mine:c.owner_id===authState.principal,needsMe:!!c.needs_word,agentWorking:!!c.active_run_id&&!c.needs_word,completed:c.state==="closed"||c.state==="archived",assistant:caseListAssistant(c)};
+    return {title:c.title||uiText("Без названия","Untitled"),summary:c.goal||uiText("Откройте дело, чтобы продолжить с ближайшего шага.","Open the case to continue with the next step."),status,meta:(participants?participants+" "+uiText("уч.","people")+" · ":"")+uiText("обновлено ","updated ")+fmtWhen(c.updated_at),id:c.id,real:true,mine:c.owner_id===authState.principal,needsMe:!!c.needs_word,agentWorking:!!c.active_run_id&&!c.needs_word,completed:c.state==="closed"||c.state==="archived",assistant:caseListAssistant(c)};
   }
   function listItemsFor(node){
     if(realMode()) return realCasesForSpace(currentSpace).map(caseListItem);
@@ -1599,8 +1601,12 @@
     const items = listItemsFor(node);
     const empty=listEmptyState(node,items); if(empty)return empty;
     const shown = items.filter(cur.f);
-    return shown.length ? shown.map((it,index)=>'<button class="my-case-row" data-open="1" data-real="1" data-id="'+attr(it.id)+'" data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'"><span class="my-case-index" aria-hidden="true">'+String(index+1).padStart(2,"0")+'</span><span class="my-case-copy"><h3>'+esc(it.title)+'</h3><p>'+esc(it.meta||"")+(it.assistant?' · '+uiText("помощник ","assistant ")+esc(it.assistant):"")+'</p></span><span class="my-case-status status-'+(it.needsMe?'need':(it.agentWorking?'agent':(it.completed?'done':'active')))+'">'+caseListStatusLabel(it.status)+'</span><span class="my-case-open">'+uiText("Открыть","Open")+' →</span></button>').join("")
-      : '<section class="my-cases-empty compact"><span aria-hidden="true">○</span><h2>'+uiText("В этом фильтре спокойно","Nothing needs attention here")+'</h2><p>'+uiText("Выберите другой взгляд или создайте новое дело.","Choose another view or create a new case.")+'</p><button class="btn" data-act="reset-filter" data-node="'+node.id+'">'+uiText("Показать все","Show all")+'</button></section>';
+    if(!shown.length)return '<section class="my-cases-empty compact"><span aria-hidden="true">○</span><h2>'+uiText("В этом фильтре спокойно","Nothing needs attention here")+'</h2><p>'+uiText("Выберите другой взгляд или создайте новое дело.","Choose another view or create a new case.")+'</p><button class="btn" data-act="reset-filter" data-node="'+node.id+'">'+uiText("Показать все","Show all")+'</button></section>';
+    if(caseViewMode==="notes")return shown.map((it,index)=>{
+      const tone=it.needsMe?"need":(it.agentWorking?"agent":(it.completed?"done":"active"));
+      return '<button class="my-case-note note-'+tone+'" data-open="1" data-real="1" data-id="'+attr(it.id)+'" data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'"><span class="my-case-note-head"><span class="my-case-note-index" aria-hidden="true">'+String(index+1).padStart(2,"0")+'</span><span class="my-case-status status-'+tone+'">'+caseListStatusLabel(it.status)+'</span></span><span class="my-case-note-copy"><h3>'+esc(it.title)+'</h3><p>'+esc(it.summary||"")+'</p></span><span class="my-case-note-foot"><span>'+esc(it.assistant||uiText("Без помощника","No assistant"))+'</span><span>'+uiText("Открыть","Open")+' →</span></span></button>';
+    }).join("");
+    return shown.map((it,index)=>'<button class="my-case-row" data-open="1" data-real="1" data-id="'+attr(it.id)+'" data-title="'+attr(it.title)+'" data-status="'+attr(it.status)+'"><span class="my-case-index" aria-hidden="true">'+String(index+1).padStart(2,"0")+'</span><span class="my-case-copy"><h3>'+esc(it.title)+'</h3><p>'+esc(it.meta||"")+(it.assistant?' · '+uiText("помощник ","assistant ")+esc(it.assistant):"")+'</p></span><span class="my-case-status status-'+(it.needsMe?'need':(it.agentWorking?'agent':(it.completed?'done':'active')))+'">'+caseListStatusLabel(it.status)+'</span><span class="my-case-open">'+uiText("Открыть","Open")+' →</span></button>').join("");
   }
   function applyFilter(nodeId,name){
     listFilter=name; try{ history.replaceState(null,"","#"+nodeId+"~"+encodeURIComponent(name)); }catch(e){}
@@ -1610,8 +1616,14 @@
     const lst=vwrap.querySelector('#lst'); if(lst){ lst.innerHTML=listRowsHtml(node); bindListRows(); }
   }
   window.applyFilter = applyFilter;
+  function setCaseView(nodeId,mode){
+    caseViewMode=mode==="notes"?"notes":"list"; put(CASE_VIEW_KEY,caseViewMode);
+    vwrap.querySelectorAll("[data-case-view]").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.caseView===caseViewMode)));
+    const node=byId[nodeId],list=vwrap.querySelector("#lst");
+    if(list&&node){ list.className="my-cases-list view-"+caseViewMode; list.innerHTML=listRowsHtml(node); bindListRows(); }
+  }
   function bindListRows(){
-    vwrap.querySelectorAll('.my-case-row[data-open],.lrow[data-open]').forEach(r=>r.onclick=()=>{ if(r.dataset.real){ realTab=defaultRealTab(); location.hash="#case/"+r.dataset.id; } else openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed); });
+    vwrap.querySelectorAll('.my-case-row[data-open],.my-case-note[data-open],.lrow[data-open]').forEach(r=>r.onclick=()=>{ if(r.dataset.real){ realTab=defaultRealTab(); location.hash="#case/"+r.dataset.id; } else openCaseRow(r.dataset.title,r.dataset.status,r.dataset.seed); });
     const rf=vwrap.querySelector('[data-act="reset-filter"]'); if(rf) rf.onclick=()=>applyFilter(rf.dataset.node,"Все");
   }
   function renderList(node){
@@ -1620,7 +1632,8 @@
     const chips = LIST_FILTERS.map(x=>{ const cnt=items.filter(x.f).length,active=x.n===cur.n; return '<button class="tab'+(active?" active":"")+'" type="button" aria-pressed="'+active+'" data-filter="'+attr(x.n)+'" data-node="'+node.id+'">'+uiText(x.n,x.en)+'<span class="tcount">'+cnt+'</span></button>'; }).join("");
     const need=items.filter(item=>item.needsMe).length,working=items.filter(item=>item.agentWorking).length,done=items.filter(item=>item.completed).length;
     const create=currentSpace!=="Разработка"?'<button class="btn primary create-btn" data-act="create-case">'+uiText("Создать дело","Create case")+'</button>':"";
-    return '<main class="my-cases"><div class="crumbs">'+crumbHtml(node)+'</div><header class="my-cases-heading"><div><p class="eyebrow">'+esc(currentSpace)+' · '+uiText("ВАШИ ДЕЛА","YOUR CASES")+'</p><h1>'+uiText("Смотрите, что движется дальше.","See what moves forward next.")+'</h1><p>'+uiText("Ваш ответ — первым. Работа помощников — рядом. Завершённое не мешает.","Your input comes first. Assistant work stays visible. Completed cases stay out of the way.")+'</p></div><span class="my-day-badge">'+items.length+' '+uiText("дел","cases")+'</span></header><section class="my-cases-pulse" aria-label="'+uiText("Состояние дел","Case status")+'"><div><b>'+need+'</b><span>'+uiText("требуют вас","need you")+'</span></div><div><b>'+working+'</b><span>'+uiText("помощники работают","assistants working")+'</span></div><div><b>'+done+'</b><span>'+uiText("завершено","completed")+'</span></div></section><div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div>'+create+'</div><div class="my-cases-list" id="lst">'+listRowsHtml(node)+'</div></main>';
+    const view='<div class="case-view-toggle" role="group" aria-label="'+uiText("Вид дел","Case view")+'"><button type="button" data-case-view="list" data-node="'+node.id+'" aria-pressed="'+(caseViewMode==="list")+'"><span aria-hidden="true">≡</span>'+uiText("Список","List")+'</button><button type="button" data-case-view="notes" data-node="'+node.id+'" aria-pressed="'+(caseViewMode==="notes")+'"><span aria-hidden="true">▦</span>'+uiText("Стикеры","Sticky notes")+'</button></div>';
+    return '<main class="my-cases"><div class="crumbs">'+crumbHtml(node)+'</div><header class="my-cases-heading"><div><p class="eyebrow">'+esc(currentSpace)+' · '+uiText("ВАШИ ДЕЛА","YOUR CASES")+'</p><h1>'+uiText("Смотрите, что движется дальше.","See what moves forward next.")+'</h1><p>'+uiText("Ваш ответ — первым. Работа помощников — рядом. Завершённое не мешает.","Your input comes first. Assistant work stays visible. Completed cases stay out of the way.")+'</p></div><span class="my-day-badge">'+items.length+' '+uiText("дел","cases")+'</span></header><section class="my-cases-pulse" aria-label="'+uiText("Состояние дел","Case status")+'"><div><b>'+need+'</b><span>'+uiText("требуют вас","need you")+'</span></div><div><b>'+working+'</b><span>'+uiText("помощники работают","assistants working")+'</span></div><div><b>'+done+'</b><span>'+uiText("завершено","completed")+'</span></div></section><div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div><div class="case-list-actions">'+view+create+'</div></div><div class="my-cases-list view-'+caseViewMode+'" id="lst">'+listRowsHtml(node)+'</div></main>';
   }
 
   // --- Богатые экраны (нативные button/<a>, фокус, без эмодзи-иконок) ---
@@ -1934,6 +1947,8 @@
       vwrap.querySelector('#casepanel').innerHTML = casePanel(byId[btn.dataset.ctab]); });
     const fb=vwrap.querySelector('.filter-bar');
     if(fb) fb.addEventListener('click',e=>{ const b=e.target.closest('[data-filter]'); if(b) applyFilter(b.dataset.node,b.dataset.filter); });
+    const caseView=vwrap.querySelector('.case-view-toggle');
+    if(caseView) caseView.addEventListener('click',event=>{ const button=event.target.closest('[data-case-view]'); if(button)setCaseView(button.dataset.node,button.dataset.caseView); });
     const fixarikSearch=vwrap.querySelector('#developer-pack-search');
     if(fixarikSearch){
       fixarikSearch.onsubmit=event=>{ event.preventDefault(); searchDeveloperPacks(fixarikSearch); };
