@@ -2277,10 +2277,11 @@
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const events=await loadAllEvents(id);
-      let runs=[],patches=[],drafts=[],children=[],childrenError="",personalAgents=[],familyThread=null,materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
+      let runs=[],patches=[],drafts=[],nextActions=[],children=[],childrenError="",personalAgents=[],familyThread=null,materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
       try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
+      try{ const aa=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/actions"); nextActions=Array.isArray(aa)?aa:[]; }catch(_){}
       try{ const mm=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/materials"); materials=Array.isArray(mm&&mm.materials)?mm.materials:[]; hiddenMaterials=Number(mm&&mm.hidden)||0; }catch(_){}
       if(c.owner_id===authState.principal){ try{ const ce=await authFetch("GET","/calendar?case_id="+encodeURIComponent(id)+"&days=730&past=365"); calendarEvents=Array.isArray(ce&&ce.events)?ce.events:[]; }catch(error){ calendarError=(error&&error.message)||"Календарь временно недоступен."; } }
       if(isDomashkinCase(c)&&c.owner_id===authState.principal){
@@ -2291,7 +2292,7 @@
         try{ const list=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/threads?limit=100"); const ref=(list.threads||[]).find(thread=>thread.case_id===id); if(ref){ familyThread=await authFetch("GET","/threads/"+encodeURIComponent(ref.thread_id)); const messages=familyThread.messages||[]; if(messages.length)try{ await authFetch("POST","/threads/"+encodeURIComponent(ref.thread_id)+"/read",{seq:messages[messages.length-1].seq}); }catch(_){} } }catch(_){}
       }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, drafts, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, drafts, nextActions, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       if(isDomashkinCase(c)&&activeReal.isOwner&&children.length) await loadSchoolDay(children[0].id,dateInputValue(new Date(Date.now()+24*60*60*1000)),false);
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
@@ -2403,6 +2404,12 @@
     const nextRail='<aside class="case-next-rail"><p class="eyebrow">ЧТО ДАЛЬШЕ?</p><button class="case-next-primary" type="button" data-act="rc-goto" data-tab="'+attr(next.tab)+'"><span class="case-next-icon">→</span><span><b>'+esc(next.title)+'</b><small>'+esc(next.note)+'</small><em>'+esc(next.action)+' →</em></span></button><div class="case-next-links"><button type="button" data-act="rc-goto" data-tab="План"><b>План и действия</b><small>Что уже сделано и что впереди</small></button><button type="button" data-act="rc-goto" data-tab="Участники"><b>Люди и доступ</b><small>Кто участвует и что может</small></button><button type="button" data-act="rc-goto" data-tab="Документы"><b>Материалы дела</b><small>Файлы, результаты и общие ссылки</small></button></div><section class="case-gentle-note"><p class="eyebrow">ОДИН НЕБОЛЬШОЙ ШАГ</p><p>Не нужно решать всё сразу. Сохраните полезное и вернитесь, когда удобно.</p></section></aside>';
     return '<div class="case-overview-layout"><div>'+primary+'</div>'+nextRail+'</div>'+domashkinParentInvitePanel()+domashkinBookPanel()+domashkinFamilyThreadPanel();
   }
+  function nextActionOwnerName(owner){
+    if(!owner)return "Ответственный не назначен";
+    if(owner===activeReal.c.selected_agent_id)return assistantName(activeReal.c);
+    const participant=(activeReal.c.participants||[]).find(item=>item.principal_id===owner);
+    return participant?(participant.display_name||(owner===authState.principal?"Вы":"Участник")):owner;
+  }
   function realTabPanel(){
     const c=activeReal.c, canDecide=activeReal.canDecide, isOwner=activeReal.isOwner;
     if(realTab==="Диалог") return realDialogPanel();
@@ -2413,12 +2420,16 @@
     }
     if(realTab==="Школа") return schoolPanel();
     if(realTab==="План"){
-      const steps=c.on_request_steps||[]; let h="";
+      const actions=activeReal.nextActions||[];
+      const actionRows=actions.map(action=>'<div class="task"><span class="tstat '+(action.done?'done':'todo')+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(action.what||"Шаг")+'</b><span>'+esc(nextActionOwnerName(action.owner))+(action.due?' · до '+esc(fmtWhen(action.due)):'')+(action.waiting_for?' · ждём: '+esc(action.waiting_for):'')+'</span></div>'+(canDecide&&!action.done?'<button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button>':(action.done?'<span class="done-mark">выполнено</span>':''))+'</div>').join("");
+      const ownerOptions='<option value="">Пока не назначен</option>'+(c.participants||[]).map(participant=>'<option value="'+attr(participant.principal_id)+'">'+esc(participant.display_name||(participant.principal_id===authState.principal?'Вы':'Участник'))+'</option>').join("")+(c.selected_agent_id?'<option value="'+attr(c.selected_agent_id)+'">'+esc(assistantName(c))+'</option>':'');
+      const actionForm=canDecide?'<aside class="case-form-card tone-blue"><p class="eyebrow">НОВЫЙ ПУНКТ ПЛАНА</p><h2>Что нужно сделать?</h2><p>Пункт сохранится в деле и будет виден участникам. Срок и ответственного можно оставить пустыми.</p><form class="pform case-modern-form" data-act="next-action"><label><span>Действие</span><textarea name="what" rows="3" maxlength="1000" required placeholder="Например, реализовать загрузку банковских выписок PDF и Excel"></textarea></label><div class="case-field-grid"><label><span>Ответственный</span><select name="owner">'+ownerOptions+'</select></label><label><span>Срок</span><input name="due" type="datetime-local"></label></div><label><span>Что ждём</span><input name="waiting_for" maxlength="255" placeholder="Например, тестовые выписки за квартал"></label><button class="btn primary case-form-submit" type="submit">Добавить пункт плана</button></form></aside>':'<aside class="case-form-card tone-muted"><p class="eyebrow">ПЛАН</p><h2>Изменения защищены</h2><p>Добавлять и завершать пункты может участник с правом «решения».</p></aside>';
+      const steps=c.on_request_steps||[]; let h=actionRows?'<div class="section-t">План реализации</div><div class="stage">'+actionRows+'</div>':"";
       if(c.self_steps) h+='<p class="rc-hint">Автоматических шагов: '+c.self_steps+'</p>';
       if(steps.length) h+='<div class="section-t">Шаги по запросу</div>'+steps.map(s=>'<div class="task"><span class="tstat todo" aria-hidden="true"></span><div class="tmain"><b>'+esc(s.title||s.step||"Шаг")+'</b><span>по запросу'+(s.min_assurance?' · нужен уровень '+s.min_assurance:'')+'</span></div></div>').join("");
-      const runEv=activeReal.events.filter(e=>/^run\.|^action\.|^patch\./.test(e.kind));
+      const runEv=activeReal.events.filter(e=>/^run\.|^patch\./.test(e.kind));
       if(runEv.length) h+='<div class="section-t">Ход работы</div>'+runEv.slice().reverse().map(eventLine).join("");
-      if(!h) h=emptyState("🧭","План ещё не сложился","Он появится, когда по делу начнётся работа.","","");
+      if(!h) h=emptyState("🧭","План ещё не сложился","Добавьте первый реальный шаг справа — он сразу сохранится в деле.","","");
       const runs=(activeReal.runs||[]).map(runCard).join("");
       const patches=(activeReal.patches||[]).map(patchCard).join("");
       let command='';
@@ -2429,7 +2440,7 @@
       } else if(canDecide) {
         command='<div class="rc-note">Чтобы поручить работу агенту, подтвердите вход до уровня 2. Это защищает запуск, который может тратить кредиты и создавать предложения изменений.</div>';
       }
-      return h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command;
+      return '<div class="case-form-layout"><section class="case-form-main">'+h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command+'</section>'+actionForm+'</div>';
     }
     if(realTab==="Сроки"){
       if(!isOwner) return '<div class="rc-note">Календарь пока принадлежит владельцу дела. Участникам показываются только сроки, записанные в журнале; общий календарь дела ещё подключается.</div>';
@@ -2571,6 +2582,12 @@
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
+      if(act==="complete-action"){
+        b.disabled=true; b.textContent="Сохраняю…";
+        try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/actions/"+encodeURIComponent(b.dataset.id)+"/complete",{}); realTab="План"; await renderRealCase(c.id); }
+        catch(err){ b.disabled=false; b.textContent="Готово"; toast((err&&err.message)||"Не удалось завершить пункт плана."); }
+        return;
+      }
       if(act==="state"){ const st=b.dataset.state; const nm={closed:"завершить",archived:"архивировать",active:"возобновить"}; if(!window.confirm("Точно "+(nm[st]||st)+" это дело?")) return; b.disabled=true;
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/state",{target_state:st,reason:"смена статуса из предпросмотра v2"}); REAL.loaded=false; await loadRealCases(true); toast(st==="closed"?"Дело завершено и осталось в фильтре «Завершённые».":(st==="archived"?"Дело перенесено в архив.":"Дело снова активно.")); await renderRealCase(c.id); }
         catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось изменить статус."); } return; }
@@ -2612,6 +2629,9 @@
       if(f.dataset.act==="case-details"){ const btn=f.querySelector("button"), title=(f.title.value||"").trim(), goal=(f.goal.value||"").trim(); if(!title)return; btn.disabled=true; btn.textContent="Сохраняю…";
         try{ await authFetch("PUT","/cases/"+encodeURIComponent(c.id)+"/details",{title,goal,expect_version:c.version}); REAL.loaded=false; realTab="Настройки"; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; btn.textContent="Сохранить реквизиты"; toast(err.status===409?"Дело изменилось в другом окне. Обновите карточку и повторите.":((err&&err.message)||"Не удалось сохранить реквизиты.")); } return; }
+      if(f.dataset.act==="next-action"){ const btn=f.querySelector("button"), due=f.due.value?new Date(f.due.value):null; if(due&&isNaN(due.getTime())){ toast("Проверьте срок пункта плана."); return; } btn.disabled=true; btn.textContent="Добавляю…";
+        try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/actions",{what:(f.what.value||"").trim(),owner:f.owner.value||"",due:due?due.toISOString():null,waiting_for:(f.waiting_for.value||"").trim()}); realTab="План"; await renderRealCase(c.id); toast("Пункт добавлен в план дела."); }
+        catch(err){ btn.disabled=false; btn.textContent="Добавить пункт плана"; toast((err&&err.message)||"Не удалось добавить пункт плана."); } return; }
       if(f.dataset.act==="calendar-create"){ const btn=f.querySelector("button"), at=new Date(f.at.value), until=f.until.value?new Date(f.until.value):null; if(isNaN(at.getTime())){ toast("Укажите дату и время события."); return; } if(until&&isNaN(until.getTime())){ toast("Проверьте время окончания."); return; } btn.disabled=true; btn.textContent="Добавляю…";
         try{ await authFetch("POST","/calendar",{case_id:c.id,kind:f.kind.value,title:(f.title.value||"").trim(),at:at.toISOString(),until:until?until.toISOString():null,place:(f.place.value||"").trim(),note:(f.note.value||"").trim(),basis:"добавлено владельцем в FixAR v2",source:"human"}); realTab="Сроки"; renderRealCase(c.id); }
         catch(err){ btn.disabled=false; btn.textContent="Добавить в календарь"; toast((err&&err.message)||"Не удалось добавить событие."); } return; }
