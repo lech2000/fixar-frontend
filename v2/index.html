@@ -1695,6 +1695,7 @@
       '<div class="vhead"><p class="eyebrow">Личный помощник</p><h1>Настройки Фиксарика</h1><p>Здесь видно, где Фиксарик действительно подключён, что он вправе читать и какие расширения можно добавить. Скрытого доступа к личным перепискам нет.</p></div>'+
       '<div><div class="section-t">Каналы</div><div class="settings-grid" id="fixarik-channels"><div class="settings-card"><p>Проверяю подключения…</p></div></div></div>'+
       '<div class="settings-card"><h3>Как сообщать о важном</h3><p>Сейчас Фиксарик разбирает сообщения, отправленные непосредственно ему, и события ваших дел. Наблюдение за выбранными групповыми чатами появится только через отдельный пак-коннектор с явным разрешением на каждый чат.</p><div class="cta-row"><a class="btn primary" href="/fixclo/">Настроить самого Фиксарика</a><button class="btn" type="button" data-open-account>Вход и аккаунт</button></div></div>'+
+      '<div><div class="section-t">Волт на телефоне</div><div class="settings-card" id="fixar-device-vault"><p>Проверяю сопряжённые устройства…</p></div></div>'+
       '<div><div class="section-t">Паки и коннекторы разработчиков</div><div class="settings-card"><form class="pform" id="developer-pack-search"><div class="pf-row"><label>Что найти<input name="q" maxlength="120" placeholder="Например, важные сообщения или календарь"></label><label>Вид<select name="kind"><option value="">Все расширения</option><option value="Connector">Коннекторы</option><option value="Pack">Паки</option><option value="Solution">Решения</option></select></label></div><div class="cta-row"><button class="btn primary" type="submit">Найти в каталоге</button></div></form><div class="pack-search-results" id="developer-pack-results" aria-live="polite"><p class="rc-hint">Загружаю опубликованные расширения…</p></div></div></div>'+
       '</div>';
   }
@@ -1709,6 +1710,35 @@
       const response=await authFetch("GET","/channels"),channels=response.channels||[];
       box.innerHTML=Object.keys(CHANNEL_INFO).map(code=>{ const found=channels.find(channel=>channel.channel===code); return channelCard(code,!!found,found?(found.label||""):""); }).join("");
     }catch(error){ box.innerHTML='<div class="settings-card"><h3>Подключения не загрузились</h3><p>'+esc((error&&error.message)||"Попробуйте позже.")+'</p></div>'; }
+  }
+  function deviceVaultCard(devices){
+    const active=(devices||[]).filter(device=>device.state==="active");
+    const rows=active.map(device=>'<div class="perm"><span class="dot"></span><b>'+esc(device.display_name||"Телефон FixAR")+'</b><span>'+esc(device.last_seen_at?"был на связи "+new Date(device.last_seen_at).toLocaleString("ru-RU"):"подключён, ещё не опрашивал задания")+'</span></div>').join("");
+    return '<h3>Секреты остаются на вашем устройстве</h3><p>FixAR передаёт телефону только подписанное задание. Cookies, пароль и страницы входа агенту и модели не выдаются.</p>'+
+      (rows?'<div style="margin-top:14px">'+rows+'</div>':'<p class="rc-note">Сопряжённых телефонов пока нет.</p>')+
+      '<div class="cta-row"><button class="btn primary" type="button" data-pair-fixar-device>Подключить телефон</button></div>';
+  }
+  async function loadDeviceVault(){
+    const box=document.getElementById("fixar-device-vault"); if(!box)return;
+    if(!authState.token||!authState.principal){ box.innerHTML='<h3>Сначала войдите</h3><p>Сопряжение доступно только подтверждённому владельцу аккаунта.</p><div class="cta-row"><button class="btn primary" type="button" data-vault-signin>Войти</button></div>'; const button=box.querySelector("[data-vault-signin]"); if(button)button.onclick=openAccount; return; }
+    if(Number(authState.assurance||0)<2){ box.innerHTML='<h3>Подтвердите аккаунт</h3><p>Телефон сможет выполнять фоновые задания от вашего имени, поэтому одного гостевого входа недостаточно.</p><div class="cta-row"><button class="btn primary" type="button" data-vault-confirm>Подтвердить вход</button></div>'; const button=box.querySelector("[data-vault-confirm]"); if(button)button.onclick=openAccount; return; }
+    try{
+      const response=await authFetch("GET","/browser/devices"),devices=response.devices||[];
+      box.innerHTML=deviceVaultCard(devices);
+      const button=box.querySelector("[data-pair-fixar-device]"); if(button)button.onclick=()=>startDevicePairing(button);
+    }catch(error){ box.innerHTML='<h3>Устройства не загрузились</h3><p>'+esc((error&&error.message)||"Попробуйте позже.")+'</p>'; }
+  }
+  async function startDevicePairing(button){
+    if(button)button.disabled=true;
+    try{
+      const response=await authFetch("POST","/browser/devices/pairing-ticket",{});
+      const handoff=location.origin+"/v2/pair/?ticket="+encodeURIComponent(response.ticket);
+      const appLink="fixar://pair?ticket="+encodeURIComponent(response.ticket);
+      const share=async()=>{ if(navigator.share){ try{await navigator.share({title:"Подключить телефон к FixAR",text:"Откройте ссылку на телефоне. Она одноразовая и действует пять минут.",url:handoff});return;}catch(_){} try{await navigator.clipboard.writeText(handoff);toast("Одноразовая ссылка скопирована.");}catch(_){toast("Не удалось скопировать ссылку.");} };
+      modalOpen("Подключить телефон",'<p class="lead">Откройте одноразовую ссылку на телефоне, затем введите в Companion код ниже. Основной токен аккаунта в ссылку не попадает.</p><div class="settings-card"><p class="eyebrow">КОД ПОДТВЕРЖДЕНИЯ</p><p style="font-size:2rem;font-weight:800;letter-spacing:.24em;margin:.35rem 0">'+esc(response.confirmation_code)+'</p><p class="rc-hint">Код и ссылка действуют до '+esc(new Date(response.expires_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}))+'</p><div class="cta-row"><a class="btn primary" href="'+attr(appLink)+'">Открыть Companion</a><button class="btn" type="button" data-share-pair>Передать ссылку</button></div></div>');
+      const shareButton=document.querySelector("[data-share-pair]"); if(shareButton)shareButton.onclick=share;
+    }catch(error){ toast((error&&error.message)||"Не удалось выдать ссылку для телефона."); }
+    finally{ if(button)button.disabled=false; }
   }
   function packResultCard(pack){
     const type={Connector:"коннектор",Pack:"пак",Solution:"решение"}[pack.kind]||pack.kind||"расширение";
@@ -1806,7 +1836,7 @@
       fixarikSearch.onsubmit=event=>{ event.preventDefault(); searchDeveloperPacks(fixarikSearch); };
       const accountButton=vwrap.querySelector('[data-open-account]'); if(accountButton)accountButton.onclick=openAccount;
       const results=vwrap.querySelector('#developer-pack-results'); if(results)results.onclick=event=>{ const button=event.target.closest('[data-pack-details]'); if(button)openDeveloperPack(button.dataset.packDetails); };
-      loadFixarikChannels(); searchDeveloperPacks(fixarikSearch);
+      loadFixarikChannels(); loadDeviceVault(); searchDeveloperPacks(fixarikSearch);
     }
     bindListRows();
   }
