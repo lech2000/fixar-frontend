@@ -545,6 +545,22 @@
     const context=[c&&c.title,c&&c.goal,fileName].filter(Boolean).join(" ").toLowerCase();
     return /бухгалтер|усн|налог|банк|выписк|statement|transaction|операци/.test(context)?"financial":fallback;
   }
+  function caseRequestId(prefix="case"){
+    const bytes=new Uint8Array(12); if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(bytes);
+    const random=Array.from(bytes,value=>value.toString(16).padStart(2,"0")).join("")||Math.random().toString(36).slice(2);
+    return "v2-"+prefix+"-"+Date.now().toString(36)+"-"+random;
+  }
+  async function caseRequestHash(payload){
+    if(!(window.crypto&&crypto.subtle))throw new Error("Браузер не поддерживает безопасный повтор создания дела.");
+    const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(payload)));
+    return Array.from(new Uint8Array(digest),value=>value.toString(16).padStart(2,"0")).join("");
+  }
+  async function createCaseOnce(payload,requestId){
+    const clean={...payload};
+    return authFetch("POST","/cases",{...clean,client_message_id:requestId,client_request_hash:await caseRequestHash(clean)});
+  }
+  window.caseRequestId=caseRequestId;
+  window.createCaseOnce=createCaseOnce;
   async function uploadCaseMaterial(c,file,sensitivity){
     if(!file)throw new Error("Выберите файл.");
     if(file.size>64*1024*1024)throw new Error("Файл больше 64 МБ.");
@@ -767,14 +783,14 @@
   function openCreateCase(){
     const practice=currentSpace==="Практика"?selectedPractice():null;
     if(currentSpace==="Практика"&&!practice){ toast("Сначала выберите кабинет в разделе «Практика»."); return; }
-    const isPractice=!!practice, isDevelopment=currentSpace==="Разработка", personal=currentSpace==="Личное", space=isDevelopment?"Разработка":(isPractice?"Практика":(personal?"Личное":"Семья")), defaultTitle=isDevelopment?"Новая задача разработки":(isPractice?"Новое дело кабинета":(personal?"Личное дело":"Семейное дело")), placeholder=isDevelopment?"Напр., Пак Бухгалтерия УСН":(isPractice?"Напр., Договор клиента":(personal?"Напр., Организовать переезд":"Напр., Переезд семьи"));
+    const isPractice=!!practice, isDevelopment=currentSpace==="Разработка", personal=currentSpace==="Личное", space=isDevelopment?"Разработка":(isPractice?"Практика":(personal?"Личное":"Семья")), defaultTitle=isDevelopment?"Новая задача разработки":(isPractice?"Новое дело кабинета":(personal?"Личное дело":"Семейное дело")), placeholder=isDevelopment?"Напр., Пак Бухгалтерия УСН":(isPractice?"Напр., Договор клиента":(personal?"Напр., Организовать переезд":"Напр., Переезд семьи")), requestId=caseRequestId("manual");
     modalOpen(isDevelopment?"Новое дело разработки":(isPractice?"Новое дело кабинета":(personal?"Новое личное дело":"Новое семейное дело")),
       '<p class="lead">Создаётся настоящее дело в пространстве «'+esc(space)+'». Вы — владелец; участников можно пригласить позже.'+(isPractice?' Агент и база знаний будут взяты из выбранного кабинета «'+esc(practiceTitle(practice))+'».':(isDevelopment?' Помощником сразу станет кабинет разработчика.':''))+'</p>'+
       '<form id="ccf" class="pform"><label style="display:block">Название<input name="title" required placeholder="'+esc(placeholder)+'" style="width:100%"></label>'+
       '<label style="display:block;margin-top:10px">Цель (необязательно)<input name="goal" placeholder="Чего хотим достичь" style="width:100%"></label>'+
       '<div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело</button></div></form>',
       body=>{ const f=body.querySelector("#ccf"); f.title.focus(); f.onsubmit=async e=>{ e.preventDefault(); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Создаю…";
-        try{ await ensureSession(); const c=await authFetch("POST","/cases",{title:(f.title.value||"").trim()||defaultTitle,goal:(f.goal.value||"").trim(),...((isPractice||isDevelopment)?{side:"offer_help"}:{})});
+        try{ await ensureSession(); const c=await createCaseOnce({title:(f.title.value||"").trim()||defaultTitle,goal:(f.goal.value||"").trim(),...((isPractice||isDevelopment)?{side:"offer_help"}:{})},requestId);
           try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:(isPractice||isDevelopment)?"pro":(personal?"personal":"home")}); }catch(_){}
           if(isDevelopment) await authFetch("PUT","/cases/"+encodeURIComponent(c.id)+"/routing",{domain:"software",selected_agent_id:"cabinet",reason:"developer-cabinet:v1",expect_domain:"",expect_selected_agent_id:""});
           if(isPractice) rememberPracticeCase(c.id,practice);
@@ -825,7 +841,7 @@
     if(!authState.token||!authState.principal){ openAccount(); return; }
     fixarikFunnelOpened=true;
     history.replaceState(null,"",location.pathname+location.hash);
-    const channel=query.get("channel")==="tg"?"Telegram":"MAX";
+    const channel=query.get("channel")==="tg"?"Telegram":"MAX", requestId=caseRequestId("fixarik");
     currentSpace="Личное"; rebuildNav();
     modalOpen("Первое дело с Фиксариком",
       '<p class="lead">Вход через '+channel+' завершён. Опишите реальную задачу — она станет защищённым личным делом, а Фиксарик сразу подготовит первый разбор.</p>'+
@@ -837,7 +853,7 @@
       body=>{ const form=body.querySelector("#fixarikfunnel"); form.title.focus(); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"), title=form.title.value.trim(), problem=form.problem.value.trim(); if(!title||!problem)return; button.disabled=true; button.classList.add("thinking"); button.textContent="Создаю дело…";
         let created=null;
         try{
-          created=await authFetch("POST","/cases",{title,goal:problem,side:"need_help"});
+          created=await createCaseOnce({title,goal:problem,side:"need_help"},requestId);
           try{ await authFetch("POST","/cases/"+encodeURIComponent(created.id)+"/scope",{scope:"personal"}); }catch(_){}
           REAL.loaded=false; modalClose(); realTab=defaultRealTab(); location.hash="#case/"+created.id;
           await renderRealCase(created.id);
