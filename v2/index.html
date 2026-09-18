@@ -2230,6 +2230,11 @@
     REAL.loading=false;
   }
   const isLegacyHomeworkAnalysisCase = c => /^Разбор домашнего задания$/i.test(String(c&&c.title||"").trim());
+  function spaceForRealCase(c){
+    if((c.scope||"")==="home")return "Семья";
+    if((c.scope||"")==="pro")return c.domain==="software"?"Разработка":"Практика";
+    return "Личное";
+  }
   function realCasesForSpace(space){
     const cases=REAL.cases.filter(c=>!isLegacyHomeworkAnalysisCase(c));
     if(space==="Личное") return cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
@@ -2304,6 +2309,7 @@
     vwrap.innerHTML=skeletonCase(); vwrap.parentElement.scrollTop=0;
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
+      const caseSpace=spaceForRealCase(c); if(currentSpace!==caseSpace){currentSpace=caseSpace;rebuildNav();}
       const events=await loadAllEvents(id);
       let runs=[],patches=[],drafts=[],nextActions=[],children=[],childrenError="",personalAgents=[],familyThread=null,materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
@@ -2438,6 +2444,19 @@
     const participant=(activeReal.c.participants||[]).find(item=>item.principal_id===owner);
     return participant?(participant.display_name||(owner===authState.principal?"Вы":"Участник")):owner;
   }
+  function suggestedPlanActions(){
+    const event=(activeReal.events||[]).slice().reverse().find(item=>item.kind==="dialog"&&item.actor_kind==="agent"&&evText(item));
+    if(!event)return [];
+    const lines=String(evText(event)||"").replace(/\r\n?/g,"\n").split("\n"),actions=[]; let modules=false;
+    for(const raw of lines){
+      const line=raw.trim(),heading=line.match(/^#{1,4}\s*(.+)$/);
+      if(heading){ const title=heading[1].replace(/[:：]\s*$/,"").trim(); if(modules&&!/модул/i.test(title))break; modules=/модул/i.test(title); continue; }
+      if(!modules)continue;
+      const item=line.match(/^\d+[.)]\s+(?:\*\*)?(.+?)(?:\*\*)?\s*:?[\s]*$/);
+      if(item){ const title=item[1].replace(/\*\*/g,"").replace(/[:：]\s*$/,"").trim(); if(title&&!actions.includes(title))actions.push(title); }
+    }
+    return actions.slice(0,8);
+  }
   function realTabPanel(){
     const c=activeReal.c, canDecide=activeReal.canDecide, isOwner=activeReal.isOwner;
     if(realTab==="Диалог") return realDialogPanel();
@@ -2449,26 +2468,30 @@
     if(realTab==="Школа") return schoolPanel();
     if(realTab==="План"){
       const actions=activeReal.nextActions||[];
+      const suggestions=actions.length?[]:suggestedPlanActions();
       const actionRows=actions.map(action=>'<div class="task"><span class="tstat '+(action.done?'done':'todo')+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(action.what||"Шаг")+'</b><span>'+esc(nextActionOwnerName(action.owner))+(action.due?' · до '+esc(fmtWhen(action.due)):'')+(action.waiting_for?' · ждём: '+esc(action.waiting_for):'')+'</span></div>'+(canDecide&&!action.done?'<button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button>':(action.done?'<span class="done-mark">выполнено</span>':''))+'</div>').join("");
       const ownerOptions='<option value="">Пока не назначен</option>'+(c.participants||[]).map(participant=>'<option value="'+attr(participant.principal_id)+'">'+esc(participant.display_name||(participant.principal_id===authState.principal?'Вы':'Участник'))+'</option>').join("")+(c.selected_agent_id?'<option value="'+attr(c.selected_agent_id)+'">'+esc(assistantName(c))+'</option>':'');
-      const actionForm=canDecide?'<aside class="case-form-card tone-blue"><p class="eyebrow">НОВЫЙ ПУНКТ ПЛАНА</p><h2>Что нужно сделать?</h2><p>Пункт сохранится в деле и будет виден участникам. Срок и ответственного можно оставить пустыми.</p><form class="pform case-modern-form" data-act="next-action"><label><span>Действие</span><textarea name="what" rows="3" maxlength="1000" required placeholder="Например, реализовать загрузку банковских выписок PDF и Excel"></textarea></label><div class="case-field-grid"><label><span>Ответственный</span><select name="owner">'+ownerOptions+'</select></label><label><span>Срок</span><input name="due" type="datetime-local"></label></div><label><span>Что ждём</span><input name="waiting_for" maxlength="255" placeholder="Например, тестовые выписки за квартал"></label><button class="btn primary case-form-submit" type="submit">Добавить пункт плана</button></form></aside>':'<aside class="case-form-card tone-muted"><p class="eyebrow">ПЛАН</p><h2>Изменения защищены</h2><p>Добавлять и завершать пункты может участник с правом «решения».</p></aside>';
+      const importOffer=suggestions.length?'<div class="case-form-note"><span>✦</span><p><b>Фиксар уже выделил '+suggestions.length+' модуля.</b><br>Проверьте сроки и перенесите их в настоящий план дела.</p></div><button class="btn primary case-form-submit" type="button" data-act="plan-from-dialog">Собрать план из ответа</button>':'';
+      const actionForm=canDecide?'<aside class="case-form-card tone-blue"><p class="eyebrow">'+(suggestions.length?'ГОТОВАЯ СТРУКТУРА':'НОВЫЙ ПУНКТ ПЛАНА')+'</p><h2>'+(suggestions.length?'Перенести модули в план?':'Что нужно сделать?')+'</h2><p>'+(suggestions.length?'Ничего не нужно описывать повторно: модули взяты из последнего ответа Фиксара.':'Пункт сохранится в деле и будет виден участникам. Срок и ответственного можно оставить пустыми.')+'</p>'+importOffer+'<details'+(suggestions.length?'':' open')+' class="case-more-fields"><summary>Добавить один пункт вручную</summary><form class="pform case-modern-form" data-act="next-action"><label><span>Действие</span><textarea name="what" rows="3" maxlength="1000" required placeholder="Например, реализовать загрузку банковских выписок PDF и Excel"></textarea></label><div class="case-field-grid"><label><span>Ответственный</span><select name="owner">'+ownerOptions+'</select></label><label><span>Срок</span><input name="due" type="datetime-local"></label></div><label><span>Что ждём</span><input name="waiting_for" maxlength="255" placeholder="Например, тестовые выписки за квартал"></label><button class="btn primary case-form-submit" type="submit">Добавить пункт плана</button></form></details></aside>':'<aside class="case-form-card tone-muted"><p class="eyebrow">ПЛАН</p><h2>Изменения защищены</h2><p>Добавлять и завершать пункты может участник с правом «решения».</p></aside>';
       const steps=c.on_request_steps||[]; let h=actionRows?'<div class="section-t">План реализации</div><div class="stage">'+actionRows+'</div>':"";
       if(c.self_steps) h+='<p class="rc-hint">Автоматических шагов: '+c.self_steps+'</p>';
       if(steps.length) h+='<div class="section-t">Шаги по запросу</div>'+steps.map(s=>'<div class="task"><span class="tstat todo" aria-hidden="true"></span><div class="tmain"><b>'+esc(s.title||s.step||"Шаг")+'</b><span>по запросу'+(s.min_assurance?' · нужен уровень '+s.min_assurance:'')+'</span></div></div>').join("");
       const runEv=activeReal.events.filter(e=>/^run\.|^patch\./.test(e.kind));
       if(runEv.length) h+='<div class="section-t">Ход работы</div>'+runEv.slice().reverse().map(eventLine).join("");
-      if(!h) h=emptyState("🧭","План ещё не сложился","Добавьте первый реальный шаг справа — он сразу сохранится в деле.","","");
+      if(!h) h=emptyState("🧭",suggestions.length?"Структура готова к сохранению":"План ещё не сложился",suggestions.length?"Фиксар выделил модули из диалога. Проверьте сроки в форме и подтвердите перенос.":"Добавьте первый реальный шаг в форме — он сразу сохранится в деле.","","");
       const runs=(activeReal.runs||[]).map(runCard).join("");
       const patches=(activeReal.patches||[]).map(patchCard).join("");
       let command='';
       if(canDecide && authState.assurance>=2 && c.selected_agent_id && c.template_version){
         command='<div class="section-t">Поручить агенту</div><p class="rc-hint">Агент возьмёт только закреплённый план этого дела. Существенные изменения всё равно появятся отдельным запросом на подтверждение.</p><button class="btn primary" data-act="grant-agent">Дать поручение агенту</button>';
-      } else if(canDecide && !(c.selected_agent_id && c.template_version)) {
-        command='<div class="rc-note">Сначала опишите агенту задачу на вкладке «Обзор». После назначения собеседника появится безопасное поручение по закреплённому плану.</div>';
+      } else if(canDecide && c.selected_agent_id && !c.template_version) {
+        command='<div class="rc-note">'+esc(assistantName(c))+' уже подключён. Пункты плана можно сохранить сейчас; запуск исполнения появится после закрепления '+(c.domain==="software"?'шаблона пака':'рабочего шаблона')+'.</div>';
+      } else if(canDecide && !c.selected_agent_id) {
+        command='<div class="rc-note">Собеседник ещё не назначен. Сохраните план сейчас или продолжите диалог — повторно описывать уже записанные требования не нужно.</div>';
       } else if(canDecide) {
         command='<div class="rc-note">Чтобы поручить работу агенту, подтвердите вход до уровня 2. Это защищает запуск, который может тратить кредиты и создавать предложения изменений.</div>';
       }
-      return '<div class="case-form-layout"><section class="case-form-main">'+h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command+'</section>'+actionForm+'</div>';
+      return '<div class="case-form-layout case-plan-layout"><section class="case-form-main">'+h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command+'</section>'+actionForm+'</div>';
     }
     if(realTab==="Сроки"){
       if(!isOwner) return '<div class="rc-note">Календарь пока принадлежит владельцу дела. Участникам показываются только сроки, записанные в журнале; общий календарь дела ещё подключается.</div>';
@@ -2609,6 +2632,7 @@
       if(act==="calendar-cancel"){ if(!window.confirm("Отменить это событие? Запись останется в истории календаря."))return; b.disabled=true; try{ await authFetch("POST","/calendar/"+encodeURIComponent(b.dataset.id)+"/cancel",{}); realTab="Сроки"; renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось отменить событие."); } return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
+      if(act==="plan-from-dialog"){ openPlanImport(c.id,suggestedPlanActions()); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
       if(act==="complete-action"){
         b.disabled=true; b.textContent="Сохраняю…";
@@ -2712,6 +2736,11 @@
       body=>{ const f=body.querySelector("#msf"); f.onsubmit=async e=>{ e.preventDefault(); const see=[...f.querySelectorAll('input[name="see"]:checked')].map(x=>x.value); if(see.indexOf("normal")<0) see.unshift("normal"); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Сохраняю…";
         try{ await authFetch("PUT","/cases/"+encodeURIComponent(caseId)+"/participants/"+encodeURIComponent(pid)+"/may-see",{may_see:see}); modalClose(); REAL.loaded=false; renderRealCase(caseId); }
         catch(err){ btn.disabled=false; btn.textContent="Сохранить"; toast((err&&err.message)||"Не удалось изменить доступ."); } }; });
+  }
+  function openPlanImport(caseId,actions){
+    if(!actions.length){ toast("В последнем ответе не нашлось списка модулей."); return; }
+    const rows=actions.map((what,index)=>{ const due=new Date(); due.setDate(due.getDate()+7*(index+1)); due.setHours(18,0,0,0); return '<label class="case-choice" data-plan-row data-what="'+attr(what)+'"><input type="checkbox" checked><span><b>'+esc(what)+'</b><small>Ответственный: '+esc(assistantName(activeReal.c))+'</small><input name="due" type="datetime-local" required value="'+attr(calendarInputValue(due))+'"></span></label>'; }).join("");
+    modalOpen("План реализации из ответа Фиксара",'<p class="lead">Фиксар выделил модули из уже состоявшегося разговора. Проверьте названия и предложенные недельные сроки: запись произойдёт только после вашего подтверждения.</p><form id="planimport" class="case-modern-form"><fieldset class="case-choice-group"><legend>Пункты и сроки</legend>'+rows+'</fieldset><button class="btn primary case-form-submit" type="submit">Сохранить выбранные пункты</button><div class="rc-hint" data-plan-status aria-live="polite"></div></form>',body=>{ const form=body.querySelector("#planimport"),button=form.querySelector('button[type="submit"]'),status=form.querySelector("[data-plan-status]"); form.onsubmit=async event=>{ event.preventDefault(); const selected=[...form.querySelectorAll("[data-plan-row]")].filter(row=>{const check=row.querySelector('input[type="checkbox"]');return check.checked&&!check.disabled;}); if(!selected.length){status.textContent="Выберите хотя бы один пункт.";return;} button.disabled=true;button.textContent="Сохраняю…";try{for(const row of selected){const due=new Date(row.querySelector('[name="due"]').value);if(isNaN(due.getTime()))throw new Error("Проверьте сроки плана.");await authFetch("POST","/cases/"+encodeURIComponent(caseId)+"/actions",{what:row.dataset.what,owner:activeReal.c.selected_agent_id||"",due:due.toISOString(),waiting_for:""});const check=row.querySelector('input[type="checkbox"]');check.disabled=true;row.querySelector('[name="due"]').disabled=true;}modalClose();realTab="План";await renderRealCase(caseId);toast("План сохранён в деле.");}catch(error){button.disabled=false;button.textContent="Сохранить оставшиеся пункты";status.textContent=(error&&error.message)||"Не удалось сохранить план.";}};});
   }
   function openRunConsent(caseId){
     modalOpen("Поручить работу агенту",
