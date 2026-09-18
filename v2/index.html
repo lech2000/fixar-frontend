@@ -378,7 +378,7 @@
     .rc-strip h3{ margin:0 0 8px; font-size:14px } .rc-strip .rc-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line-soft); cursor:pointer }
     .rc-strip .rc-row:first-of-type{ border-top:0 } .rc-strip .rc-row b{ font-size:14px } .rc-strip .rc-row .when{ margin-left:auto }
     .agent-dock{ position:fixed; right:18px; bottom:18px; z-index:70; width:min(420px,calc(100vw - 36px)); padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--panel-2); box-shadow:0 16px 44px rgba(0,0,0,.38) }
-    .agent-dock form{ display:flex; flex-direction:column; gap:8px } .agent-dock textarea{ min-width:0; width:100%; min-height:64px; max-height:180px; padding:12px 14px; font-size:16px; resize:none; box-sizing:border-box } .agent-dock form .btn{ align-self:flex-end } .agent-dock .agent-answer{ margin:9px 2px 0; font-size:13px; color:var(--muted) }
+    .agent-dock form{ display:flex; flex-direction:column; gap:8px } .agent-dock textarea{ min-width:0; width:100%; min-height:64px; max-height:180px; padding:12px 14px; font-size:16px; resize:none; box-sizing:border-box } .agent-dock-actions{ display:flex;align-items:center;justify-content:space-between;gap:8px }.agent-dock-actions .btn{ margin-left:auto }.agent-dock .agent-answer{ margin:9px 2px 0; font-size:13px; color:var(--muted) }
     .agent-dock-toggle{ display:flex; align-items:center; justify-content:space-between; width:100%; border:0; background:transparent; color:var(--text); cursor:pointer; font:inherit; font-weight:750; padding:2px 1px 10px }.agent-dock-toggle span{ color:var(--muted); font-size:12px; font-weight:600 }
     .agent-dock.compact{ width:auto; min-width:0; padding:10px 13px; border-radius:999px; box-shadow:0 10px 28px rgba(0,0,0,.34) }.agent-dock.compact form,.agent-dock.compact .agent-answer{ display:none }.agent-dock.compact .agent-dock-toggle{ padding:0; gap:10px }.agent-dock.compact .agent-dock-toggle span{ color:var(--cyan) }
     .case-dialog{ display:flex;flex-direction:column;gap:12px;max-width:820px;min-height:520px;padding:14px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(165deg,var(--panel),var(--panel-2));box-shadow:var(--shadow) }
@@ -427,7 +427,7 @@
   <div class="scrim" id="scrim" hidden></div>
   <section class="agent-dock" id="agentdock" aria-label="Фиксарик в контексте страницы">
     <button class="agent-dock-toggle" id="agentdocktoggle" type="button" aria-expanded="true">✦ Агент <span>Свернуть</span></button>
-    <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите о текущей странице или деле"></textarea><button class="btn primary" type="submit">Отправить</button></form>
+    <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите о текущей странице или деле"></textarea><div class="agent-dock-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><button class="btn primary" type="submit">Отправить</button></div><div class="chat-status" data-voice-status role="status" aria-live="polite"></div></form>
     <div class="agent-answer" id="agentdockanswer">Я вижу текущий раздел и доступные здесь действия. Переходы сохраняются в вашей личной памяти на 90 дней.</div>
   </section>
   <aside class="storage-notice" id="storageNotice" hidden role="region" aria-label="Данные браузера">
@@ -2474,6 +2474,32 @@
     recognition.onend=()=>{ dialogRecognition=null; button.classList.remove("listening"); button.setAttribute("aria-pressed","false"); if(status.textContent.indexOf("Слушаю")===0)status.textContent=field.value.trim()?"Голос записан — проверьте текст и отправьте.":"Голос не распознан. Попробуйте ещё раз."; };
     try{ recognition.start(); }catch(_){ recognition.onend(); }
   }
+  function installVoiceControls(root){
+    (root||document).querySelectorAll("form.my-day-composer").forEach(form=>{
+      if(form.querySelector('[data-act="voice-input"]'))return;
+      const foot=form.querySelector(".my-day-composer-foot"),field=form.elements.message;
+      if(!foot||!field)return;
+      const button=document.createElement("button");
+      button.className="chat-tool"; button.type="button"; button.dataset.act="voice-input";
+      button.setAttribute("aria-label",uiText("Сказать голосом","Speak"));
+      button.setAttribute("aria-pressed","false");
+      button.innerHTML='<span class="tool-icon" aria-hidden="true">🎙</span><span>'+esc(uiText("Голос","Voice"))+'</span>';
+      foot.insertBefore(button,foot.querySelector('button[type="submit"]'));
+      if(!form.querySelector("[data-voice-status]")){
+        const status=document.createElement("div"); status.className="chat-status";
+        status.dataset.voiceStatus=""; status.setAttribute("role","status");
+        status.setAttribute("aria-live","polite"); foot.after(status);
+      }
+    });
+  }
+  document.addEventListener("click",event=>{
+    const button=event.target.closest('[data-act="voice-input"]'); if(!button)return;
+    event.preventDefault(); const form=button.closest("form"),field=form&&form.elements.message;
+    if(!field)return; const status=form.querySelector("[data-voice-status],[data-chat-status]");
+    startDialogVoice(button,field,status);
+  });
+  const voiceControlsObserver=new MutationObserver(()=>installVoiceControls(document.getElementById("vwrap")));
+  voiceControlsObserver.observe(document.getElementById("vwrap"),{childList:true,subtree:true});
   async function uploadCaseMaterial(c,file,sensitivity){
     if(!file)throw new Error("Выберите файл.");
     if(file.size>64*1024*1024)throw new Error("Файл больше 64 МБ.");
@@ -2492,7 +2518,6 @@
       const state=chatForm.querySelector("[data-chat-file-state]"), status=chatForm.querySelector("[data-chat-status]"), field=chatForm.message;
       field.onkeydown=event=>{ if(event.key==="Enter"&&!event.shiftKey){ event.preventDefault(); chatForm.requestSubmit(); } };
       [chatForm.camera,chatForm.attachment].forEach(input=>{ input.onchange=()=>{ const file=input.files&&input.files[0]; if(!file)return; const other=input===chatForm.camera?chatForm.attachment:chatForm.camera; other.value=""; state.hidden=false; state.textContent=(input===chatForm.camera?"Снимок: ":"Файл: ")+(file.name||"изображение"); status.textContent=input===chatForm.camera?"Снимок будет загружен в приватные материалы дела после отправки.":"Файл будет загружен в приватные материалы дела после отправки."; }; });
-      const voice=chatForm.querySelector('[data-act="voice-input"]'); if(voice)voice.onclick=()=>startDialogVoice(voice,field,status);
     }
     const materialInput=panel.querySelector('form[data-act="material-upload"] input[name="material"]');
     if(materialInput) materialInput.onchange=()=>{ const name=materialInput.files&&materialInput.files[0]&&materialInput.files[0].name; const out=materialInput.closest("label").querySelector(".book-file-name"); if(out) out.textContent=name||"Файл не выбран"; };
@@ -2882,7 +2907,7 @@
   function setAgentDockCompact(compact){ agentDock.classList.toggle("compact",compact); agentDockToggle.setAttribute("aria-expanded",String(!compact)); agentDockToggle.querySelector("span").textContent=compact?"Открыть":"Свернуть"; try{ localStorage.setItem("fixar-v2-agent-dock-compact",compact?"1":"0"); }catch(_){} }
   let savedDock; try{ savedDock=localStorage.getItem("fixar-v2-agent-dock-compact"); }catch(_){} setAgentDockCompact(savedDock===null?window.matchMedia("(max-width: 760px)").matches:savedDock==="1");
   agentDockToggle.addEventListener("click",()=>setAgentDockCompact(!agentDock.classList.contains("compact")));
-  document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.textContent="Агент думает…";
+  document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector('button[type="submit"]'), message=(input.value||"").trim(); if(!message)return; button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.textContent="Агент думает…";
     try{ answer.textContent=await askCaseAgent(message); input.value=""; setTimeout(()=>setAgentDockCompact(true),900); }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); } });
   document.addEventListener("input",e=>{ const field=e.target.closest("textarea[name=message]"); if(!field)return; field.style.height="auto"; field.style.height=Math.min(field.scrollHeight,180)+"px"; });
   const STORAGE_NOTICE_KEY="fixar.notice.storage.v2",STORAGE_NOTICE_VERSION="1";

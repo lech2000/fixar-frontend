@@ -346,6 +346,7 @@
 .my-day-composer textarea { width: 100%; min-height: 84px; max-height: 220px; padding: 4px 0; border: 0; outline: 0; resize: none; background: transparent; color: var(--text); font: inherit; font-size: 17px; line-height: 1.5; }
 .my-day-composer-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
 .my-day-composer-foot small { max-width: 470px; color: var(--muted); }
+.my-day-composer-foot .chat-tool { flex: 0 0 auto; }
 .my-day-answer { padding: 12px 14px; border-radius: 14px; background: var(--accent-soft); line-height: 1.5; white-space: pre-wrap; }
 
 .my-day-prompts { display: flex; gap: 8px; overflow-x: auto; padding: 10px 1px 2px; scrollbar-width: none; }
@@ -869,6 +870,7 @@
   .my-day-agent { min-height: 0; }
   .my-day-composer textarea { min-height: 104px; font-size: 17px; }
   .my-day-composer-foot { align-items: stretch; flex-direction: column; }
+  .my-day-composer-foot .chat-tool { width: 100%; }
   .my-day-composer-foot .btn { width: 100%; justify-content: center; }
   .my-day-guest { gap: 24px; }
   .my-day-guest-brand { margin-bottom: 18px; }
