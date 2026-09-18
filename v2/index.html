@@ -2144,10 +2144,12 @@
     catch(e){ REAL.error=e; REAL.cases=[]; REAL.loaded=true; }
     REAL.loading=false;
   }
+  const isLegacyHomeworkAnalysisCase = c => /^Разбор домашнего задания$/i.test(String(c&&c.title||"").trim());
   function realCasesForSpace(space){
-    if(space==="Личное") return REAL.cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
-    if(space==="Семья")  return REAL.cases.filter(c=>(c.scope||"")==="home"&&c.title!=="Разбор домашнего задания");
-    if(space==="Практика")return REAL.cases.filter(c=>(c.scope||"")==="pro");
+    const cases=REAL.cases.filter(c=>!isLegacyHomeworkAnalysisCase(c));
+    if(space==="Личное") return cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
+    if(space==="Семья")  return cases.filter(c=>(c.scope||"")==="home");
+    if(space==="Практика")return cases.filter(c=>(c.scope||"")==="pro");
     return [];
   }
   async function openFamilyDialog(message){
