@@ -19,11 +19,15 @@
         var hue=Number(saved.hue);
         if(!Number.isFinite(hue))hue=155;
         document.documentElement.style.setProperty("--accent-h",String(((Math.round(hue)%360)+360)%360));
+        var backgroundHue=Number(saved.backgroundHue);
+        if(!Number.isFinite(backgroundHue))backgroundHue=145;
+        backgroundHue=((Math.round(backgroundHue)%360)+360)%360;
+        document.documentElement.style.setProperty("--background-h",String(backgroundHue));
         var background=Number(saved.background);
         if(!Number.isFinite(background))background=62;
         background=Math.max(0,Math.min(100,Math.round(background)));
         var lightness=dark?8.5+(background-50)*.08:96.5+(background-50)*.05;
-        var backgroundColor=dark?"hsl(145 18% "+lightness+"%)":"hsl(45 22% "+lightness+"%)";
+        var backgroundColor=dark?"hsl("+backgroundHue+" 18% "+lightness+"%)":"hsl("+backgroundHue+" 22% "+lightness+"%)";
         document.documentElement.style.setProperty("--body-art",backgroundColor);
         var meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.content=backgroundColor;
       }catch(_){ document.documentElement.dataset.theme="dark"; }
@@ -34,6 +38,7 @@
     :root{
       color-scheme:dark;
       --accent-h:155;
+      --background-h:145;
       --bg:#101713;--panel:#18221d;--panel-2:#18221d;--field:#131c17;--sidebar:#131c17;--hover:#202d26;--field-line:#43564b;
       --line:#34443c;--line-soft:color-mix(in srgb,var(--line) 55%,transparent);
       --text:#edf3ee;--muted:#a6b2aa;--dim:#7e8e84;
@@ -974,23 +979,26 @@
   const drop  = k => { try { localStorage.removeItem(k); } catch(e){} };
   const APPEARANCE_KEY = "fixar-v2-appearance";
   function safeHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:155; }
+  function safeBackgroundHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:145; }
   function safeBackground(value){ const background=Number(value); return Number.isFinite(background)?Math.max(0,Math.min(100,Math.round(background))):62; }
   function readAppearance(){
     try{
       const value=JSON.parse(store(APPEARANCE_KEY)||"{}");
-      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:safeHue(value.hue),background:safeBackground(value.background),preset:value.preset||"fixar",moodCaught:value.moodCaught===true};
-    }catch(_){ return {mode:"system",hue:155,background:62,preset:"fixar",moodCaught:false}; }
+      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:safeHue(value.hue),backgroundHue:safeBackgroundHue(value.backgroundHue),background:safeBackground(value.background),preset:value.preset||"fixar",moodCaught:value.moodCaught===true};
+    }catch(_){ return {mode:"system",hue:155,backgroundHue:145,background:62,preset:"fixar",moodCaught:false}; }
   }
   function applyAppearance(next,persist){
     const current=readAppearance(),value=Object.assign({},current,next||{});
     value.hue=safeHue(value.hue);
+    value.backgroundHue=safeBackgroundHue(value.backgroundHue);
     value.background=safeBackground(value.background);
     const dark=value.mode==="dark"||(value.mode==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);
     const lightness=dark?8.5+(value.background-50)*.08:96.5+(value.background-50)*.05;
-    const backgroundColor=dark?"hsl(145 18% "+lightness+"%)":"hsl(45 22% "+lightness+"%)";
+    const backgroundColor=dark?"hsl("+value.backgroundHue+" 18% "+lightness+"%)":"hsl("+value.backgroundHue+" 22% "+lightness+"%)";
     document.documentElement.dataset.theme=dark?"dark":"light";
     document.documentElement.dataset.themeMode=value.mode;
     document.documentElement.style.setProperty("--accent-h",String(value.hue));
+    document.documentElement.style.setProperty("--background-h",String(value.backgroundHue));
     document.documentElement.style.setProperty("--body-art",backgroundColor);
     const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.content=backgroundColor;
     if(persist!==false)put(APPEARANCE_KEY,JSON.stringify(value));
@@ -1425,7 +1433,8 @@
     return '<section class="my-day-mood" data-my-day-mood style="--caught-h:'+appearance.hue+'" aria-label="'+uiText("Настройка оформления","Appearance playground")+'">'+
       '<div class="my-day-mood-actions"><button class="my-day-mood-catcher'+(caught?' caught':'')+'" type="button" data-my-day-mood-catch aria-expanded="false" aria-controls="my-day-mood-controls"><span class="my-day-mood-spark" aria-hidden="true">✦</span><span data-my-day-mood-label>'+(caught?uiText("Настроить вручную","Fine-tune manually"):uiText("Поймай своё настроение","Catch your mood"))+'</span></button>'+(!authState.signed_in?'<button class="my-day-signin" type="button" data-my-day-account>'+uiText("Войти","Sign in")+' →</button>':'')+'</div>'+
       '<div class="my-day-mood-controls" id="my-day-mood-controls" data-my-day-mood-controls hidden><label><span>'+uiText("Цвет","Colour")+'</span><input type="range" min="0" max="359" step="1" value="'+appearance.hue+'" data-my-day-hue aria-label="'+uiText("Оттенок интерфейса","Interface hue")+'"><output data-my-day-hue-output>'+appearance.hue+'°</output></label>'+
-      '<label><span>'+uiText("Фон","Background")+'</span><input type="range" min="0" max="100" step="1" value="'+appearance.background+'" data-my-day-background aria-label="'+uiText("Яркость фона","Background brightness")+'"><output data-my-day-background-output>'+appearance.background+'%</output></label>'+
+      '<label><span>'+uiText("Тон фона","Background hue")+'</span><input type="range" min="0" max="359" step="1" value="'+appearance.backgroundHue+'" data-my-day-background-hue aria-label="'+uiText("Оттенок фона","Background hue")+'"><output data-my-day-background-hue-output>'+appearance.backgroundHue+'°</output></label>'+
+      '<label><span>'+uiText("Свет фона","Background light")+'</span><input type="range" min="0" max="100" step="1" value="'+appearance.background+'" data-my-day-background aria-label="'+uiText("Яркость фона","Background brightness")+'"><output data-my-day-background-output>'+appearance.background+'%</output></label>'+
       '<div class="my-day-mood-row"><div class="my-day-segment" role="group" aria-label="'+uiText("Тема интерфейса","Interface theme")+'">'+modes.map(item=>'<button type="button" data-my-day-theme="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div>'+
       '<div class="my-day-segment" role="group" aria-label="Language"><button type="button" data-my-day-language="ru" aria-pressed="'+(language==="ru")+'">RU</button><button type="button" data-my-day-language="en" aria-pressed="'+(language==="en")+'">EN</button></div></div></div></section>';
   }
@@ -1749,14 +1758,15 @@
     const appearance=readAppearance(),fixarik=node.children.find(child=>child.name==="Фиксарик"),legal=findNode("Юридические документы");
     const language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru";
     const modes=[["system","Как на устройстве"],["light","Светлая"],["dark","Тёмная"]];
-    const palettes=[["fixar","FixAR",155],["calm","Спокойная",215],["family","Семья",153],["practice","Практика",275]];
+    const palettes=[["fixar","FixAR",155,145],["calm","Спокойная",215,220],["family","Семья",153,35],["practice","Практика",275,270]];
     return crumbsBlock(node)+'<div class="appearance">'+
       '<div class="vhead"><p class="eyebrow">Ваш интерфейс</p><h1>Оформление под вас</h1><p>Выберите свет, характер и оттенок. Изменения видны сразу и сохраняются только на этом устройстве.</p></div>'+
       '<section class="theme-preview" aria-label="Предпросмотр оформления"><p class="eyebrow">ФиксАР рядом</p><h2>Важное видно. Лишнее не мешает.</h2><p>Короткие заголовки, спокойный ритм и один понятный следующий шаг на каждом экране.</p><div class="cta-row"><span class="btn primary">Главное действие</span><span class="btn">Второй шаг</span></div></section>'+
       '<section class="settings-card"><div class="appearance-group"><div class="appearance-label">Язык</div><div class="choice-row" data-language-choices><button class="choice'+(language==='ru'?' active':'')+'" type="button" data-language="ru" aria-pressed="'+(language==='ru')+'">Русский</button><button class="choice'+(language==='en'?' active':'')+'" type="button" data-language="en" aria-pressed="'+(language==='en')+'">English</button></div></div>'+
       '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Свет</div><div class="choice-row" data-theme-choices>'+modes.map(item=>'<button class="choice'+(appearance.mode===item[0]?' active':'')+'" type="button" data-theme-mode="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div></div>'+
-      '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Палитра</div><div class="choice-row" data-palette-choices>'+palettes.map(item=>'<button class="choice palette-choice'+(appearance.preset===item[0]?' active':'')+'" type="button" data-palette="'+item[0]+'" data-hue="'+item[2]+'" aria-pressed="'+(appearance.preset===item[0])+'"><span class="palette-dot" style="--swatch:'+item[2]+'"></span>'+item[1]+'</button>').join("")+'</div></div>'+
+      '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Палитра</div><div class="choice-row" data-palette-choices>'+palettes.map(item=>'<button class="choice palette-choice'+(appearance.preset===item[0]?' active':'')+'" type="button" data-palette="'+item[0]+'" data-hue="'+item[2]+'" data-background-hue="'+item[3]+'" aria-pressed="'+(appearance.preset===item[0])+'"><span class="palette-dot" style="--swatch:'+item[2]+'"></span>'+item[1]+'</button>').join("")+'</div></div>'+
       '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="accent-hue">Точный оттенок</label><div class="hue-control"><input id="accent-hue" type="range" min="0" max="359" step="1" value="'+appearance.hue+'" aria-describedby="hue-help"><output class="hue-value" id="hue-value" for="accent-hue">'+appearance.hue+'°</output></div><p id="hue-help">Меняется только акцент. Яркость текста и контраст интерфейса остаются безопасными.</p></div>'+
+      '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="background-hue">Оттенок фона</label><div class="hue-control"><input id="background-hue" type="range" min="0" max="359" step="1" value="'+appearance.backgroundHue+'" aria-describedby="background-hue-help"><output class="hue-value" id="background-hue-value" for="background-hue">'+appearance.backgroundHue+'°</output></div><p id="background-hue-help">Задайте фону тёплый или холодный тон независимо от цвета кнопок.</p></div>'+
       '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="background-light">Яркость фона</label><div class="hue-control"><input id="background-light" type="range" min="0" max="100" step="1" value="'+appearance.background+'" aria-describedby="background-help"><output class="hue-value" id="background-value" for="background-light">'+appearance.background+'%</output></div><p id="background-help">Осветляйте или затемняйте только общий фон. Карточки и текст сохраняют контраст.</p></div>'+
       '<div class="cta-row"><button class="btn" type="button" data-reset-appearance>Вернуть оформление FixAR</button></div></section>'+
       (fixarik?'<section class="settings-card"><h3>Помощники и каналы</h3><p>Подключения Фиксарика, доступ к перепискам и паки разработчиков настраиваются отдельно.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+fixarik.id+'\')">Настройки Фиксарика</button></div></section>':'')+
@@ -1954,15 +1964,16 @@
       const sync=(value)=>{
         appearancePanel.querySelectorAll('[data-theme-mode]').forEach(button=>{ const active=button.dataset.themeMode===value.mode; button.classList.toggle('active',active); button.setAttribute('aria-pressed',String(active)); });
         appearancePanel.querySelectorAll('[data-palette]').forEach(button=>{ const active=button.dataset.palette===value.preset; button.classList.toggle('active',active); button.setAttribute('aria-pressed',String(active)); });
-        const slider=appearancePanel.querySelector('#accent-hue'),output=appearancePanel.querySelector('#hue-value'),background=appearancePanel.querySelector('#background-light'),backgroundOutput=appearancePanel.querySelector('#background-value'); if(slider)slider.value=value.hue; if(output)output.value=value.hue+'°'; if(background)background.value=value.background; if(backgroundOutput)backgroundOutput.value=value.background+'%';
+        const slider=appearancePanel.querySelector('#accent-hue'),output=appearancePanel.querySelector('#hue-value'),backgroundHue=appearancePanel.querySelector('#background-hue'),backgroundHueOutput=appearancePanel.querySelector('#background-hue-value'),background=appearancePanel.querySelector('#background-light'),backgroundOutput=appearancePanel.querySelector('#background-value'); if(slider)slider.value=value.hue; if(output)output.value=value.hue+'°'; if(backgroundHue)backgroundHue.value=value.backgroundHue; if(backgroundHueOutput)backgroundHueOutput.value=value.backgroundHue+'°'; if(background)background.value=value.background; if(backgroundOutput)backgroundOutput.value=value.background+'%';
       };
       appearancePanel.addEventListener('click',event=>{
         const language=event.target.closest('button[data-language]'); if(language){ if(window.FixarV2I18n)window.FixarV2I18n.choose(language.dataset.language); return; }
         const mode=event.target.closest('button[data-theme-mode]'); if(mode){ sync(applyAppearance({mode:mode.dataset.themeMode},true)); return; }
-        const palette=event.target.closest('button[data-palette]'); if(palette){ sync(applyAppearance({preset:palette.dataset.palette,hue:Number(palette.dataset.hue)},true)); return; }
-        if(event.target.closest('[data-reset-appearance]'))sync(applyAppearance({mode:'system',preset:'fixar',hue:155,background:62},true));
+        const palette=event.target.closest('button[data-palette]'); if(palette){ sync(applyAppearance({preset:palette.dataset.palette,hue:Number(palette.dataset.hue),backgroundHue:Number(palette.dataset.backgroundHue)},true)); return; }
+        if(event.target.closest('[data-reset-appearance]'))sync(applyAppearance({mode:'system',preset:'fixar',hue:155,backgroundHue:145,background:62},true));
       });
       const hue=appearancePanel.querySelector('#accent-hue'); if(hue)hue.addEventListener('input',()=>sync(applyAppearance({preset:'custom',hue:Number(hue.value)},true)));
+      const backgroundHue=appearancePanel.querySelector('#background-hue'); if(backgroundHue)backgroundHue.addEventListener('input',()=>sync(applyAppearance({preset:'custom',backgroundHue:Number(backgroundHue.value)},true)));
       const background=appearancePanel.querySelector('#background-light'); if(background)background.addEventListener('input',()=>sync(applyAppearance({background:Number(background.value)},true)));
     }
     const cat=vwrap.querySelector('.tabs[data-cat]');
@@ -2889,12 +2900,12 @@
     if(event.target.closest("[data-my-day-account]")){ openAccount(); return; }
     if(event.target.closest("[data-my-day-domashkin]")){ location.href="/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin"; return; }
     if(event.target.closest("[data-my-day-fixarik]")){ const settings=findNode("Фиксарик"); if(settings)go(settings.id); return; }
-    const catcher=event.target.closest("[data-my-day-mood-catch]"); if(catcher){ const mood=catcher.closest("[data-my-day-mood]"),controls=mood.querySelector("[data-my-day-mood-controls]"),label=catcher.querySelector("[data-my-day-mood-label]"); if(!catcher.classList.contains("caught")){ const hue=Math.floor(Math.random()*360); applyAppearance({preset:"mood",hue,moodCaught:true},true); mood.style.setProperty("--caught-h",hue); catcher.classList.add("caught"); label.textContent=uiText("Настроить вручную","Fine-tune manually"); const slider=controls.querySelector("[data-my-day-hue]"),output=controls.querySelector("[data-my-day-hue-output]"); slider.value=hue; output.value=hue+"°"; return; } const open=controls.hidden; controls.hidden=!open; catcher.setAttribute("aria-expanded",String(open)); if(open)controls.querySelector("input").focus(); return; }
+    const catcher=event.target.closest("[data-my-day-mood-catch]"); if(catcher){ const mood=catcher.closest("[data-my-day-mood]"),controls=mood.querySelector("[data-my-day-mood-controls]"),label=catcher.querySelector("[data-my-day-mood-label]"); if(!catcher.classList.contains("caught")){ const hue=Math.floor(Math.random()*360),backgroundHue=(hue+24)%360; applyAppearance({preset:"mood",hue,backgroundHue,moodCaught:true},true); mood.style.setProperty("--caught-h",hue); catcher.classList.add("caught"); label.textContent=uiText("Настроить вручную","Fine-tune manually"); const slider=controls.querySelector("[data-my-day-hue]"),output=controls.querySelector("[data-my-day-hue-output]"),backgroundSlider=controls.querySelector("[data-my-day-background-hue]"),backgroundOutput=controls.querySelector("[data-my-day-background-hue-output]"); slider.value=hue; output.value=hue+"°"; backgroundSlider.value=backgroundHue; backgroundOutput.value=backgroundHue+"°"; return; } const open=controls.hidden; controls.hidden=!open; catcher.setAttribute("aria-expanded",String(open)); if(open)controls.querySelector("input").focus(); return; }
     const theme=event.target.closest("[data-my-day-theme]"); if(theme){ const mood=theme.closest("[data-my-day-mood]"); applyAppearance({mode:theme.dataset.myDayTheme,moodCaught:true},true); mood.querySelectorAll("[data-my-day-theme]").forEach(button=>button.setAttribute("aria-pressed",String(button===theme))); return; }
     const language=event.target.closest("[data-my-day-language]"); if(language&&window.FixarV2I18n){ window.FixarV2I18n.choose(language.dataset.myDayLanguage); return; }
     const prompt=event.target.closest("[data-my-day-prompt]"); if(prompt){ const form=event.target.closest(".my-day-main").querySelector('.my-day-composer'),field=form&&form.elements.message; if(field){ field.value=prompt.dataset.myDayPrompt; field.dispatchEvent(new Event("input",{bubbles:true})); field.focus(); } }
   });
-  document.getElementById("view").addEventListener("input",event=>{ const hue=event.target.closest("[data-my-day-hue]"),background=event.target.closest("[data-my-day-background]"); if(!hue&&!background)return; const mood=event.target.closest("[data-my-day-mood]"); if(hue){ const value=Number(hue.value),output=mood&&mood.querySelector("[data-my-day-hue-output]"); applyAppearance({preset:"custom",hue:value,moodCaught:true},true); if(mood)mood.style.setProperty("--caught-h",value); if(output)output.value=value+"°"; return; } const value=Number(background.value),output=mood&&mood.querySelector("[data-my-day-background-output]"); applyAppearance({background:value},true); if(output)output.value=value+"%"; });
+  document.getElementById("view").addEventListener("input",event=>{ const hue=event.target.closest("[data-my-day-hue]"),backgroundHue=event.target.closest("[data-my-day-background-hue]"),background=event.target.closest("[data-my-day-background]"); if(!hue&&!backgroundHue&&!background)return; const mood=event.target.closest("[data-my-day-mood]"); if(hue){ const value=Number(hue.value),output=mood&&mood.querySelector("[data-my-day-hue-output]"); applyAppearance({preset:"custom",hue:value,moodCaught:true},true); if(mood)mood.style.setProperty("--caught-h",value); if(output)output.value=value+"°"; return; } if(backgroundHue){ const value=Number(backgroundHue.value),output=mood&&mood.querySelector("[data-my-day-background-hue-output]"); applyAppearance({preset:"custom",backgroundHue:value,moodCaught:true},true); if(output)output.value=value+"°"; return; } const value=Number(background.value),output=mood&&mood.querySelector("[data-my-day-background-output]"); applyAppearance({background:value},true); if(output)output.value=value+"%"; });
   document.getElementById("view").addEventListener("submit",async event=>{
     const form=event.target.closest('form[data-act="my-day-ask"]'); if(!form)return;
     event.preventDefault(); const field=form.elements.message,button=form.querySelector('button[type="submit"]'),answer=form.querySelector("[data-my-day-answer]"),message=(field.value||"").trim(); if(!message)return;
