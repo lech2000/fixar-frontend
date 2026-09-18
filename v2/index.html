@@ -136,6 +136,14 @@
     .row:last-child{ border-bottom:0 } .row b{ color:var(--text); font-weight:600; font-size:13.5px }
     .chip{ padding:3px 8px; border-radius:999px; background:rgba(108,228,151,.11); color:var(--green); font-size:11px; white-space:nowrap }
     .bubble{ padding:11px 13px; border-radius:14px; background:var(--accent-soft); color:var(--text); font-size:13px; margin:2px 0 10px }
+    .agent-rich{font-size:15px;line-height:1.62;letter-spacing:0;color:var(--text)}
+    .agent-rich>*:first-child{margin-top:0}.agent-rich>*:last-child{margin-bottom:0}
+    .agent-rich p{margin:0 0 11px}.agent-rich h3,.agent-rich h4{margin:16px 0 7px;line-height:1.25;letter-spacing:-.018em;color:var(--text)}
+    .agent-rich h3{font-size:17px;font-weight:780}.agent-rich h4{font-size:15px;font-weight:760}
+    .agent-rich ul,.agent-rich ol{margin:7px 0 12px;padding-left:22px}.agent-rich li{margin:5px 0;padding-left:3px}
+    .agent-rich strong{font-weight:760;color:var(--text)}.agent-rich em{color:var(--muted)}
+    .agent-rich code{padding:2px 5px;border:1px solid var(--line-soft);border-radius:6px;background:var(--field);font:600 12.5px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}
+    .agent-rich blockquote{margin:10px 0;padding:8px 12px;border-left:3px solid var(--cyan);background:var(--accent-soft);color:var(--muted)}
     .composer{ margin-top:auto; display:grid; grid-template-columns:1fr 42px; gap:8px; padding-top:8px }
     .composer input{ padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--field); color:var(--text); outline:none; min-width:0 }
     .composer button{ border:0; border-radius:12px; background:var(--cyan); color:var(--on-accent); font-weight:900; cursor:pointer }
@@ -383,7 +391,7 @@
     .rc-strip h3{ margin:0 0 8px; font-size:14px } .rc-strip .rc-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line-soft); cursor:pointer }
     .rc-strip .rc-row:first-of-type{ border-top:0 } .rc-strip .rc-row b{ font-size:14px } .rc-strip .rc-row .when{ margin-left:auto }
     .agent-dock{ position:fixed; right:18px; bottom:18px; z-index:70; width:min(420px,calc(100vw - 36px)); padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--panel-2); box-shadow:0 16px 44px rgba(0,0,0,.38) }
-    .agent-dock form{ display:flex; flex-direction:column; gap:8px } .agent-dock textarea{ min-width:0; width:100%; min-height:64px; max-height:180px; padding:12px 14px; font-size:16px; resize:none; box-sizing:border-box } .agent-dock-actions{ display:flex;align-items:center;justify-content:space-between;gap:8px }.agent-dock-actions .btn{ margin-left:auto }.agent-dock .agent-answer{ margin:9px 2px 0; font-size:13px; color:var(--muted) }
+    .agent-dock form{ display:flex; flex-direction:column; gap:8px } .agent-dock textarea{ min-width:0; width:100%; min-height:64px; max-height:180px; padding:12px 14px; font-size:16px; resize:none; box-sizing:border-box } .agent-dock-actions{ display:flex;align-items:center;justify-content:space-between;gap:8px }.agent-dock-actions .btn{ margin-left:auto }.agent-dock .agent-answer{ margin:9px 2px 0; color:var(--muted) }.agent-dock .agent-rich{font-size:14px;line-height:1.55}
     .agent-dock-toggle{ display:flex; align-items:center; justify-content:space-between; width:100%; border:0; background:transparent; color:var(--text); cursor:pointer; font:inherit; font-weight:750; padding:2px 1px 10px }.agent-dock-toggle span{ color:var(--muted); font-size:12px; font-weight:600 }
     .agent-dock.compact{ width:auto; min-width:0; padding:10px 13px; border-radius:999px; box-shadow:0 10px 28px rgba(0,0,0,.34) }.agent-dock.compact form,.agent-dock.compact .agent-answer{ display:none }.agent-dock.compact .agent-dock-toggle{ padding:0; gap:10px }.agent-dock.compact .agent-dock-toggle span{ color:var(--cyan) }
     .case-dialog{ display:flex;flex-direction:column;gap:12px;width:100%;max-width:820px;height:min(720px,calc(100dvh - 170px));min-height:min(520px,calc(100dvh - 170px));overflow:hidden;padding:14px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(165deg,var(--panel),var(--panel-2));box-shadow:var(--shadow) }
@@ -948,6 +956,26 @@
 
   function ancestors(node){ const a=[]; let n=node; while(n && n.parent && n.parent.name!=="__root__"){ a.unshift(n.parent); n=n.parent; } return a; }
   function esc(s){ return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+  function agentInline(value){
+    return esc(value)
+      .replace(/`([^`\n]+)`/g,"<code>$1</code>")
+      .replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>")
+      .replace(/__([^_\n]+)__/g,"<strong>$1</strong>")
+      .replace(/\*([^*\n]+)\*/g,"<em>$1</em>");
+  }
+  function agentRichText(value){
+    const lines=String(value||"").replace(/\r\n?/g,"\n").split("\n"),out=[]; let list="",items=[],paragraph=[];
+    const flushParagraph=()=>{ if(paragraph.length){out.push("<p>"+paragraph.map(agentInline).join("<br>")+"</p>");paragraph=[];} };
+    const flushList=()=>{ if(list){out.push("<"+list+">"+items.map(item=>"<li>"+agentInline(item)+"</li>").join("")+"</"+list+">");list="";items=[];} };
+    lines.forEach(raw=>{ const line=raw.trim(),heading=line.match(/^(#{1,4})\s+(.+)$/),unordered=line.match(/^[-*•]\s+(.+)$/),ordered=line.match(/^\d+[.)]\s+(.+)$/),quote=line.match(/^>\s?(.+)$/);
+      if(!line){flushParagraph();flushList();return;}
+      if(heading){flushParagraph();flushList();out.push("<"+(heading[1].length<3?"h3":"h4")+">"+agentInline(heading[2])+"</"+(heading[1].length<3?"h3":"h4")+">");return;}
+      if(unordered||ordered){flushParagraph();const next=unordered?"ul":"ol";if(list&&list!==next)flushList();list=next;items.push((unordered||ordered)[1]);return;}
+      if(quote){flushParagraph();flushList();out.push("<blockquote>"+agentInline(quote[1])+"</blockquote>");return;}
+      flushList();paragraph.push(line);
+    });
+    flushParagraph();flushList();return '<div class="agent-rich">'+out.join("")+'</div>';
+  }
 
   /* ═══ ЛИЧНОСТЬ (Фаза 1) ═══════════════════════════════════════════════════
      v2 садится на ТОТ ЖЕ субъект, что оболочка и «Рабочая версия»: те же ключи
@@ -2384,9 +2412,9 @@
   function realDialogPanel(){
     const c=activeReal.c, assistant=assistantName(c);
     const allMessages=activeReal.events.filter(e=>e.kind==="dialog"&&evText(e)),shown=Math.max(50,Number(activeReal.dialogHistoryShown)||50),hidden=Math.max(0,allMessages.length-shown);
-    const messages=allMessages.slice(-shown).map(e=>{ const text=evText(e); if(!text)return ""; const mine=e.actor_kind==="principal"&&e.actor_id===authState.principal; return '<div class="bubble'+(mine?' user':'')+'"><small>'+esc(mine?"Вы":evActor(e))+' · '+esc(fmtWhen(e.created_at))+'</small>'+esc(text)+'</div>'; }).join("");
+    const messages=allMessages.slice(-shown).map(e=>{ const text=evText(e); if(!text)return ""; const mine=e.actor_kind==="principal"&&e.actor_id===authState.principal; return '<div class="bubble'+(mine?' user':'')+'"><small>'+esc(mine?"Вы":evActor(e))+' · '+esc(fmtWhen(e.created_at))+'</small>'+(mine?esc(text):agentRichText(text))+'</div>'; }).join("");
     const older=hidden?'<button class="chat-history-more" type="button" data-act="dialog-older">Показать более ранние сообщения ('+hidden+')</button>':"";
-    const reply=activeReal.reply?'<div class="bubble"><small>'+esc(assistant)+' · сейчас</small>'+esc(activeReal.reply)+'</div>':"";
+    const reply=activeReal.reply?'<div class="bubble"><small>'+esc(assistant)+' · сейчас</small>'+agentRichText(activeReal.reply)+'</div>':"";
     const empty=messages||reply?"":'<div class="bubble"><small>'+esc(assistant)+'</small>Я в контексте этого дела. Можно написать, сказать голосом или приложить снимок.</div>';
     const prompts=smartCasePrompts(c).map(text=>'<button class="smart-prompt" type="button" data-chat-suggestion="'+attr(text)+'">'+esc(text)+'</button>').join("");
     return '<section class="case-dialog" aria-label="Диалог по делу"><div class="case-dialog-head"><div><h2>'+esc(assistant)+'</h2><p>Знает текущее дело, его инструменты и разрешённые материалы</p></div><span class="chip info">в контексте</span></div><div class="smart-prompts" aria-label="Умные подсказки">'+prompts+'</div><div class="case-thread" id="caseThread" aria-live="polite">'+older+messages+reply+empty+'</div><form class="chat-composer" data-act="ask-agent"><div class="chat-file-state" data-chat-file-state hidden></div><textarea name="message" rows="1" maxlength="8000" placeholder="Напишите или скажите, что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="chat-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><label class="chat-tool" aria-label="Сфотографировать"><input name="camera" type="file" accept="image/*" capture="environment"><span class="tool-icon" aria-hidden="true">📷</span><span>Камера</span></label><label class="chat-tool" aria-label="Приложить изображение или PDF"><input name="attachment" type="file" accept="image/*,application/pdf,.pdf"><span class="tool-icon" aria-hidden="true">📎</span><span>Файл</span></label><button class="btn primary chat-send" type="submit">Отправить</button></div><div class="chat-status" data-chat-status role="status" aria-live="polite"></div></form></section>';
@@ -2400,7 +2428,7 @@
   function realOverviewPanel(){
     const c=activeReal.c,next=realCaseNextStep(c),assistant=assistantName(c),goal=c.goal||"Сформулируйте желаемый результат вместе с помощником.";
     const related=realLinksPanel(),needs=c.needs_word?'<div class="case-attention">По делу ждут вашего решения. Внешнее действие не выполнено без подтверждения.</div>':"";
-    const primary='<article class="case-result-card"><div class="case-result-head"><div><p class="eyebrow">ГЛАВНОЕ В ДЕЛЕ</p><h2>'+esc(goal)+'</h2></div><span class="my-day-status '+(c.needs_word?'attention':'')+'">'+esc(caseListStatusLabel(caseListStatus(c)))+'</span></div><div class="case-facts">'+kvRow("Помощник",assistant)+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+'</div>'+needs+related+'<div class="case-question"><p class="eyebrow">С ЧЕГО ПРОДОЛЖИМ?</p><form class="my-day-composer" data-act="ask-agent"><textarea name="message" required rows="2" placeholder="Напишите, что изменилось или что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="my-day-composer-foot"><small>'+esc(assistant)+' знает контекст этого дела и доступные здесь инструменты.</small><button class="btn primary" type="submit">Отправить</button></div></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble">'+esc(activeReal.reply)+'</div>':'')+'</div></div></article>';
+    const primary='<article class="case-result-card"><div class="case-result-head"><div><p class="eyebrow">ГЛАВНОЕ В ДЕЛЕ</p><h2>'+esc(goal)+'</h2></div><span class="my-day-status '+(c.needs_word?'attention':'')+'">'+esc(caseListStatusLabel(caseListStatus(c)))+'</span></div><div class="case-facts">'+kvRow("Помощник",assistant)+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+'</div>'+needs+related+'<div class="case-question"><p class="eyebrow">С ЧЕГО ПРОДОЛЖИМ?</p><form class="my-day-composer" data-act="ask-agent"><textarea name="message" required rows="2" placeholder="Напишите, что изменилось или что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="my-day-composer-foot"><small>'+esc(assistant)+' знает контекст этого дела и доступные здесь инструменты.</small><button class="btn primary" type="submit">Отправить</button></div></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble">'+agentRichText(activeReal.reply)+'</div>':'')+'</div></div></article>';
     const nextRail='<aside class="case-next-rail"><p class="eyebrow">ЧТО ДАЛЬШЕ?</p><button class="case-next-primary" type="button" data-act="rc-goto" data-tab="'+attr(next.tab)+'"><span class="case-next-icon">→</span><span><b>'+esc(next.title)+'</b><small>'+esc(next.note)+'</small><em>'+esc(next.action)+' →</em></span></button><div class="case-next-links"><button type="button" data-act="rc-goto" data-tab="План"><b>План и действия</b><small>Что уже сделано и что впереди</small></button><button type="button" data-act="rc-goto" data-tab="Участники"><b>Люди и доступ</b><small>Кто участвует и что может</small></button><button type="button" data-act="rc-goto" data-tab="Документы"><b>Материалы дела</b><small>Файлы, результаты и общие ссылки</small></button></div><section class="case-gentle-note"><p class="eyebrow">ОДИН НЕБОЛЬШОЙ ШАГ</p><p>Не нужно решать всё сразу. Сохраните полезное и вернитесь, когда удобно.</p></section></aside>';
     return '<div class="case-overview-layout"><div>'+primary+'</div>'+nextRail+'</div>'+domashkinParentInvitePanel()+domashkinBookPanel()+domashkinFamilyThreadPanel();
   }
@@ -2934,7 +2962,7 @@
     const form=event.target.closest('form[data-act="my-day-ask"]'); if(!form)return;
     event.preventDefault(); const field=form.elements.message,button=form.querySelector('button[type="submit"]'),answer=form.querySelector("[data-my-day-answer]"),message=(field.value||"").trim(); if(!message)return;
     button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.hidden=false; answer.textContent=uiText("Фиксарик думает…","Fixarik is thinking…");
-    try{ answer.textContent=await askCaseAgent(message); field.value=""; field.style.height=""; }
+    try{ answer.innerHTML=agentRichText(await askCaseAgent(message)); field.value=""; field.style.height=""; }
     catch(error){ answer.textContent=(error&&error.message)||uiText("Фиксарик пока не ответил. Попробуйте ещё раз.","Fixarik has not answered yet. Please try again."); }
     finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); }
   });
@@ -2943,7 +2971,7 @@
   let savedDock; try{ savedDock=localStorage.getItem("fixar-v2-agent-dock-compact"); }catch(_){} setAgentDockCompact(savedDock===null?window.matchMedia("(max-width: 760px)").matches:savedDock==="1");
   agentDockToggle.addEventListener("click",()=>setAgentDockCompact(!agentDock.classList.contains("compact")));
   document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector('button[type="submit"]'), message=(input.value||"").trim(); if(!message)return; button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.textContent="Агент думает…";
-    try{ answer.textContent=await askCaseAgent(message); input.value=""; setTimeout(()=>setAgentDockCompact(true),900); }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); } });
+    try{ answer.innerHTML=agentRichText(await askCaseAgent(message)); input.value=""; setTimeout(()=>setAgentDockCompact(true),900); }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); } });
   document.addEventListener("input",e=>{ const field=e.target.closest("textarea[name=message]"); if(!field)return; field.style.height="auto"; field.style.height=Math.min(field.scrollHeight,180)+"px"; });
   const STORAGE_NOTICE_KEY="fixar.notice.storage.v2",STORAGE_NOTICE_VERSION="1";
   function markStorageNoticeRead(){ try{localStorage.setItem(STORAGE_NOTICE_KEY,STORAGE_NOTICE_VERSION);}catch(_){} }
