@@ -49,12 +49,20 @@
     return в === э.toLowerCase() || в === String(T(э)).trim().toLowerCase();
   }
 
-  var API = "https://api.agrigate.pro";
+  /* Первая вынесенная граница. Адреса и сам fetch принадлежат core-модулям,
+     а не этому файлу. Падаем сразу, если HTML нарушил порядок скриптов:
+     частично работающая оболочка опаснее явной ошибки загрузки. */
+  var CORE = window.FixarCore;
+  if (!CORE || !CORE.config || !CORE.http) {
+    throw new Error("FixarCore config and http must load before app.js");
+  }
+  var API = CORE.config.apiOrigin;
+  var HTTP = CORE.http;
   /* Свой сайт — для ссылок, которые человек СКОПИРУЕТ и унесёт наружу
      (страница подбора). Не location.origin: оболочку открывают и с
      b-cdn.net-зеркала, и с localhost при отладке, а на визитке должен стоять
      тот адрес, который человек назовёт вслух. */
-  var САЙТ = "https://agrigate.pro";
+  var САЙТ = CORE.config.siteOrigin;
   var KEY = "fixar.token";
   /* Какое дело открыто. Переживает перезагрузку, но НЕ подставляется вслепую:
      после выхода из аккаунта ключ остаётся в браузере, а дело — у прежнего
@@ -1474,7 +1482,7 @@
     }
     var r;
     try {
-      r = await fetch(API + path, opts);
+      r = await HTTP.fetchApi(path, opts);
     } catch (e) {
       // Оборванная связь и наш собственный предел для fetch неотличимы, и
       // решение по ним одно: сообщение могло дойти, поэтому повторять его
@@ -2141,7 +2149,7 @@
 
      Сначала здесь стояло location.origin + "/", и вход отвечал «адрес
      возврата не в списке разрешённых»: разрешён /auth/callback. */
-  var REDIRECT = "https://agrigate.pro/auth/callback";
+  var REDIRECT = CORE.config.oauthRedirect;
 
   async function goOAuth(provider) {
     try {
