@@ -833,6 +833,7 @@
   .my-case-open { display: none; }
   .case-form-layout { grid-template-columns: 1fr; }
   .case-form-card { position: static; }
+  .case-plan-layout > .case-form-card { order: -1; }
   .case-documents-layout { grid-template-columns: 1fr; }
   .case-document-tools { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .assistant-vault-layout { grid-template-columns: 1fr; }

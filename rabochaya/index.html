@@ -2631,6 +2631,10 @@
      английским. Мигание языка человек читает как поломку. -->
 <script src="/lang-en.js"></script>
 <script src="/lang.js"></script>
+<!-- Конфигурация и сеть живут отдельно от 18-тысячной оболочки. Порядок
+     является контрактом: http читает config, app читает оба. -->
+<script src="/core/config.js"></script>
+<script src="/core/http.js"></script>
 <script src="/rabochaya/app.js"></script>
 <script src="/space/bootstrap.js" defer></script>
 </body>
