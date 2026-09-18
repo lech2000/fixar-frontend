@@ -416,6 +416,16 @@
     <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите о текущей странице или деле"></textarea><button class="btn primary" type="submit">Отправить</button></form>
     <div class="agent-answer" id="agentdockanswer">Я вижу текущий раздел и доступные здесь действия. Переходы сохраняются в вашей личной памяти на 90 дней.</div>
   </section>
+  <aside class="storage-notice" id="storageNotice" hidden role="region" aria-label="Данные браузера">
+    <div class="storage-notice-copy">
+      <b>Cookie и внешних счётчиков нет.</b>
+      <span>FixAR хранит на этом устройстве ключ входа, язык и настройки интерфейса. В рекламные системы ничего не отправляется.</span>
+    </div>
+    <div class="storage-notice-actions">
+      <button type="button" id="storageNoticeOk">Понятно</button>
+      <button type="button" id="storageNoticeManage">Управлять данными</button>
+    </div>
+  </aside>
 
   <script type="text/plain" id="ia">
 ФиксАР
@@ -1675,7 +1685,7 @@
     vk_bot:{title:"ВКонтакте",icon:"VK",note:"Подключается переписка с сообществом Фиксарика, а не личные диалоги VK ID."}
   };
   function screenAppearanceSettings(node){
-    const appearance=readAppearance(),fixarik=node.children.find(child=>child.name==="Фиксарик");
+    const appearance=readAppearance(),fixarik=node.children.find(child=>child.name==="Фиксарик"),legal=findNode("Юридические документы");
     const language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru";
     const modes=[["system","Как на устройстве"],["light","Светлая"],["dark","Тёмная"]];
     const palettes=[["fixar","FixAR",155],["calm","Спокойная",215],["family","Семья",153],["practice","Практика",275]];
@@ -1688,6 +1698,7 @@
       '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="accent-hue">Точный оттенок</label><div class="hue-control"><input id="accent-hue" type="range" min="140" max="310" step="1" value="'+appearance.hue+'" aria-describedby="hue-help"><output class="hue-value" id="hue-value" for="accent-hue">'+appearance.hue+'°</output></div><p id="hue-help">Меняется только акцент. Яркость текста и контраст интерфейса остаются безопасными.</p></div>'+
       '<div class="cta-row"><button class="btn" type="button" data-reset-appearance>Вернуть оформление FixAR</button></div></section>'+
       (fixarik?'<section class="settings-card"><h3>Помощники и каналы</h3><p>Подключения Фиксарика, доступ к перепискам и паки разработчиков настраиваются отдельно.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+fixarik.id+'\')">Настройки Фиксарика</button></div></section>':'')+
+      (legal?'<section class="settings-card"><h3>Данные и согласия</h3><p>Посмотрите, что хранится на устройстве, какие документы опубликованы и разрешена ли передача данных за рубеж.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+legal.id+'\')">Открыть центр данных</button></div></section>':'')+
       '</div>';
   }
   function screenFixarikSettings(node){
@@ -1779,6 +1790,67 @@
       '<div class="cta-row" style="margin-top:22px"><button class="btn">Назад</button><button class="btn primary">Далее</button></div>';
   }
 
+  function legalLanguage(){ return (window.FixarV2I18n&&window.FixarV2I18n.code)==="en"?"en":"ru"; }
+  function legalDate(value){ if(!value)return "—"; try{return new Intl.DateTimeFormat(legalLanguage()==="en"?"en-GB":"ru-RU",{dateStyle:"medium",timeStyle:"short"}).format(new Date(value));}catch(_){return String(value);} }
+  function legalKind(kind){ return kind==="terms"?uiText("Условия пользования","Terms of use"):uiText("Персональные данные","Personal data"); }
+  function screenLegalCenter(node){
+    const section=node.name==="Юридические документы"?"overview":node.name;
+    return crumbsBlock(node)+'<div class="legal-center" data-legal-section="'+attr(section)+'">'+
+      '<header class="legal-hero"><span class="legal-hero-mark" aria-hidden="true">◉</span><div><p class="eyebrow">'+uiText("КОНТРОЛЬ ДАННЫХ","DATA CONTROL")+'</p><h1>'+uiText("Ваши данные — ваши решения","Your data, your decisions")+'</h1><p>'+uiText("Здесь собраны документы, история ваших согласий и отдельное разрешение на передачу текста и вложений иностранным моделям.","Documents, your consent history, and the separate permission for foreign AI processing are kept together here.")+'</p></div></header>'+
+      '<section class="legal-overview-grid"><article class="legal-overview-card tone-device"><span>1</span><div><h2>'+uiText("На этом устройстве","On this device")+'</h2><p>'+uiText("Ключ входа, язык, тема и состояние интерфейса. Cookie и внешних счётчиков нет.","Sign-in key, language, theme, and interface state. There are no cookies or external trackers.")+'</p></div></article><article class="legal-overview-card tone-home"><span>2</span><div><h2>'+uiText("Основное хранение","Primary storage")+'</h2><p>'+uiText("По текущей конфигурации основные базы и резервные копии размещены в России.","Under the current configuration, primary databases and backups are located in Russia.")+'</p></div></article><article class="legal-overview-card tone-choice"><span>3</span><div><h2>'+uiText("Передача за рубеж","Cross-border transfer")+'</h2><p>'+uiText("Текст сообщений и вложения уходят названным иностранным обработчикам только после отдельного ответа ниже.","Message text and attachments go to the named foreign processors only after your separate answer below.")+'</p></div></article></section>'+
+      '<section class="legal-section" id="legal-documents"><div class="legal-section-head"><div><p class="eyebrow">'+uiText("ДОГОВОРЫ","DOCUMENTS")+'</p><h2>'+uiText("Опубликованные редакции","Published revisions")+'</h2></div><p>'+uiText("Согласие относится к точному тексту и отпечатку редакции. Черновик согласия не собирает.","Consent applies to the exact text and revision digest. A draft never collects consent.")+'</p></div><div class="legal-loading">'+uiText("Проверяю статус документов…","Checking document status…")+'</div></section>'+
+      '<section class="legal-section" id="legal-consents"><div class="legal-section-head"><div><p class="eyebrow">'+uiText("ВАША ИСТОРИЯ","YOUR HISTORY")+'</p><h2>'+uiText("Согласия на документы","Document consents")+'</h2></div><p>'+uiText("Отзыв не стирает прежнюю запись: он фиксирует дату, с которой согласие больше не действует.","Withdrawal keeps the previous record and marks when consent stopped applying.")+'</p></div><div class="legal-loading">'+uiText("Проверяю вход…","Checking sign-in…")+'</div></section>'+
+      '<section class="legal-section legal-transfer" id="legal-cross-border"><div class="legal-section-head"><div><p class="eyebrow">'+uiText("ОТДЕЛЬНОЕ РЕШЕНИЕ","SEPARATE DECISION")+'</p><h2>'+uiText("Где модели могут обработать данные","Where models may process data")+'</h2></div><p>'+uiText("Молчание не считается согласием. Пока ответа нет, действует предел «только Россия».","Silence is not consent. Until you answer, the Russia-only limit applies.")+'</p></div><div class="legal-loading">'+uiText("Загружаю точный текст вопроса…","Loading the exact question…")+'</div></section>'+
+      '<section class="legal-section legal-actions"><div><p class="eyebrow">'+uiText("ВАШИ ДЕЙСТВИЯ","YOUR ACTIONS")+'</p><h2>'+uiText("Получить копию или удалить данные","Get a copy or request deletion")+'</h2><p>'+uiText("Запрос владельца аккаунта проверяется перед выдачей или удалением серверных данных.","Account ownership is verified before server data is exported or deleted.")+'</p></div><div class="legal-action-buttons"><a class="btn" href="mailto:info@agrigate.pro?subject='+encodeURIComponent("FixAR: копия моих данных")+'">'+uiText("Запросить копию","Request a copy")+'</a><a class="btn" href="mailto:info@agrigate.pro?subject='+encodeURIComponent("FixAR: удаление моих данных")+'">'+uiText("Запросить удаление аккаунта","Request account deletion")+'</a><button class="btn legal-erase" type="button" data-erase-fixar>'+uiText("Стереть данные браузера и выйти","Erase browser data and sign out")+'</button></div></section>'+
+      '<p class="legal-caveat">'+uiText("Этот экран показывает техническое состояние сервиса и не заменяет юридическую проверку документов оператором.","This screen reports the service’s technical state and does not replace the operator’s legal review.")+'</p></div>';
+  }
+
+  function legalDocumentCard(document){
+    const status=document.ready?uiText("Опубликован","Published"):uiText("На юридической проверке","Under legal review");
+    const title=legalLanguage()==="en"?legalKind(document.kind):(document.title||legalKind(document.kind));
+    return '<article class="legal-document-card'+(document.ready?' ready':' draft')+'"><div class="legal-document-head"><div><span class="legal-status">'+status+'</span><h3>'+esc(title)+'</h3></div>'+(document.ready?'<span class="legal-version">'+uiText("редакция ","revision ")+esc(document.version)+'</span>':'')+'</div><p>'+esc(document.status_note||"")+'</p>'+(document.ready?'<div class="legal-consent-phrase"><b>'+uiText("Текст согласия","Consent statement")+'</b><span>'+esc(document.consent_text||"")+'</span></div><details><summary>'+uiText("Прочитать документ","Read document")+'</summary><pre>'+esc(document.text||"")+'</pre></details><small class="legal-digest">SHA-256 · '+esc(document.digest||"")+'</small>':'')+'</article>';
+  }
+  async function loadLegalDocuments(){
+    const section=document.getElementById("legal-documents"); if(!section)return;
+    try{ const response=await authFetch("GET","/legal/documents"),documents=response.documents||[]; section.querySelector(".legal-loading").outerHTML='<div class="legal-document-grid">'+documents.map(legalDocumentCard).join("")+'</div>'; }
+    catch(error){ section.querySelector(".legal-loading").outerHTML='<div class="errbox"><div><b>'+uiText("Документы не загрузились","Documents did not load")+'</b><p>'+esc((error&&error.message)||uiText("Попробуйте позже.","Try again later."))+'</p></div></div>'; }
+  }
+  function consentCard(item){
+    const live=item.current&&!item.withdrawn_at;
+    return '<article class="legal-consent-item"><span class="legal-consent-dot '+(live?'live':'closed')+'"></span><div><div class="legal-consent-title"><b>'+esc(legalKind(item.kind))+'</b><span class="chip'+(live?'':' warn')+'">'+(live?uiText("действует","active"):item.withdrawn_at?uiText("отозвано","withdrawn"):uiText("старая редакция","older revision"))+'</span></div><p>'+esc(item.text||"")+'</p><small>'+uiText("Дано: ","Given: ")+legalDate(item.given_at)+(item.withdrawn_at?" · "+uiText("отозвано: ","withdrawn: ")+legalDate(item.withdrawn_at):"")+" · "+uiText("редакция ","revision ")+esc(item.version||"—")+'</small>'+(live?'<button class="legal-text-button" type="button" data-withdraw-consent="'+attr(item.kind)+'">'+uiText("Отозвать согласие","Withdraw consent")+'</button>':'')+'</div></article>';
+  }
+  async function loadLegalConsents(){
+    const section=document.getElementById("legal-consents"); if(!section)return;
+    const loading=section.querySelector(".legal-loading");
+    if(!authState.ready){ setTimeout(loadLegalConsents,180); return; }
+    if(!authState.token||!authState.principal){ loading.outerHTML='<div class="legal-signin"><p>'+uiText("Войдите, чтобы увидеть только свою историю согласий.","Sign in to see your own consent history.")+'</p><button class="btn" type="button" data-legal-signin>'+uiText("Войти","Sign in")+'</button></div>'; return; }
+    try{ const response=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/consents"),items=response.consents||[]; loading.outerHTML=items.length?'<div class="legal-consent-list">'+items.map(consentCard).join("")+'</div>':'<div class="legal-empty">'+uiText("Записанных согласий на опубликованные документы пока нет.","There are no recorded consents to published documents yet.")+'</div>'; }
+    catch(error){ loading.outerHTML='<div class="errbox"><div><b>'+uiText("История не загрузилась","History did not load")+'</b><p>'+esc((error&&error.message)||"")+'</p></div></div>'; }
+  }
+  function crossBorderStatus(value,asked){ if(!asked)return uiText("Не отвечено · действует только Россия","Not answered · Russia-only applies"); return value==="foreign"?uiText("Передача разрешена","Transfer allowed"):value==="own"?uiText("Только инфраструктура FixAR","FixAR infrastructure only"):uiText("Только в России","Russia only"); }
+  async function loadCrossBorder(){
+    const section=document.getElementById("legal-cross-border"); if(!section)return;
+    const loading=section.querySelector(".legal-loading");
+    if(!authState.ready){ setTimeout(loadCrossBorder,180); return; }
+    if(!authState.token||!authState.principal){ loading.outerHTML='<div class="legal-signin"><p>'+uiText("Войдите, чтобы сервер показал ваше текущее решение и точный список получателей.","Sign in so the server can show your current decision and exact recipient list.")+'</p><button class="btn" type="button" data-legal-signin>'+uiText("Войти","Sign in")+'</button></div>'; return; }
+    try{
+      const path="/principals/"+encodeURIComponent(authState.principal)+"/cross-border",response=await authFetch("GET",path),language=legalLanguage(),question=response.question[language]||response.question.ru;
+      let log={entries:[],verification:{}}; try{log=await authFetch("GET",path+"/log");}catch(_){}
+      const entries=(log.entries||[]).slice(-3).reverse(),verified=!log.verification||log.verification.intact!==false;
+      loading.outerHTML='<div class="legal-transfer-panel"><div class="legal-current"><span>'+uiText("Сейчас","Current")+'</span><b>'+esc(crossBorderStatus(response.max_jurisdiction,response.asked))+'</b><small>'+(response.answered_at?uiText("Последнее решение: ","Last decision: ")+legalDate(response.answered_at):uiText("Ответ ещё не записан.","No answer has been recorded."))+'</small></div><p class="legal-question">'+esc(question.text)+'</p><div class="legal-jurisdiction-choices">'+["foreign","ru"].map(answer=>'<button type="button" data-cross-border-answer="'+answer+'" data-digest="'+attr(question.digest)+'" class="legal-jurisdiction-choice'+(response.max_jurisdiction===answer?' selected':'')+'"><span>'+esc(question.answers[answer])+'</span><small>'+(answer==="foreign"?uiText("Можно изменить в любой момент","You can change this at any time"):uiText("Российские модели без передачи за рубеж","Russian models without cross-border transfer"))+'</small></button>').join("")+'</div><div class="legal-transfer-log"><div><b>'+uiText("Журнал решений","Decision log")+'</b><span class="chip'+(verified?'':' warn')+'">'+(verified?uiText("цепочка цела","chain intact"):uiText("нужна проверка","review required"))+'</span></div>'+(entries.length?entries.map(entry=>'<p><span>'+esc(crossBorderStatus(entry.answer,true))+'</span><small>'+legalDate(entry.answered_at)+' · #'+esc(entry.seq)+'</small></p>').join(""):'<p>'+uiText("Записей пока нет.","No entries yet.")+'</p>')+'</div></div>';
+    }catch(error){ loading.outerHTML='<div class="errbox"><div><b>'+uiText("Настройка не загрузилась","Setting did not load")+'</b><p>'+esc((error&&error.message)||"")+'</p></div></div>'; }
+  }
+  function loadLegalCenter(){ loadLegalDocuments(); loadLegalConsents(); loadCrossBorder(); }
+
+  function fixarStorageKeys(storage){
+    const keys=[]; try{ for(let index=0;index<storage.length;index+=1){ const key=storage.key(index); if(key&&(key==="aios_token"||key.indexOf("fixar.")===0||key.indexOf("fixar-v2-")===0))keys.push(key); } }catch(_){} return keys;
+  }
+  async function eraseFixarBrowserData(){
+    try{ if(authState.token)await authFetch("POST","/entry/logout",{token:authState.token}); }catch(_){}
+    [window.localStorage,window.sessionStorage].forEach(storage=>fixarStorageKeys(storage).forEach(key=>{try{storage.removeItem(key);}catch(_){}}));
+    location.reload();
+  }
+
   function casePanel(tab){
     if(/диалог/i.test(tab.name)) return '<div class="bubble" style="max-width:560px">Нашёл ваш прошлый полис — срок до 24 сентября. Подготовить заявку на продление и запросить счёт у страховой?</div>'+
       '<div class="composer" style="max-width:560px"><input placeholder="Сообщение по делу…" aria-label="Сообщение"><button aria-label="Отправить">→</button></div>';
@@ -1802,7 +1874,15 @@
     "Настройки": screenAppearanceSettings,
     "Настройки / Фиксарик": screenFixarikSettings,
     "Первый запуск": screenOnboarding,
-    "Внутренняя структура любого дела": screenCase
+    "Внутренняя структура любого дела": screenCase,
+    "Юридические документы": screenLegalCenter,
+    "Юридические документы / Пользовательское соглашение": screenLegalCenter,
+    "Юридические документы / Политика конфиденциальности": screenLegalCenter,
+    "Юридические документы / Согласие на обработку данных": screenLegalCenter,
+    "Юридические документы / Данные несовершеннолетних": screenLegalCenter,
+    "Юридические документы / Правила публикации паков": screenLegalCenter,
+    "Юридические документы / Условия для разработчиков": screenLegalCenter,
+    "Юридические документы / Политика удаления данных": screenLegalCenter
   };
   const pathKey = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
 
@@ -1840,6 +1920,18 @@
       const accountButton=vwrap.querySelector('[data-open-account]'); if(accountButton)accountButton.onclick=openAccount;
       const results=vwrap.querySelector('#developer-pack-results'); if(results)results.onclick=event=>{ const button=event.target.closest('[data-pack-details]'); if(button)openDeveloperPack(button.dataset.packDetails); };
       loadFixarikChannels(); loadDeviceVault(); searchDeveloperPacks(fixarikSearch);
+    }
+    const legalCenter=vwrap.querySelector('.legal-center');
+    if(legalCenter){
+      legalCenter.addEventListener('click',async event=>{
+        if(event.target.closest('[data-legal-signin]')){ openAccount(event); return; }
+        const answer=event.target.closest('[data-cross-border-answer]');
+        if(answer){ const buttons=legalCenter.querySelectorAll('[data-cross-border-answer]'); buttons.forEach(button=>button.disabled=true); try{ await authFetch("PUT","/principals/"+encodeURIComponent(authState.principal)+"/cross-border",{max_jurisdiction:answer.dataset.crossBorderAnswer,text_digest:answer.dataset.digest,context:"command"}); const section=document.getElementById("legal-cross-border"); section.querySelector(".legal-transfer-panel").outerHTML='<div class="legal-loading">'+uiText("Сохраняю решение…","Saving your decision…")+'</div>'; await loadCrossBorder(); }catch(error){ buttons.forEach(button=>button.disabled=false); toast((error&&error.message)||uiText("Решение не сохранено.","Decision was not saved.")); } return; }
+        const withdraw=event.target.closest('[data-withdraw-consent]');
+        if(withdraw){ if(!confirm(uiText("Отозвать это согласие? Запись останется в истории.","Withdraw this consent? The record will remain in history.")))return; withdraw.disabled=true; try{ await authFetch("POST","/principals/"+encodeURIComponent(authState.principal)+"/consents/withdraw",{kind:withdraw.dataset.withdrawConsent}); const section=document.getElementById("legal-consents"); section.querySelector(".legal-consent-list").outerHTML='<div class="legal-loading">'+uiText("Обновляю историю…","Updating history…")+'</div>'; await loadLegalConsents(); }catch(error){ withdraw.disabled=false; toast((error&&error.message)||uiText("Согласие не отозвано.","Consent was not withdrawn.")); } return; }
+        if(event.target.closest('[data-erase-fixar]')){ if(confirm(uiText("Стереть ключ входа и настройки FixAR на этом устройстве? Серверные данные останутся до отдельного подтверждённого запроса.","Erase the FixAR sign-in key and settings on this device? Server data remains until a separately verified request.")))await eraseFixarBrowserData(); }
+      });
+      loadLegalCenter();
     }
     bindListRows();
   }
@@ -2718,6 +2810,14 @@
   document.getElementById("agentdockform").addEventListener("submit",async e=>{ e.preventDefault(); const f=e.currentTarget, input=f.elements.message, answer=document.getElementById("agentdockanswer"), button=f.querySelector("button"), message=(input.value||"").trim(); if(!message)return; button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.textContent="Агент думает…";
     try{ answer.textContent=await askCaseAgent(message); input.value=""; setTimeout(()=>setAgentDockCompact(true),900); }catch(err){ answer.textContent=(err&&err.message)||"Агент пока не ответил."; }finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); } });
   document.addEventListener("input",e=>{ const field=e.target.closest("textarea[name=message]"); if(!field)return; field.style.height="auto"; field.style.height=Math.min(field.scrollHeight,180)+"px"; });
+  const STORAGE_NOTICE_KEY="fixar.notice.storage.v2",STORAGE_NOTICE_VERSION="1";
+  function markStorageNoticeRead(){ try{localStorage.setItem(STORAGE_NOTICE_KEY,STORAGE_NOTICE_VERSION);}catch(_){} }
+  function initStorageNotice(){
+    const notice=document.getElementById("storageNotice"); if(!notice)return; let seen=""; try{seen=localStorage.getItem(STORAGE_NOTICE_KEY)||"";}catch(_){} if(seen!==STORAGE_NOTICE_VERSION)notice.hidden=false;
+    document.getElementById("storageNoticeOk").addEventListener("click",()=>{markStorageNoticeRead();notice.hidden=true;});
+    document.getElementById("storageNoticeManage").addEventListener("click",()=>{markStorageNoticeRead();notice.hidden=true;const legal=findNode("Юридические документы");if(legal)go(legal.id);});
+  }
+  initStorageNotice();
   bootIdentity();
 
   // старт
