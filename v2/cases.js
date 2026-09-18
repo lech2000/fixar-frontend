@@ -198,7 +198,7 @@
     return "Личное";
   }
   function realCasesForSpace(space){
-    const cases=REAL.cases.filter(c=>!isLegacyHomeworkAnalysisCase(c));
+    const cases=REAL.cases.filter(c=>c.state!=="archived"&&!isLegacyHomeworkAnalysisCase(c));
     if(space==="Личное") return cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
     if(space==="Семья")  return cases.filter(c=>(c.scope||"")==="home");
     if(space==="Практика")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain!=="software");
