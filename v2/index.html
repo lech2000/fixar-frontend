@@ -1619,7 +1619,7 @@
     return [];
   }
   function listEmptyState(node,items){
-    const mayCreate=currentSpace!=="Разработка",create=mayCreate?'<button class="btn primary" data-act="create-case">'+uiText("Создать дело","Create case")+'</button>':"";
+    const create='<button class="btn primary" data-act="create-case">'+uiText("Создать дело","Create case")+'</button>';
     if(!hasSession())return '<section class="my-cases-empty"><span aria-hidden="true">○</span><h2>'+uiText("Здесь появятся ваши дела","Your cases will appear here")+'</h2><p>'+uiText("Войдите или создайте первое настоящее дело. Демонстрационные записи не подставляются.","Sign in or create your first real case. Demo records are never substituted.")+'</p><div class="cta-row">'+create+'<button class="btn" data-my-day-account>'+uiText("Войти","Sign in")+'</button></div></section>';
     if(!items.length)return '<section class="my-cases-empty"><span aria-hidden="true">○</span><h2>'+uiText("Пока спокойно","All quiet for now")+'</h2><p>'+uiText("В этом пространстве ещё нет дел. Начните с результата, который хотите получить.","There are no cases in this space yet. Start with the outcome you want.")+'</p>'+create+'</section>';
     return "";
@@ -1659,7 +1659,7 @@
     const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
     const chips = LIST_FILTERS.map(x=>{ const cnt=items.filter(x.f).length,active=x.n===cur.n; return '<button class="tab'+(active?" active":"")+'" type="button" aria-pressed="'+active+'" data-filter="'+attr(x.n)+'" data-node="'+node.id+'">'+uiText(x.n,x.en)+'<span class="tcount">'+cnt+'</span></button>'; }).join("");
     const need=items.filter(item=>item.needsMe).length,working=items.filter(item=>item.agentWorking).length,done=items.filter(item=>item.completed).length;
-    const create=currentSpace!=="Разработка"?'<button class="btn primary create-btn" data-act="create-case">'+uiText("Создать дело","Create case")+'</button>':"";
+    const create='<button class="btn primary create-btn" data-act="create-case">'+uiText("Создать дело","Create case")+'</button>';
     const view='<div class="case-view-toggle" role="group" aria-label="'+uiText("Вид дел","Case view")+'"><button type="button" data-case-view="list" data-node="'+node.id+'" aria-pressed="'+(caseViewMode==="list")+'"><span aria-hidden="true">≡</span>'+uiText("Список","List")+'</button><button type="button" data-case-view="notes" data-node="'+node.id+'" aria-pressed="'+(caseViewMode==="notes")+'"><span aria-hidden="true">▦</span>'+uiText("Стикеры","Sticky notes")+'</button></div>';
     return '<main class="my-cases"><div class="crumbs">'+crumbHtml(node)+'</div><header class="my-cases-heading"><div><p class="eyebrow">'+esc(currentSpace)+' · '+uiText("ВАШИ ДЕЛА","YOUR CASES")+'</p><h1>'+uiText("Смотрите, что движется дальше.","See what moves forward next.")+'</h1><p>'+uiText("Ваш ответ — первым. Работа помощников — рядом. Завершённое не мешает.","Your input comes first. Assistant work stays visible. Completed cases stay out of the way.")+'</p></div><span class="my-day-badge">'+items.length+' '+uiText("дел","cases")+'</span></header><section class="my-cases-pulse" aria-label="'+uiText("Состояние дел","Case status")+'"><div><b>'+need+'</b><span>'+uiText("требуют вас","need you")+'</span></div><div><b>'+working+'</b><span>'+uiText("помощники работают","assistants working")+'</span></div><div><b>'+done+'</b><span>'+uiText("завершено","completed")+'</span></div></section><div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div><div class="case-list-actions">'+view+create+'</div></div><div class="my-cases-list view-'+caseViewMode+'" id="lst">'+listRowsHtml(node)+'</div></main>';
   }
@@ -2194,7 +2194,8 @@
     const cases=REAL.cases.filter(c=>!isLegacyHomeworkAnalysisCase(c));
     if(space==="Личное") return cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
     if(space==="Семья")  return cases.filter(c=>(c.scope||"")==="home");
-    if(space==="Практика")return cases.filter(c=>(c.scope||"")==="pro");
+    if(space==="Практика")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain!=="software");
+    if(space==="Разработка")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain==="software");
     return [];
   }
   async function openFamilyDialog(message){
@@ -2643,6 +2644,7 @@
   function applyAgentAction(action){
     if(!action||typeof action!=="object") return false;
     if(action.type==="switch_space" && SPACE_NODES[action.space]){ switchSpace(action.space); return true; }
+    if(action.type==="open_create_case"){ openCreateCase(); return true; }
     if(!activeReal) return false;
     const allowed={open_plan:"План",open_participants:"Участники",open_journal:"Журнал",open_overview:"Обзор",open_deadlines:"Сроки",open_documents:"Документы",open_settings:"Настройки"};
     if(allowed[action.type]){ realTab=allowed[action.type]; rememberInteraction("open_tab",realTab); drawRealCase(); return true; }
@@ -2662,15 +2664,16 @@
   function openCreateCase(){
     const practice=currentSpace==="Практика"?selectedPractice():null;
     if(currentSpace==="Практика"&&!practice){ toast("Сначала выберите кабинет в разделе «Практика»."); return; }
-    const isPractice=!!practice, personal=currentSpace==="Личное", space=isPractice?"Практика":(personal?"Личное":"Семья"), defaultTitle=isPractice?"Новое дело кабинета":(personal?"Личное дело":"Семейное дело"), placeholder=isPractice?"Напр., Договор клиента":(personal?"Напр., Организовать переезд":"Напр., Переезд семьи");
-    modalOpen(isPractice?"Новое дело кабинета":(personal?"Новое личное дело":"Новое семейное дело"),
-      '<p class="lead">Создаётся настоящее дело в пространстве «'+esc(space)+'». Вы — владелец; участников можно пригласить позже.'+(isPractice?' Агент и база знаний будут взяты из выбранного кабинета «'+esc(practiceTitle(practice))+'».':'')+'</p>'+
+    const isPractice=!!practice, isDevelopment=currentSpace==="Разработка", personal=currentSpace==="Личное", space=isDevelopment?"Разработка":(isPractice?"Практика":(personal?"Личное":"Семья")), defaultTitle=isDevelopment?"Новая задача разработки":(isPractice?"Новое дело кабинета":(personal?"Личное дело":"Семейное дело")), placeholder=isDevelopment?"Напр., Пак Бухгалтерия УСН":(isPractice?"Напр., Договор клиента":(personal?"Напр., Организовать переезд":"Напр., Переезд семьи"));
+    modalOpen(isDevelopment?"Новое дело разработки":(isPractice?"Новое дело кабинета":(personal?"Новое личное дело":"Новое семейное дело")),
+      '<p class="lead">Создаётся настоящее дело в пространстве «'+esc(space)+'». Вы — владелец; участников можно пригласить позже.'+(isPractice?' Агент и база знаний будут взяты из выбранного кабинета «'+esc(practiceTitle(practice))+'».':(isDevelopment?' Помощником сразу станет кабинет разработчика.':''))+'</p>'+
       '<form id="ccf" class="pform"><label style="display:block">Название<input name="title" required placeholder="'+esc(placeholder)+'" style="width:100%"></label>'+
       '<label style="display:block;margin-top:10px">Цель (необязательно)<input name="goal" placeholder="Чего хотим достичь" style="width:100%"></label>'+
       '<div class="cta-row" style="margin-top:16px"><button class="btn primary" type="submit">Создать дело</button></div></form>',
       body=>{ const f=body.querySelector("#ccf"); f.title.focus(); f.onsubmit=async e=>{ e.preventDefault(); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Создаю…";
-        try{ await ensureSession(); const c=await authFetch("POST","/cases",{title:(f.title.value||"").trim()||defaultTitle,goal:(f.goal.value||"").trim(),...(isPractice?{side:"offer_help"}:{})});
-          try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:isPractice?"pro":(personal?"personal":"home")}); }catch(_){}
+        try{ await ensureSession(); const c=await authFetch("POST","/cases",{title:(f.title.value||"").trim()||defaultTitle,goal:(f.goal.value||"").trim(),...((isPractice||isDevelopment)?{side:"offer_help"}:{})});
+          try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/scope",{scope:(isPractice||isDevelopment)?"pro":(personal?"personal":"home")}); }catch(_){}
+          if(isDevelopment) await authFetch("PUT","/cases/"+encodeURIComponent(c.id)+"/routing",{domain:"software",selected_agent_id:"cabinet",reason:"developer-cabinet:v1",expect_domain:"",expect_selected_agent_id:""});
           if(isPractice) rememberPracticeCase(c.id,practice);
           REAL.loaded=false; modalClose(); realTab=defaultRealTab(); currentSpace=space; rebuildNav(); renderRealCase(c.id);
         }catch(err){ btn.disabled=false; btn.textContent="Создать дело"; toast((err&&err.message)||"Не удалось создать дело."); } }; });
