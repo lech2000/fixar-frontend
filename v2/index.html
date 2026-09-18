@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#071c26">
+  <meta name="theme-color" content="#101713">
   <title>ФиксАР — v2 (навигатор архитектуры)</title>
+  <link rel="preload" href="/v2/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/lang-en.js"></script>
   <script src="/v2/i18n.js"></script>
   <script>
@@ -15,41 +16,44 @@
         var dark=mode==="dark"||(mode==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.theme=dark?"dark":"light";
         document.documentElement.dataset.themeMode=mode;
-        document.documentElement.style.setProperty("--accent-h",String(Number(saved.hue)||185));
+        document.documentElement.style.setProperty("--accent-h",String(Number(saved.hue)||155));
       }catch(_){ document.documentElement.dataset.theme="dark"; }
     })();
   </script>
   <style>
+    @font-face{font-family:Inter;src:url('/v2/fonts/InterVariable.woff2') format('woff2-variations');font-style:normal;font-weight:100 900;font-display:swap}
     :root{
       color-scheme:dark;
-      --accent-h:185;
-      --bg:#06151d;--panel:rgba(10,35,45,.88);--panel-2:rgba(7,27,36,.94);--field:#081e27;
-      --line:rgba(156,222,229,.18);--line-soft:rgba(156,222,229,.10);
-      --text:#f1f7f7;--muted:#9bb5bb;--dim:#728c92;
-      --cyan:hsl(var(--accent-h) 84% 67%);--accent-soft:hsl(var(--accent-h) 70% 62% / .12);
-      --accent-border:hsl(var(--accent-h) 72% 68% / .4);--on-accent:#06202a;
-      --green:#6ce497;--amber:#ffc86a;--focus:hsl(var(--accent-h) 88% 76%);
-      --body-art:radial-gradient(circle at 88% 4%,hsl(var(--accent-h) 55% 24% / .35),transparent 40rem),radial-gradient(circle at 2% 96%,rgba(54,51,107,.28),transparent 34rem),linear-gradient(160deg,#06151d,#09242d 60%,#071720);
-      --shadow:0 12px 30px rgba(0,0,0,.22);
+      --accent-h:155;
+      --bg:#101713;--panel:#18221d;--panel-2:#18221d;--field:#131c17;--sidebar:#131c17;--hover:#202d26;--field-line:#43564b;
+      --line:#34443c;--line-soft:color-mix(in srgb,var(--line) 55%,transparent);
+      --text:#edf3ee;--muted:#a6b2aa;--dim:#7e8e84;
+      --cyan:hsl(var(--accent-h) 42% 68%);--accent-soft:hsl(var(--accent-h) 24% 20%);
+      --accent-border:hsl(var(--accent-h) 30% 42%);--on-accent:#102018;
+      --green:#76d497;--amber:#f0b66e;--focus:hsl(var(--accent-h) 42% 68%);
+      --body-art:var(--bg);
+      --shadow:0 18px 55px #0006;
       --radius:18px; --dur:150ms; --ease:cubic-bezier(.2,0,0,1);
-      --nav-w: 320px;
+      --nav-w:232px;
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+      font-synthesis:none;
     }
     :root[data-theme="light"]{
       color-scheme:light;
-      --bg:#f5f8f8;--panel:rgba(255,255,255,.9);--panel-2:rgba(248,251,251,.96);--field:#fff;
-      --line:rgba(10,48,56,.16);--line-soft:rgba(10,48,56,.09);
-      --text:#102b31;--muted:#587178;--dim:#71868b;
-      --cyan:hsl(var(--accent-h) 72% 34%);--accent-soft:hsl(var(--accent-h) 62% 40% / .1);
-      --accent-border:hsl(var(--accent-h) 60% 35% / .38);--on-accent:#fff;
-      --green:#197647;--amber:#9a6100;--focus:hsl(var(--accent-h) 78% 34%);
-      --body-art:radial-gradient(circle at 88% 4%,hsl(var(--accent-h) 62% 82% / .42),transparent 38rem),radial-gradient(circle at 2% 96%,rgba(178,181,235,.3),transparent 32rem),linear-gradient(160deg,#f7fafa,#edf4f4 60%,#f8fafa);
-      --shadow:0 12px 32px rgba(13,49,56,.08);
+      --bg:#f7f6f2;--panel:#fffefa;--panel-2:#fffefa;--field:#fffefa;--sidebar:#f1f2eb;--hover:#e6e9df;--field-line:#cad4c8;
+      --line:#e2e5dc;--line-soft:color-mix(in srgb,var(--line) 68%,transparent);
+      --text:#223730;--muted:#68736c;--dim:#819087;
+      --cyan:hsl(var(--accent-h) 29% 27%);--accent-soft:hsl(var(--accent-h) 30% 91%);
+      --accent-border:hsl(var(--accent-h) 24% 68%);--on-accent:#fff;
+      --green:#397a52;--amber:#9a651f;--focus:hsl(var(--accent-h) 29% 27%);
+      --body-art:var(--bg);
+      --shadow:0 14px 45px #2237300a;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
       margin:0; color:var(--text);
-      font:15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
       font-feature-settings:"cv02","cv03","cv04","cv11";letter-spacing:-.006em;
       background:var(--body-art);
     }
@@ -61,10 +65,9 @@
     .side{
       display:flex; flex-direction:column; min-height:0;
       border-right:1px solid var(--line-soft);
-      background:linear-gradient(180deg,color-mix(in srgb,var(--panel-2) 88%,transparent),color-mix(in srgb,var(--bg) 82%,transparent));
-      -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+      background:var(--sidebar);
     }
-    .brand{ display:flex; align-items:center; gap:10px; padding:16px 16px 10px }
+    .brand{ display:flex; align-items:center; gap:10px; padding:32px 20px 14px }
     .brand-mark{ display:grid;place-items:center;width:36px;height:36px;border-radius:12px;
       color:var(--on-accent);background:var(--cyan);box-shadow:0 8px 22px var(--accent-soft);font-size:28px;font-weight:400;line-height:1 }
     .brand b{ font-size:24px; font-weight:750;letter-spacing:-.05em } .brand>span:not(.brand-mark){ color:var(--muted); font-size:12px; margin-left:auto }
@@ -277,7 +280,7 @@
     @media (max-width:900px){
       .app{ grid-template-columns:1fr }
       .side{ position:fixed; z-index:30; inset:0 auto 0 0; width:min(86vw,var(--nav-w));
-        transform:translateX(-102%); transition:transform var(--dur) var(--ease) }
+        overflow:hidden; transform:translateX(-102%); transition:transform var(--dur) var(--ease) }
       body.nav-open .side{ transform:none }
       .scrim{ display:block; position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity var(--dur) }
       body.nav-open .scrim{ opacity:1; visibility:visible }
@@ -948,17 +951,17 @@
   function readAppearance(){
     try{
       const value=JSON.parse(store(APPEARANCE_KEY)||"{}");
-      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:Math.max(140,Math.min(310,Number(value.hue)||185)),preset:value.preset||"fixar"};
-    }catch(_){ return {mode:"system",hue:185,preset:"fixar"}; }
+      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:Math.max(140,Math.min(310,Number(value.hue)||155)),preset:value.preset||"fixar"};
+    }catch(_){ return {mode:"system",hue:155,preset:"fixar"}; }
   }
   function applyAppearance(next,persist){
     const current=readAppearance(),value=Object.assign({},current,next||{});
-    value.hue=Math.max(140,Math.min(310,Number(value.hue)||185));
+    value.hue=Math.max(140,Math.min(310,Number(value.hue)||155));
     const dark=value.mode==="dark"||(value.mode==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme=dark?"dark":"light";
     document.documentElement.dataset.themeMode=value.mode;
     document.documentElement.style.setProperty("--accent-h",String(value.hue));
-    const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.content=dark?"#071c26":"#f5f8f8";
+    const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.content=dark?"#101713":"#f7f6f2";
     if(persist!==false)put(APPEARANCE_KEY,JSON.stringify(value));
     return value;
   }
@@ -1231,7 +1234,7 @@
   let currentSpace = "Семья";
   let listFilter = "Все";
   function spaceOf(node){ let n=node; while(n){ for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } n=n.parent; } return null; }
-  function switchSpace(k){ if(k===currentSpace) return; rememberInteraction("switch_space",k); currentSpace=k; go(kidOf(SPACE_NODES[k],"Главная")); }
+  function switchSpace(k){ if(k===currentSpace) return; rememberInteraction("switch_space",k); currentSpace=k; rebuildNav(); go(kidOf(SPACE_NODES[k],"Главная")); }
   window.switchSpace = switchSpace;
   function renderSwitch(){
     const signed = authState.signed_in;
@@ -1675,7 +1678,7 @@
     const appearance=readAppearance(),fixarik=node.children.find(child=>child.name==="Фиксарик");
     const language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru";
     const modes=[["system","Как на устройстве"],["light","Светлая"],["dark","Тёмная"]];
-    const palettes=[["fixar","FixAR",185],["calm","Спокойная",215],["family","Семья",153],["practice","Практика",275]];
+    const palettes=[["fixar","FixAR",155],["calm","Спокойная",215],["family","Семья",153],["practice","Практика",275]];
     return crumbsBlock(node)+'<div class="appearance">'+
       '<div class="vhead"><p class="eyebrow">Ваш интерфейс</p><h1>Оформление под вас</h1><p>Выберите свет, характер и оттенок. Изменения видны сразу и сохраняются только на этом устройстве.</p></div>'+
       '<section class="theme-preview" aria-label="Предпросмотр оформления"><p class="eyebrow">ФиксАР рядом</p><h2>Важное видно. Лишнее не мешает.</h2><p>Короткие заголовки, спокойный ритм и один понятный следующий шаг на каждом экране.</p><div class="cta-row"><span class="btn primary">Главное действие</span><span class="btn">Второй шаг</span></div></section>'+
@@ -1782,7 +1785,7 @@
         const language=event.target.closest('button[data-language]'); if(language){ if(window.FixarV2I18n)window.FixarV2I18n.choose(language.dataset.language); return; }
         const mode=event.target.closest('button[data-theme-mode]'); if(mode){ sync(applyAppearance({mode:mode.dataset.themeMode},true)); return; }
         const palette=event.target.closest('button[data-palette]'); if(palette){ sync(applyAppearance({preset:palette.dataset.palette,hue:Number(palette.dataset.hue)},true)); return; }
-        if(event.target.closest('[data-reset-appearance]'))sync(applyAppearance({mode:'system',preset:'fixar',hue:185},true));
+        if(event.target.closest('[data-reset-appearance]'))sync(applyAppearance({mode:'system',preset:'fixar',hue:155},true));
       });
       const hue=appearancePanel.querySelector('#accent-hue'); if(hue)hue.addEventListener('input',()=>sync(applyAppearance({preset:'custom',hue:Number(hue.value)},true)));
     }
@@ -2021,7 +2024,7 @@
   const caseMeta = c => ((c.participants||[]).length)+" уч. · обновлено "+fmtWhen(c.updated_at);
   function eventPayload(ev){ const p=ev&&ev.payload; if(typeof p!=="string") return p||{}; try{return JSON.parse(p)||{};}catch(_){return{};} }
   const isDomashkinCase = c => !!c && /домашкин/i.test(c.title||"");
-  const assistantName = c => { if(isDomashkinCase(c)) return "Домашкин"; if(c&&c.selected_agent_id){ const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id); return practice?practiceTitle(practice):c.selected_agent_id; } return "Фиксарик"; };
+  const assistantName = c => { if(isDomashkinCase(c)) return "Домашкин"; if(c&&c.selected_agent_id){ if(/fixarik|fixar/i.test(c.selected_agent_id)) return "Фиксарик"; const practice=PRACTICE.items.find(item=>item.domain===c.domain&&item.agent===c.selected_agent_id); return practice?practiceTitle(practice):c.selected_agent_id; } return "Фиксарик"; };
   function domashkinBookPanel(){
     if(!isDomashkinCase(activeReal.c) || !activeReal.isOwner) return "";
     const children=activeReal.children||[];
@@ -2059,6 +2062,7 @@
   function ownerName(){ const c=activeReal.c; const o=(c.participants||[]).find(p=>p.role==="owner"); if(o&&o.display_name)return o.display_name; return c.owner_id===authState.principal?"Вы":"—"; }
 
   function routeCase(id){
+    if(!authState.ready){ window.setTimeout(()=>{ if(location.hash==="#case/"+id) routeCase(id); },80); return; }
     if (CASE_SEEDS[id] || CASES[id] || /^gen-/.test(id)){ if(!CASES[id]&&CASE_SEEDS[id])CASES[id]=cloneCase(CASE_SEEDS[id]); if(CASES[id]){ activeReal=null; activeCaseId=id; caseTab="Обзор"; renderCase(); } return; }
     if (hasSession()){ activeCaseId=null; realTab=defaultRealTab(); renderRealCase(id); return; }
     go(kidOf(SPACE_NODES[currentSpace],"Главная"));
@@ -2094,14 +2098,14 @@
   function drawRealCase(){
     const c=activeReal.c; const sp=SPACE_NODES[currentSpace];
     const tabsForCase=realTabs(c); if(tabsForCase.indexOf(realTab)<0) realTab=defaultRealTab();
+    const assistant=assistantName(c),domashkin=isDomashkinCase(c),practice=(c.scope||"")==="pro",tone=domashkin?"domashkin":(practice?"practice":"fixarik"),symbol=domashkin?"⌂":(practice?"§":"✦");
     vwrap.classList.toggle("dialog-view",realTab==="Диалог");
     vwrap.innerHTML=
-      '<div class="crumbs"><a href="#'+(sp?sp.id:"0")+'">'+esc(currentSpace)+'</a><span class="sep">›</span><span>'+esc(c.title||"Дело")+'</span></div>'+
-      '<p class="eyebrow" style="color:var(--cyan)">Дело · настоящие данные</p>'+
-      '<h1 style="margin:2px 0 0;font-size:28px">'+esc(c.title||"Без названия")+'</h1>'+
-      '<div class="pmeta" style="margin-top:10px">'+statusChip(RU_STATE[c.state]||c.state||"—")+'<span>Владелец: '+esc(ownerName())+'</span><span>Участников: '+((c.participants||[]).length)+'</span>'+(c.needs_word?'<span class="chip warn">нужно ваше слово</span>':'')+'</div>'+
+      '<main class="case-detail-shell case-tone-'+tone+'"><div class="crumbs"><a href="#'+(sp?sp.id:"0")+'">'+esc(currentSpace)+'</a><span class="sep">›</span><span>'+esc(c.title||"Дело")+'</span></div>'+
+      '<header class="case-detail-header"><span class="case-detail-avatar" aria-hidden="true">'+symbol+'</span><div><p class="eyebrow">ДЕЛО · НАСТОЯЩИЕ ДАННЫЕ</p><h1>'+esc(c.title||"Без названия")+'</h1><p>'+esc(assistant)+' · работает только в контексте этого дела</p></div></header>'+
+      '<div class="case-detail-meta">'+statusChip(RU_STATE[c.state]||c.state||"—")+'<span>Владелец: '+esc(ownerName())+'</span><span>Участников: '+((c.participants||[]).length)+'</span>'+(c.needs_word?'<span class="chip warn">нужно ваше слово</span>':'')+'</div>'+
       '<div class="case-tabs" id="rctabs">'+tabsForCase.map(t=>'<button class="ct'+(t===realTab?" active":"")+'" data-rtab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
-      '<div id="rcpanel">'+realTabPanel()+'</div>';
+      '<div class="case-detail-panel" id="rcpanel">'+realTabPanel()+'</div></main>';
     vwrap.parentElement.scrollTop=0;
     const tabs=document.getElementById("rctabs"); if(tabs) tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; realTab=b.dataset.rtab; vwrap.classList.toggle("dialog-view",realTab==="Диалог"); document.getElementById("rcpanel").innerHTML=realTabPanel(); tabs.querySelectorAll(".ct").forEach(x=>x.classList.toggle("active",x.dataset.rtab===realTab)); bindRealPanel(); };
     bindRealPanel();
@@ -2179,18 +2183,23 @@
     const prompts=smartCasePrompts(c).map(text=>'<button class="smart-prompt" type="button" data-chat-suggestion="'+attr(text)+'">'+esc(text)+'</button>').join("");
     return '<section class="case-dialog" aria-label="Диалог по делу"><div class="case-dialog-head"><div><h2>'+esc(assistant)+'</h2><p>Знает текущее дело, его инструменты и разрешённые материалы</p></div><span class="chip info">в контексте</span></div><div class="smart-prompts" aria-label="Умные подсказки">'+prompts+'</div><div class="case-thread" id="caseThread" aria-live="polite">'+messages+reply+empty+'</div><form class="chat-composer" data-act="ask-agent"><div class="chat-file-state" data-chat-file-state hidden></div><textarea name="message" rows="1" maxlength="8000" placeholder="Напишите или скажите, что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="chat-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><label class="chat-tool" aria-label="Сфотографировать"><input name="camera" type="file" accept="image/*" capture="environment"><span class="tool-icon" aria-hidden="true">📷</span><span>Камера</span></label><label class="chat-tool" aria-label="Приложить изображение или PDF"><input name="attachment" type="file" accept="image/*,application/pdf,.pdf"><span class="tool-icon" aria-hidden="true">📎</span><span>Файл</span></label><button class="btn primary chat-send" type="submit">Отправить</button></div><div class="chat-status" data-chat-status role="status" aria-live="polite"></div></form></section>';
   }
+  function realCaseNextStep(c){
+    if(c.state==="closed"||c.state==="archived")return {title:"Дело завершено",note:"Результаты и материалы остаются под рукой.",tab:"Документы",action:"Открыть материалы"};
+    if(c.needs_word)return {title:"Нужно ваше решение",note:"Помощник подготовил действие, но не выполнит его без подтверждения.",tab:"Журнал",action:"Посмотреть и решить"};
+    if(c.active_run_id)return {title:"Помощник работает",note:"Можно посмотреть ход работы, не прерывая выполнение.",tab:"План",action:"Открыть ход работы"};
+    return {title:"Продолжить разговор",note:"Опишите изменение или спросите, какой шаг сейчас самый полезный.",tab:"Диалог",action:"Написать помощнику"};
+  }
+  function realOverviewPanel(){
+    const c=activeReal.c,next=realCaseNextStep(c),assistant=assistantName(c),goal=c.goal||"Сформулируйте желаемый результат вместе с помощником.";
+    const related=realLinksPanel(),needs=c.needs_word?'<div class="case-attention">По делу ждут вашего решения. Внешнее действие не выполнено без подтверждения.</div>':"";
+    const primary='<article class="case-result-card"><div class="case-result-head"><div><p class="eyebrow">ГЛАВНОЕ В ДЕЛЕ</p><h2>'+esc(goal)+'</h2></div><span class="my-day-status '+(c.needs_word?'attention':'')+'">'+esc(caseListStatusLabel(caseListStatus(c)))+'</span></div><div class="case-facts">'+kvRow("Помощник",assistant)+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+'</div>'+needs+related+'<div class="case-question"><p class="eyebrow">С ЧЕГО ПРОДОЛЖИМ?</p><form class="my-day-composer" data-act="ask-agent"><textarea name="message" required rows="2" placeholder="Напишите, что изменилось или что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="my-day-composer-foot"><small>'+esc(assistant)+' знает контекст этого дела и доступные здесь инструменты.</small><button class="btn primary" type="submit">Отправить</button></div></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble">'+esc(activeReal.reply)+'</div>':'')+'</div></div></article>';
+    const nextRail='<aside class="case-next-rail"><p class="eyebrow">ЧТО ДАЛЬШЕ?</p><button class="case-next-primary" type="button" data-act="rc-goto" data-tab="'+attr(next.tab)+'"><span class="case-next-icon">→</span><span><b>'+esc(next.title)+'</b><small>'+esc(next.note)+'</small><em>'+esc(next.action)+' →</em></span></button><div class="case-next-links"><button type="button" data-act="rc-goto" data-tab="План"><b>План и действия</b><small>Что уже сделано и что впереди</small></button><button type="button" data-act="rc-goto" data-tab="Участники"><b>Люди и доступ</b><small>Кто участвует и что может</small></button><button type="button" data-act="rc-goto" data-tab="Документы"><b>Материалы дела</b><small>Файлы, результаты и общие ссылки</small></button></div><section class="case-gentle-note"><p class="eyebrow">ОДИН НЕБОЛЬШОЙ ШАГ</p><p>Не нужно решать всё сразу. Сохраните полезное и вернитесь, когда удобно.</p></section></aside>';
+    return '<div class="case-overview-layout"><div>'+primary+'</div>'+nextRail+'</div>'+domashkinParentInvitePanel()+domashkinBookPanel()+domashkinFamilyThreadPanel();
+  }
   function realTabPanel(){
     const c=activeReal.c, canDecide=activeReal.canDecide, isOwner=activeReal.isOwner;
     if(realTab==="Диалог") return realDialogPanel();
-    if(realTab==="Обзор"){
-      return '<div class="kv">'+kvRow("Цель",c.goal||"—")+kvRow("Статус",RU_STATE[c.state]||c.state||"—")+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Помощник",assistantName(c))+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+kvRow("Объектов",String((c.subjects||[]).length))+'</div>'+realLinksPanel()+
-        (c.needs_word?'<div class="rc-note">По этому делу ждут вашего решения — загляните в Журнал.</div>':'')+
-        domashkinParentInvitePanel()+
-        domashkinBookPanel()+
-        domashkinFamilyThreadPanel()+
-        '<div class="section-t">Написать агенту</div><form class="composer" data-act="ask-agent" style="max-width:620px;display:flex;flex-direction:column"><textarea name="message" required rows="1" style="resize:vertical;min-height:42px" placeholder="Напр., изменилось школьное расписание — что нужно сделать?" aria-label="Сообщение агенту"></textarea><button class="btn primary" type="submit">Отправить</button></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble" style="margin-top:12px">'+esc(activeReal.reply)+'</div>':'')+'</div>'+
-        '<div class="cta-row" style="margin-top:16px"><button class="btn" data-act="rc-goto" data-tab="Журнал">Открыть журнал</button><button class="btn" data-act="rc-goto" data-tab="Участники">Участники</button></div>';
-    }
+    if(realTab==="Обзор") return realOverviewPanel();
     if(realTab==="Журнал"){
       if(!activeReal.events.length) return emptyState("📓","Записей пока нет","Журнал наполнится, когда по делу пойдёт работа.","","");
       return '<div class="rc-hint">Что происходило по делу — новые записи сверху. Действия агентов помечены.</div>'+activeReal.events.slice().reverse().map(eventLine).join("");
@@ -2569,7 +2578,7 @@
     if (custom){ vwrap.innerHTML = custom(node); vwrap.parentElement.scrollTop = 0; bindScreen(); return; }
     const isMain = node.name==="Главная";
     if(isMain){
-      loadThen(()=>dashboard(node), '<div class="my-day-home">'+skelCard(2)+skelCard(5)+'</div>', ()=>{ bindScreen(); setAgentDockCompact(true); if(currentSpace==="Практика"&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(refreshCurrentView); });
+      loadThen(()=>dashboard(node), '<div class="my-day-home">'+skelCard(2)+skelCard(5)+'</div>', ()=>{ bindScreen(); setAgentDockCompact(true); if(currentSpace==="Практика"&&hasSession()&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(refreshCurrentView); });
       return;
     }
     if(isListNode(node)){
