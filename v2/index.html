@@ -2652,7 +2652,7 @@
   async function askCaseAgent(message){
     await ensureSession(); rememberInteraction("agent_ask",activeReal?"case":"page"); await flushInteractions();
     const page_context=currentPageContext();
-    if(!activeReal){ let talk=store("fixar-v2-page-talk"); if(!talk){ talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10); put("fixar-v2-page-talk",talk); } const general=await authFetch("POST","/dialog/general",{message,talk_id:talk,page_context}); applyAgentAction(general.ui_action); loadCredits(true); return general.reply||"Фиксарик принял сообщение."; }
+    if(!activeReal){ let talk=store("fixar-v2-page-talk"); if(!talk){ talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10); put("fixar-v2-page-talk",talk); } const generalBody={message,talk_id:talk,page_context}; if(currentSpace==="Разработка"&&authState.assurance>=2){ generalBody.domain="software"; generalBody.agent_id="cabinet"; } const general=await authFetch("POST","/dialog/general",generalBody); applyAgentAction(general.ui_action); loadCredits(true); return general.reply||"Фиксарик принял сообщение."; }
     const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),page_context};
     if(binding){ body.domain=binding.domain; body.agent=binding.agent; }
     const r=await authFetch("POST","/dialog",body);
