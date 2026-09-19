@@ -205,6 +205,26 @@
     if(space==="Разработка")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain==="software");
     return [];
   }
+  const LAST_ACTIVE_CASE_KEY="fixar-v2-last-active-case:";
+  function rememberLastActiveCase(c){
+    if(!c||!authState.principal||c.state==="closed"||c.state==="archived")return;
+    put(LAST_ACTIVE_CASE_KEY+authState.principal,c.id);
+  }
+  function restoreLastActiveCase(){
+    if(!authState.signed_in||!authState.principal||!REAL.loaded||REAL.error)return false;
+    const raw=location.hash.slice(1),familyHome=kidOf(SPACE_NODES["Семья"],"Главная");
+    // Прямая ссылка и осознанно открытый раздел старше автоматического возврата.
+    // На старте оболочка сама ставит семейную главную — это и есть landing,
+    // который после входа заменяем последним живым делом.
+    if(raw&&raw!==familyHome)return false;
+    const active=REAL.cases.filter(c=>c.state!=="closed"&&c.state!=="archived"&&!isLegacyHomeworkAnalysisCase(c));
+    if(!active.length)return false;
+    const remembered=store(LAST_ACTIVE_CASE_KEY+authState.principal),chosen=active.find(c=>c.id===remembered)||active.slice().sort((left,right)=>String(right.updated_at||"").localeCompare(String(left.updated_at||"")))[0];
+    if(!chosen)return false;
+    currentSpace=spaceForRealCase(chosen);rebuildNav();realTab=defaultRealTab();
+    if(location.hash!=="#case/"+chosen.id)location.hash="#case/"+chosen.id;else routeCase(chosen.id);
+    return true;
+  }
   async function openFamilyDialog(message){
     if(!authState.token){ openAccount(); return; }
     await ensureSession(); await loadRealCases(true);
@@ -288,7 +308,9 @@
         try{ const list=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/threads?limit=100"); const ref=(list.threads||[]).find(thread=>thread.case_id===id); if(ref){ familyThread=await authFetch("GET","/threads/"+encodeURIComponent(ref.thread_id)); const messages=familyThread.messages||[]; if(messages.length)try{ await authFetch("POST","/threads/"+encodeURIComponent(ref.thread_id)+"/read",{seq:messages[messages.length-1].seq}); }catch(_){} } }catch(_){}
       }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, drafts, nextActions, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      const pendingQuestionnaire=readQuestionnaire(id);
+      activeReal={ c, events, runs, patches, drafts, nextActions, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", questionnaire:pendingQuestionnaire, questionnaireAutoOpen:!!pendingQuestionnaire, dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      rememberLastActiveCase(c);
       if(isDomashkinCase(c)&&activeReal.isOwner&&children.length) await loadSchoolDay(children[0].id,dateInputValue(new Date(Date.now()+24*60*60*1000)),false);
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
@@ -377,6 +399,44 @@
     }
     return [...new Set(prompts)].slice(0,4);
   }
+  function questionnaireKey(caseId){ return "fixar-v2-questionnaire:"+caseId; }
+  function normalizeQuestionnaire(action){
+    if(!action||action.type!=="questionnaire"||!Array.isArray(action.fields))return null;
+    const allowed=["text","textarea","single_choice","multi_choice"],fields=action.fields.slice(0,8).map((raw,index)=>{
+      if(!raw||allowed.indexOf(raw.type)<0)return null;
+      const name=String(raw.name||("field_"+index)).replace(/[^A-Za-z0-9_-]/g,"").slice(0,50),label=String(raw.label||"").trim().slice(0,180),options=Array.isArray(raw.options)?raw.options.map(value=>String(value).trim().slice(0,140)).filter(Boolean).slice(0,12):[];
+      if(!name||!label||((raw.type==="single_choice"||raw.type==="multi_choice")&&!options.length))return null;
+      return {name,label,type:raw.type,required:raw.required===true,options,placeholder:String(raw.placeholder||"").slice(0,220)};
+    }).filter(Boolean);
+    if(!fields.length)return null;
+    return {type:"questionnaire",id:String(action.id||"questionnaire").replace(/[^A-Za-z0-9_-]/g,"").slice(0,80),title:String(action.title||"Уточняющие вопросы").trim().slice(0,180),intro:String(action.intro||"").trim().slice(0,500),submit_label:String(action.submit_label||"Отправить ответы").trim().slice(0,80),fields};
+  }
+  function readQuestionnaire(caseId){
+    try{return normalizeQuestionnaire(JSON.parse(store(questionnaireKey(caseId))||"null"));}catch(_){return null;}
+  }
+  function rememberQuestionnaire(caseId,questionnaire){
+    if(questionnaire)put(questionnaireKey(caseId),JSON.stringify(questionnaire));else drop(questionnaireKey(caseId));
+  }
+  function questionnaireField(field,index){
+    const name="answer_"+index,required=field.required?' required':'';
+    if(field.type==="textarea")return '<label class="dialog-question-field"><span>'+esc(field.label)+(field.required?' <em>обязательно</em>':'')+'</span><textarea name="'+name+'" rows="3"'+required+' placeholder="'+attr(field.placeholder)+'"></textarea></label>';
+    if(field.type==="text")return '<label class="dialog-question-field"><span>'+esc(field.label)+(field.required?' <em>обязательно</em>':'')+'</span><input name="'+name+'" type="text"'+required+' placeholder="'+attr(field.placeholder)+'"></label>';
+    const inputType=field.type==="single_choice"?"radio":"checkbox";
+    return '<fieldset class="dialog-question-field" data-question-options="'+index+'"><legend>'+esc(field.label)+(field.required?' <em>обязательно</em>':'')+'</legend><div class="dialog-question-options">'+field.options.map(value=>'<label><input type="'+inputType+'" name="'+name+'" value="'+attr(value)+'"'+(field.required&&inputType==="radio"?' required':'')+'><span>'+esc(value)+'</span></label>').join("")+'</div></fieldset>';
+  }
+  function questionnaireCard(questionnaire){
+    if(!questionnaire)return "";
+    return '<form class="dialog-questionnaire" data-act="answer-questionnaire"><div class="dialog-questionnaire-head"><span aria-hidden="true">✦</span><div><small>ФИКСАР УТОЧНЯЕТ</small><h3>'+esc(questionnaire.title)+'</h3>'+(questionnaire.intro?'<p>'+esc(questionnaire.intro)+'</p>':'')+'</div></div>'+questionnaire.fields.map(questionnaireField).join("")+'<div class="dialog-questionnaire-foot"><span data-questionnaire-status role="status"></span><button class="btn primary" type="submit">'+esc(questionnaire.submit_label)+'</button></div></form>';
+  }
+  function questionnairePrompt(questionnaire,assistant){
+    if(!questionnaire)return "";
+    return '<aside class="dialog-questionnaire-prompt" role="status"><span class="dialog-questionnaire-prompt-icon" aria-hidden="true">✦</span><div><b>'+esc(assistant)+' ждёт ваши ответы</b><p>Чтобы продолжить, заполните анкету «'+esc(questionnaire.title)+'».</p></div><button class="btn primary" type="button" data-act="open-questionnaire">Заполнить анкету</button></aside>';
+  }
+  function questionnaireAnswer(questionnaire,form){
+    const lines=["Ответы на анкету «"+questionnaire.title+"»:"],missing=[];
+    questionnaire.fields.forEach((field,index)=>{ const nodes=[...form.querySelectorAll('[name="answer_'+index+'"]')],values=(field.type==="single_choice"||field.type==="multi_choice")?nodes.filter(node=>node.checked).map(node=>node.value):nodes.map(node=>node.value.trim()).filter(Boolean); if(field.required&&!values.length)missing.push(field.label); if(values.length)lines.push("- "+field.label+": "+values.join(", ")); else lines.push("- "+field.label+": не указано"); });
+    return {message:lines.join("\n"),missing};
+  }
   function realDialogPanel(){
     const c=activeReal.c, assistant=assistantName(c);
     const allMessages=activeReal.events.filter(e=>e.kind==="dialog"&&evText(e)),shown=Math.max(50,Number(activeReal.dialogHistoryShown)||50),hidden=Math.max(0,allMessages.length-shown);
@@ -387,7 +447,7 @@
     const empty=messages||reply?"":'<div class="bubble"><small>'+esc(assistant)+'</small>Я в контексте этого дела. Можно написать, сказать голосом или приложить снимок.</div>';
     const prompts=smartCasePrompts(c).map(text=>'<button class="smart-prompt" type="button" data-chat-suggestion="'+attr(text)+'">'+esc(text)+'</button>').join("");
     const promptTray=(onMobile()&&(messages||reply))?'<details class="smart-prompts-fold"><summary>Быстрые подсказки</summary><div class="smart-prompts" aria-label="Умные подсказки">'+prompts+'</div></details>':'<div class="smart-prompts" aria-label="Умные подсказки">'+prompts+'</div>';
-    return '<section class="case-dialog" aria-label="Диалог по делу"><div class="case-dialog-head"><div><h2>'+esc(assistant)+'</h2><p>Знает текущее дело, его инструменты и разрешённые материалы</p></div><span class="chip info">в контексте</span></div>'+promptTray+'<div class="case-thread" id="caseThread" aria-live="polite">'+older+messages+reply+empty+'</div><form class="chat-composer" data-act="ask-agent"><div class="chat-file-state" data-chat-file-state hidden></div><textarea name="message" rows="1" maxlength="8000" placeholder="Напишите или скажите, что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="chat-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><label class="chat-tool" aria-label="Сфотографировать"><input name="camera" type="file" accept="image/*" capture="environment"><span class="tool-icon" aria-hidden="true">📷</span><span>Камера</span></label><label class="chat-tool" aria-label="Приложить PDF, Excel, CSV или ZIP"><input name="attachment" type="file" accept="'+attr(STATEMENT_ACCEPT)+'"><span class="tool-icon" aria-hidden="true">📎</span><span>Файл</span></label><button class="btn primary chat-send" type="submit">Отправить</button></div><div class="chat-status" data-chat-status role="status" aria-live="polite"></div></form></section>';
+    return '<section class="case-dialog" aria-label="Диалог по делу"><div class="case-dialog-head"><div><h2>'+esc(assistant)+'</h2><p>Знает текущее дело, его инструменты и разрешённые материалы</p></div><span class="chip info">в контексте</span></div>'+questionnairePrompt(activeReal.questionnaire,assistant)+promptTray+'<div class="case-thread" id="caseThread" aria-live="polite">'+older+messages+reply+empty+'</div><form class="chat-composer" data-act="ask-agent"><div class="chat-file-state" data-chat-file-state hidden></div><textarea name="message" rows="1" maxlength="8000" placeholder="Напишите или скажите, что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="chat-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><label class="chat-tool" aria-label="Сфотографировать"><input name="camera" type="file" accept="image/*" capture="environment"><span class="tool-icon" aria-hidden="true">📷</span><span>Камера</span></label><label class="chat-tool" aria-label="Приложить PDF, Excel, CSV или ZIP"><input name="attachment" type="file" accept="'+attr(STATEMENT_ACCEPT)+'"><span class="tool-icon" aria-hidden="true">📎</span><span>Файл</span></label><button class="btn primary chat-send" type="submit">Отправить</button></div><div class="chat-status" data-chat-status role="status" aria-live="polite"></div></form></section>';
   }
   function realCaseNextStep(c){
     if(c.state==="closed"||c.state==="archived")return {title:"Дело завершено",note:"Результаты и материалы остаются под рукой.",tab:"Документы",action:"Открыть материалы"};
@@ -517,6 +577,7 @@
   }
   function installVoiceControls(root){
     (root||document).querySelectorAll("form.my-day-composer").forEach(form=>{
+      if(form.classList.contains("my-day-guest-composer"))return;
       if(form.querySelector('[data-act="voice-input"]'))return;
       const foot=form.querySelector(".my-day-composer-foot"),field=form.elements.message;
       if(!foot||!field)return;
@@ -595,6 +656,7 @@
         const dialogs=activeReal.events.filter(event=>event.kind==="dialog"&&evText(event)),fromReply=b.dataset.readerSource==="reply",event=fromReply?null:dialogs[Number(b.dataset.readerIndex)];
         openAgentAnswer(fromReply?activeReal.reply:evText(event),fromReply?assistantName(c):evActor(event)); return;
       }
+      if(act==="open-questionnaire"){ openQuestionnaireDialog(); return; }
       if(act==="dialog-older"){ const before=thread?thread.scrollHeight:0,previousTop=thread?thread.scrollTop:0; activeReal.dialogHistoryShown=(Number(activeReal.dialogHistoryShown)||50)+100; panel.innerHTML=realTabPanel(); bindRealPanel(false); const expanded=panel.querySelector("#caseThread"); if(expanded)expanded.scrollTop=Math.max(0,expanded.scrollHeight-before+previousTop); return; }
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
       if(act==="open-real-linked"){ realTab=defaultRealTab(); location.hash="#case/"+b.dataset.id; return; }
@@ -726,6 +788,7 @@
         catch(err){ toast((err&&err.message)||"Агент пока не ответил. Повторите позже."); btn.disabled=false; btn.classList.remove("thinking"); btn.removeAttribute("aria-busy"); } return;
       }
     };
+    if(activeReal.questionnaire&&activeReal.questionnaireAutoOpen)openQuestionnaireDialog();
   }
   function openMaterialSensitivity(caseId,materialId,current){
     modalOpen("Доступ к материалу",'<p class="lead">Выберите категорию сведений. Материал увидят только участники, которым разрешена эта категория.</p><form id="material-sensitivity" class="pform"><label>Категория<select name="sensitivity" style="width:100%">'+SEE_ALL.map(s=>'<option value="'+s+'"'+(s===current?' selected':'')+'>'+esc(SEE_RU[s])+'</option>').join("")+'</select></label><label style="display:block;margin-top:10px">Причина изменения<input name="reason" maxlength="300" placeholder="Например, документ содержит персональные данные" style="width:100%"></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить</button></div></form>',body=>{ const form=body.querySelector("#material-sensitivity"); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"); button.disabled=true; button.textContent="Сохраняю…"; try{ await authFetch("PUT","/cases/"+encodeURIComponent(caseId)+"/materials/"+encodeURIComponent(materialId)+"/sensitivity",{sensitivity:form.sensitivity.value,reason:(form.reason.value||"").trim()}); modalClose(); realTab="Документы"; renderRealCase(caseId); }catch(error){ button.disabled=false; button.textContent="Сохранить"; toast((error&&error.message)||"Не удалось изменить доступ."); } }; });
@@ -765,6 +828,10 @@
     if(action.type==="switch_space" && SPACE_NODES[action.space]){ switchSpace(action.space); return true; }
     if(action.type==="open_create_case"){ openCreateCase(); return true; }
     if(!activeReal) return false;
+    if(action.type==="questionnaire"){
+      const questionnaire=normalizeQuestionnaire(action); if(!questionnaire)return false;
+      activeReal.questionnaire=questionnaire;activeReal.questionnaireAutoOpen=true;rememberQuestionnaire(activeReal.c.id,questionnaire);realTab="Диалог";return true;
+    }
     const allowed={open_plan:"План",open_participants:"Участники",open_journal:"Журнал",open_overview:"Обзор",open_deadlines:"Сроки",open_documents:"Документы",open_settings:"Настройки"};
     if(allowed[action.type]){ realTab=allowed[action.type]; rememberInteraction("open_tab",realTab); drawRealCase(); return true; }
     if(action.type==="open_case" && typeof action.case_id==="string" && action.case_id===activeReal.c.id){ location.hash="#case/"+action.case_id; return true; }
@@ -773,8 +840,8 @@
   async function askCaseAgent(message){
     await ensureSession(); rememberInteraction("agent_ask",activeReal?"case":"page"); await flushInteractions();
     const page_context=currentPageContext();
-    if(!activeReal){ let talk=store("fixar-v2-page-talk"); if(!talk){ talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10); put("fixar-v2-page-talk",talk); } const generalBody={message,talk_id:talk,page_context}; if(currentSpace==="Разработка"&&authState.assurance>=2){ generalBody.domain="software"; generalBody.agent_id="cabinet"; } const general=await authFetch("POST","/dialog/general",generalBody); applyAgentAction(general.ui_action); loadCredits(true); return general.reply||"Фиксарик принял сообщение."; }
-    const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),page_context};
+    if(!activeReal){ if(window.FixarCommunity&&window.FixarCommunity.handlesGeneral()){ const communityReply=await window.FixarCommunity.handleGeneralMessage(message); if(communityReply!==null){ loadCredits(true); return communityReply; } } let talk=store("fixar-v2-page-talk"); if(!talk){ talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10); put("fixar-v2-page-talk",talk); } const generalBody={message,talk_id:talk,page_context}; if(currentSpace==="Разработка"&&authState.assurance>=2){ generalBody.domain="software"; generalBody.agent_id="cabinet"; } const general=await authFetch("POST","/dialog/general",generalBody); applyAgentAction(general.ui_action); loadCredits(true); return general.reply||"Фиксарик принял сообщение."; }
+    const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,case_title:activeReal.c.title||"",message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),page_context};
     if(binding){ body.domain=binding.domain; body.agent=binding.agent; }
     const r=await authFetch("POST","/dialog",body);
     if(binding){ activeReal.c.domain=binding.domain; activeReal.c.selected_agent_id=binding.agent; try{localStorage.removeItem(practiceCaseStorageKey(activeReal.c.id));}catch(_){} }
@@ -833,6 +900,19 @@
     if(onMount) onMount(_m.querySelector("#mbody"));
   }
   function modalClose(){ if(_m){ _m.classList.remove("open"); document.body.style.overflow=""; } if(_mReturn&&_mReturn.focus) _mReturn.focus(); }
+
+  async function submitQuestionnaire(form){
+    const questionnaire=activeReal&&activeReal.questionnaire,button=form.querySelector('button[type="submit"]'),status=form.querySelector("[data-questionnaire-status]"); if(!questionnaire)return;
+    const answer=questionnaireAnswer(questionnaire,form); if(answer.missing.length){ status.textContent="Заполните: "+answer.missing.join(", "); return; }
+    button.disabled=true;button.classList.add("thinking");button.textContent="Передаю…";status.textContent="ФиксАР собирает требования из ответов…";
+    try{ const caseId=activeReal.c.id;activeReal.questionnaire=null;activeReal.questionnaireAutoOpen=false;rememberQuestionnaire(caseId,null);await askCaseAgent(answer.message);modalClose();drawRealCase(); }
+    catch(err){ activeReal.questionnaire=questionnaire;rememberQuestionnaire(activeReal.c.id,questionnaire);button.disabled=false;button.classList.remove("thinking");button.textContent=questionnaire.submit_label;status.textContent=(err&&err.message)||"Ответы не отправлены. Попробуйте ещё раз."; }
+  }
+  function openQuestionnaireDialog(){
+    const questionnaire=activeReal&&activeReal.questionnaire; if(!questionnaire)return;
+    activeReal.questionnaireAutoOpen=false;
+    modalOpen("Анкета ФиксАР",questionnaireCard(questionnaire),body=>{ const form=body.querySelector('form[data-act="answer-questionnaire"]');if(form)form.onsubmit=event=>{event.preventDefault();submitQuestionnaire(form);}; },true);
+  }
 
   function maybeOpenFixarikFunnel(){
     if(fixarikFunnelOpened||!authState.ready)return;

@@ -198,6 +198,7 @@
     document.getElementById("storageNoticeManage").addEventListener("click",()=>{markStorageNoticeRead();notice.hidden=true;const legal=findNode("Юридические документы");if(legal)go(legal.id);});
   }
   initStorageNotice();
+  if(window.FixarCommunity) window.FixarCommunity.init();
   bootIdentity();
 
   // старт

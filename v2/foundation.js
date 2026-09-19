@@ -206,6 +206,7 @@
   }
   /* Лениво: анонимный вход под общим ключом — точь-в-точь как оболочка (шаг 3). */
   async function ensureSession(){
+    if(window.FixarCommunity) await window.FixarCommunity.beforeSession();
     if(authState.token) return authState.token;
     const saved=store(AUTH_KEY);
     if(saved){ try{ const who=await readSession(saved); if(who&&who.principal_id){ authState.token=who.session_token||saved; adopt(who); return authState.token; } }catch(e){} }
@@ -241,7 +242,7 @@
     if(!authState.signed_in&&typeof closeNav==="function")closeNav();
     if(typeof renderSwitch==="function") renderSwitch();
     if(typeof renderFoot==="function") renderFoot();
-    if(typeof loadRealCases==="function" && hasSession()){ loadRealCases(true).then(()=>{ if(typeof refreshCurrentView==="function") refreshCurrentView(); }); }
+    if(typeof loadRealCases==="function" && hasSession()){ loadRealCases(true).then(()=>{ if(typeof restoreLastActiveCase==="function"&&restoreLastActiveCase())return; if(typeof refreshCurrentView==="function") refreshCurrentView(); }); }
     loadCredits();
     maybeOpenFixarikFunnel();
     probeOwnerTools().then(()=>{ if(currentSpace==="Разработка" && typeof refreshCurrentView==="function") refreshCurrentView(); });
