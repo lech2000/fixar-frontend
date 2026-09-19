@@ -191,12 +191,47 @@
   }
 
   const uiText=(ru,en)=>(window.FixarV2I18n&&window.FixarV2I18n.english)?en:ru;
+  let moodCrossBorder={principal:null,loading:false,response:null,error:""};
+  function moodCrossBorderQuestion(response){ const questions=response&&response.question||{},language=legalLanguage(); return questions[language]||questions.ru||null; }
+  function moodCrossBorderCurrent(response){ const current=response&&response.current_by_lang; return !!(current&&current[legalLanguage()]); }
+  function moodCrossBorderLabel(response){ if(!response)return uiText("Где данные","Data region"); if(!response.asked||!moodCrossBorderCurrent(response))return uiText("Выбрать","Choose"); return response.max_jurisdiction==="foreign"?uiText("За рубеж","Abroad"):uiText("Россия","Russia"); }
+  function paintMoodCrossBorder(){
+    document.querySelectorAll("[data-my-day-globe]").forEach(button=>{
+      const response=moodCrossBorder.principal===authState.principal?moodCrossBorder.response:null,label=button.querySelector("[data-my-day-globe-label]"),ready=!!response&&!moodCrossBorder.loading,current=ready&&response.asked&&moodCrossBorderCurrent(response),foreign=current&&response.max_jurisdiction==="foreign";
+      button.disabled=moodCrossBorder.loading;
+      button.dataset.state=moodCrossBorder.loading?"loading":(!current?"ask":(foreign?"foreign":"ru"));
+      if(label)label.textContent=moodCrossBorder.loading?uiText("Проверяю…","Checking…"):moodCrossBorderLabel(response);
+      if(current){ button.setAttribute("aria-pressed",String(foreign)); button.removeAttribute("aria-haspopup"); }
+      else{ button.removeAttribute("aria-pressed"); button.setAttribute("aria-haspopup","dialog"); }
+      const description=!ready?uiText("Проверить, где могут обрабатываться данные","Check where data may be processed"):(current?(foreign?uiText("Передача за рубеж разрешена. Нажмите, чтобы оставить обработку только в России.","Transfer abroad is allowed. Press to keep processing in Russia only."):uiText("Обработка только в России. Нажмите, чтобы разрешить передачу за рубеж.","Processing is limited to Russia. Press to allow transfer abroad.")):uiText("Открыть точный вопрос о передаче данных за рубеж","Open the exact cross-border transfer question"));
+      button.setAttribute("aria-label",description); button.title=description;
+    });
+  }
+  async function loadMoodCrossBorder(force){
+    if(!authState.signed_in||!authState.token||!authState.principal)return;
+    if(moodCrossBorder.loading)return;
+    if(!force&&moodCrossBorder.principal===authState.principal&&moodCrossBorder.response){ paintMoodCrossBorder(); return; }
+    moodCrossBorder={principal:authState.principal,loading:true,response:moodCrossBorder.principal===authState.principal?moodCrossBorder.response:null,error:""}; paintMoodCrossBorder();
+    try{ moodCrossBorder.response=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/cross-border"); }
+    catch(error){ moodCrossBorder.error=(error&&error.message)||uiText("Настройка недоступна","Setting unavailable"); }
+    moodCrossBorder.loading=false; paintMoodCrossBorder();
+  }
+  function openMoodCrossBorderQuestion(){ const legal=findNode("Юридические документы"); if(!legal){toast(uiText("Центр данных пока недоступен.","The data centre is unavailable."));return;} go(legal.id); setTimeout(()=>{const section=document.getElementById("legal-cross-border");if(section)section.scrollIntoView({behavior:"smooth",block:"start"});},80); }
+  async function toggleMoodCrossBorder(button){
+    if(!authState.signed_in){openAccount();return;}
+    await loadMoodCrossBorder(); const response=moodCrossBorder.response,question=moodCrossBorderQuestion(response);
+    if(!response||!question||!response.asked||!moodCrossBorderCurrent(response)){ openMoodCrossBorderQuestion(); return; }
+    const next=response.max_jurisdiction==="foreign"?"ru":"foreign"; button.disabled=true; button.dataset.state="loading";
+    try{ const result=await authFetch("PUT","/principals/"+encodeURIComponent(authState.principal)+"/cross-border/quick",{max_jurisdiction:next,text_digest:question.digest}); moodCrossBorder.response=Object.assign({},response,{asked:true,max_jurisdiction:(result&&result.max_jurisdiction)||next,last_hash:result&&result.entry_hash}); paintMoodCrossBorder(); toast(next==="foreign"?uiText("Передача за рубеж разрешена.","Transfer abroad is allowed."):uiText("Теперь обработка только в России.","Processing is now limited to Russia.")); }
+    catch(error){ if(error&&error.status===409)openMoodCrossBorderQuestion(); else toast((error&&error.message)||uiText("Переключить не удалось.","Could not switch the setting.")); }
+    finally{ button.disabled=false; }
+  }
   function myDayAppearance(){
     const appearance=readAppearance(),language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru",caught=appearance.moodCaught;
     const modes=[["system",uiText("Авто","Auto")],["light",uiText("Светлая","Light")],["dark",uiText("Тёмная","Dark")]];
     return '<section class="my-day-mood" data-my-day-mood style="--caught-h:'+appearance.hue+'" aria-label="'+uiText("Настройка оформления","Appearance playground")+'">'+
-      '<div class="my-day-mood-actions"><button class="my-day-mood-catcher'+(caught?' caught':'')+'" type="button" data-my-day-mood-catch aria-expanded="false" aria-controls="my-day-mood-controls"><span class="my-day-mood-spark" aria-hidden="true">✦</span><span data-my-day-mood-label>'+(caught?uiText("Настроить вручную","Fine-tune manually"):uiText("Поймай своё настроение","Catch your mood"))+'</span></button>'+(!authState.signed_in?'<button class="my-day-signin" type="button" data-my-day-account>'+uiText("Войти","Sign in")+' →</button>':'')+'</div>'+
-      '<div class="my-day-mood-controls" id="my-day-mood-controls" data-my-day-mood-controls hidden><label><span>'+uiText("Цвет","Colour")+'</span><input type="range" min="0" max="359" step="1" value="'+appearance.hue+'" data-my-day-hue aria-label="'+uiText("Оттенок интерфейса","Interface hue")+'"><output data-my-day-hue-output>'+appearance.hue+'°</output></label>'+
+      '<div class="my-day-mood-actions"><button class="my-day-mood-catcher'+(caught?' caught':'')+'" type="button" data-my-day-mood-catch aria-expanded="false" aria-controls="my-day-mood-controls"><span class="my-day-mood-spark" aria-hidden="true">✦</span><span data-my-day-mood-label>'+(caught?uiText("Настроить вручную","Fine-tune manually"):uiText("Поймай своё настроение","Catch your mood"))+'</span></button>'+(authState.signed_in?'<button class="my-day-globe" type="button" data-my-day-globe data-state="loading" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><ellipse cx="10" cy="10" rx="3.2" ry="7.5"></ellipse><path d="M2.8 7.2h14.4M2.8 12.8h14.4"></path></svg><span data-my-day-globe-label>'+uiText("Проверяю…","Checking…")+'</span></button>':'<button class="my-day-signin" type="button" data-my-day-account>'+uiText("Войти","Sign in")+' →</button>')+'</div>'+
+      '<div class="my-day-mood-controls" id="my-day-mood-controls" data-my-day-mood-controls hidden><div class="my-day-mood-control-head"><b>'+uiText("Быстрая настройка","Quick setup")+'</b><span data-my-day-mood-time>'+uiText("10 секунд","10 seconds")+'</span></div><label><span>'+uiText("Цвет","Colour")+'</span><input type="range" min="0" max="359" step="1" value="'+appearance.hue+'" data-my-day-hue aria-label="'+uiText("Оттенок интерфейса","Interface hue")+'"><output data-my-day-hue-output>'+appearance.hue+'°</output></label>'+
       '<label><span>'+uiText("Тон фона","Background hue")+'</span><input type="range" min="0" max="359" step="1" value="'+appearance.backgroundHue+'" data-my-day-background-hue aria-label="'+uiText("Оттенок фона","Background hue")+'"><output data-my-day-background-hue-output>'+appearance.backgroundHue+'°</output></label>'+
       '<label><span>'+uiText("Свет фона","Background light")+'</span><input type="range" min="0" max="100" step="1" value="'+appearance.background+'" data-my-day-background aria-label="'+uiText("Яркость фона","Background brightness")+'"><output data-my-day-background-output>'+appearance.background+'%</output></label>'+
       '<div class="my-day-mood-row"><div class="my-day-segment" role="group" aria-label="'+uiText("Тема интерфейса","Interface theme")+'">'+modes.map(item=>'<button type="button" data-my-day-theme="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div>'+
@@ -671,6 +706,7 @@
     if(!authState.token||!authState.principal){ loading.outerHTML='<div class="legal-signin"><p>'+uiText("Войдите, чтобы сервер показал ваше текущее решение и точный список получателей.","Sign in so the server can show your current decision and exact recipient list.")+'</p><button class="btn" type="button" data-legal-signin>'+uiText("Войти","Sign in")+'</button></div>'; return; }
     try{
       const path="/principals/"+encodeURIComponent(authState.principal)+"/cross-border",response=await authFetch("GET",path),language=legalLanguage(),question=response.question[language]||response.question.ru;
+      moodCrossBorder={principal:authState.principal,loading:false,response,error:""}; paintMoodCrossBorder();
       let log={entries:[],verification:{}}; try{log=await authFetch("GET",path+"/log");}catch(_){}
       const entries=(log.entries||[]).slice(-3).reverse(),verified=!log.verification||log.verification.intact!==false;
       loading.outerHTML='<div class="legal-transfer-panel"><div class="legal-current"><span>'+uiText("Сейчас","Current")+'</span><b>'+esc(crossBorderStatus(response.max_jurisdiction,response.asked))+'</b><small>'+(response.answered_at?uiText("Последнее решение: ","Last decision: ")+legalDate(response.answered_at):uiText("Ответ ещё не записан.","No answer has been recorded."))+'</small></div><p class="legal-question">'+esc(question.text)+'</p><div class="legal-jurisdiction-choices">'+["foreign","ru"].map(answer=>'<button type="button" data-cross-border-answer="'+answer+'" data-digest="'+attr(question.digest)+'" class="legal-jurisdiction-choice'+(response.max_jurisdiction===answer?' selected':'')+'"><span>'+esc(question.answers[answer])+'</span><small>'+(answer==="foreign"?uiText("Можно изменить в любой момент","You can change this at any time"):uiText("Российские модели без передачи за рубеж","Russian models without cross-border transfer"))+'</small></button>').join("")+'</div><div class="legal-transfer-log"><div><b>'+uiText("Журнал решений","Decision log")+'</b><span class="chip'+(verified?'':' warn')+'">'+(verified?uiText("цепочка цела","chain intact"):uiText("нужна проверка","review required"))+'</span></div>'+(entries.length?entries.map(entry=>'<p><span>'+esc(crossBorderStatus(entry.answer,true))+'</span><small>'+legalDate(entry.answered_at)+' · #'+esc(entry.seq)+'</small></p>').join(""):'<p>'+uiText("Записей пока нет.","No entries yet.")+'</p>')+'</div></div>';
@@ -723,6 +759,7 @@
   const pathKey = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
 
   function bindScreen(){
+    if(vwrap.querySelector("[data-my-day-mood]"))loadMoodCrossBorder();
     const appearancePanel=vwrap.querySelector('.appearance');
     if(appearancePanel){
       const sync=(value)=>{

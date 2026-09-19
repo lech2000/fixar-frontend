@@ -228,6 +228,13 @@
 .my-day-mood-actions { display: flex; align-items: center; gap: 9px; }
 .my-day-signin { min-height: 46px; padding: 0 18px; border: 1px solid var(--line); border-radius: 999px; background: var(--my-day-surface); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 750; }
 .my-day-signin:hover { border-color: var(--cyan); }
+.my-day-globe { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--my-day-surface); color: var(--text); cursor: pointer; font-size: 12px; font-weight: 760; transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
+.my-day-globe:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--cyan); }
+.my-day-globe:disabled { cursor: wait; opacity: .68; }
+.my-day-globe svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.35; }
+.my-day-globe[data-state="ru"] { border-color: color-mix(in srgb, var(--cyan) 42%, var(--line)); background: var(--accent-soft); color: var(--text); }
+.my-day-globe[data-state="foreign"] { border-color: #d59b69; background: color-mix(in srgb, #f0c79f 26%, var(--my-day-surface)); color: var(--text); }
+.my-day-globe[data-state="ask"] { border-style: dashed; color: var(--muted); }
 .my-day-mood-catcher {
   position: relative;
   isolation: isolate;
@@ -241,14 +248,16 @@
   border: 1px solid rgba(255, 255, 255, .38);
   border-radius: 999px;
   color: #fff;
-  background: hsl(var(--caught-h) 62% 48%);
+  background: linear-gradient(100deg, hsl(var(--caught-h) 72% 52%), hsl(calc(var(--caught-h) + 58) 78% 58%), hsl(calc(var(--caught-h) + 126) 76% 52%), hsl(calc(var(--caught-h) + 196) 80% 58%), hsl(calc(var(--caught-h) + 270) 74% 54%), hsl(var(--caught-h) 72% 52%));
+  background-size: 320% 100%;
   box-shadow: 0 10px 30px hsl(var(--caught-h) 70% 50% / .28);
   cursor: pointer;
   font-size: 13px;
   font-weight: 780;
   letter-spacing: -.01em;
   text-shadow: 0 1px 10px rgba(0, 0, 0, .34);
-  transition: transform 180ms ease, box-shadow 240ms ease, background 240ms ease;
+  transition: transform 180ms ease, box-shadow 240ms ease;
+  animation: my-day-mood-flow 5.6s linear infinite;
 }
 .my-day-mood-catcher::before {
   content: "";
@@ -260,14 +269,7 @@
   filter: blur(15px);
   opacity: .5;
 }
-.my-day-mood-catcher:not(.caught) {
-  background: linear-gradient(100deg, #ff6d9d, #a978ff, #42c7ff, #44dc9c, #ffd56a, #ff7d68, #ff6d9d);
-  background-size: 320% 100%;
-  box-shadow: 0 12px 35px rgba(134, 106, 255, .3);
-  animation: my-day-mood-flow 5.6s linear infinite;
-}
 .my-day-mood-catcher:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 14px 38px hsl(var(--caught-h) 70% 50% / .34); }
-.my-day-mood-catcher:not(.caught):hover { box-shadow: 0 16px 42px rgba(89, 205, 255, .34); }
 .my-day-mood-catcher:active { transform: translateY(0) scale(.99); }
 .my-day-mood-spark { font-size: 16px; line-height: 1; }
 .my-day-mood-controls {
@@ -280,6 +282,9 @@
   box-shadow: var(--my-day-shadow);
 }
 .my-day-mood-controls[hidden] { display: none; }
+.my-day-mood-control-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 1px 5px 3px; }
+.my-day-mood-control-head b { font-size: 12px; }
+.my-day-mood-control-head span { color: var(--muted); font: 700 11px/1 ui-monospace, monospace; }
 .my-day-mood-controls label { display: grid; grid-template-columns: auto minmax(110px, 1fr) 42px; align-items: center; gap: 10px; padding: 0 5px; }
 .my-day-mood-controls label > span { color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .09em; }
 .my-day-mood-controls input { width: 100%; accent-color: var(--cyan); }
@@ -316,7 +321,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .my-day-mood-catcher:not(.caught) { animation: none; background-position: 50% 50%; }
+  .my-day-mood-catcher { animation: none; background-position: 50% 50%; }
   .my-day-mood-catcher { transition: none; }
   .my-case-note { transition: none !important; transform: none !important; }
 }
