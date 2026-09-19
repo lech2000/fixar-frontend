@@ -90,14 +90,15 @@
   const put   = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
   const drop  = k => { try { localStorage.removeItem(k); } catch(e){} };
   const APPEARANCE_KEY = "fixar-v2-appearance";
-  function safeHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:155; }
-  function safeBackgroundHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:145; }
+  function safeHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:275; }
+  function safeBackgroundHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:270; }
   function safeBackground(value){ const background=Number(value); return Number.isFinite(background)?Math.max(0,Math.min(100,Math.round(background))):62; }
   function readAppearance(){
     try{
       const value=JSON.parse(store(APPEARANCE_KEY)||"{}");
-      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:safeHue(value.hue),backgroundHue:safeBackgroundHue(value.backgroundHue),background:safeBackground(value.background),preset:value.preset||"fixar",moodCaught:value.moodCaught===true};
-    }catch(_){ return {mode:"system",hue:155,backgroundHue:145,background:62,preset:"fixar",moodCaught:false}; }
+      const preset=value.preset||"fixar",legacyFixar=preset==="fixar"&&Number(value.hue)===155&&Number(value.backgroundHue)===145;
+      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:legacyFixar?275:safeHue(value.hue),backgroundHue:legacyFixar?270:safeBackgroundHue(value.backgroundHue),background:safeBackground(value.background),preset,moodCaught:value.moodCaught===true};
+    }catch(_){ return {mode:"system",hue:275,backgroundHue:270,background:62,preset:"fixar",moodCaught:false}; }
   }
   function applyAppearance(next,persist){
     const current=readAppearance(),value=Object.assign({},current,next||{});

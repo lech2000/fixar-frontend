@@ -4,22 +4,67 @@
   // Зависит только от foundation; дела подключаются следующим слоем.
   // --- Сайдбар ---
   const nav = document.getElementById("nav");
-  function buildNav(node, container){
+  const NAV_ICON_PATHS = {
+    home:'<path d="M4 10.5 12 4l8 6.5V20h-5v-6H9v6H4Z"/>',
+    dialog:'<path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-6 3V6a2 2 0 0 1 2-2Z"/><path d="M7 9h10M7 13h7"/>',
+    case:'<path d="M4 7h6l2 2h8v10H4Z"/><path d="M4 7V5h6l2 2"/>',
+    calendar:'<path d="M5 5h14v15H5Z"/><path d="M8 3v4m8-4v4M5 10h14"/>',
+    document:'<path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v5h5M10 13h5m-5 4h5"/>',
+    people:'<circle cx="9" cy="8" r="3"/><path d="M3.5 20v-2.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V20M15 5.5a3 3 0 0 1 0 5.8M17 13a4 4 0 0 1 3.5 4v3"/>',
+    plan:'<path d="M5 4h14v16H5Z"/><path d="m8 9 1.4 1.4L12 7.8M14 9h3m-9 6 1.4 1.4L12 13.8M14 15h3"/>',
+    assistant:'<path d="m12 3 2.1 6.9L21 12l-6.9 2.1L12 21l-2.1-6.9L3 12l6.9-2.1Z"/><circle cx="12" cy="12" r="2.2"/>',
+    settings:'<path d="M4 7h10M18 7h2M4 17h2m4 0h10M9 4v6m0 4v6m7-6v6m0-16v6"/>',
+    marketplace:'<path d="M4 9h16l-1-5H5Z"/><path d="M5 9v11h14V9M9 20v-6h6v6"/><path d="M4 9c0 2 3 2.5 4 0 1 2.5 4 2.5 5 0 1 2.5 4 2.5 5 0"/>',
+    shield:'<path d="M12 3 20 6v5c0 5.1-3.2 8.2-8 10-4.8-1.8-8-4.9-8-10V6Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/>',
+    bell:'<path d="M6 17h12l-1.5-2.5V10a4.5 4.5 0 0 0-9 0v4.5Z"/><path d="M10 20h4"/>',
+    connection:'<path d="M8 12a4 4 0 0 1 4-4h4a4 4 0 0 1 0 8h-2M16 12a4 4 0 0 1-4 4H8a4 4 0 0 1 0-8h2"/>',
+    wallet:'<path d="M4 6h14a2 2 0 0 1 2 2v10H4Z"/><path d="M4 7V5h12M15 11h5v4h-5a2 2 0 0 1 0-4Z"/>',
+    help:'<circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 1 1 3.3 2.2c-.8.4-1.1 1-1.1 1.8M12 17h.01"/>',
+    compass:'<circle cx="12" cy="12" r="9"/><path d="m15.8 8.2-2.1 5.5-5.5 2.1 2.1-5.5Z"/>'
+  };
+  function navIconKey(name){
+    const value=String(name||"").toLowerCase();
+    if(/диалог|разговор|переписк/.test(value))return "dialog";
+    if(/главн|сводк|сегодня/.test(value))return "home";
+    if(/дел|обращен|проект/.test(value))return "case";
+    if(/срок|календар|расписан/.test(value))return "calendar";
+    if(/документ|материал|файл/.test(value))return "document";
+    if(/участ|люд|семь|профил|роль/.test(value))return "people";
+    if(/план|задач|действ|этап/.test(value))return "plan";
+    if(/агент|помощ|фиксар|домашкин/.test(value))return "assistant";
+    if(/настрой|оформ|язык|пространств/.test(value))return "settings";
+    if(/пак|витрин|каталог|решени/.test(value))return "marketplace";
+    if(/безопас|прав|соглас|юрид|доступ/.test(value))return "shield";
+    if(/уведом|событ/.test(value))return "bell";
+    if(/подключ|канал|сервис/.test(value))return "connection";
+    if(/тариф|оплат|кредит/.test(value))return "wallet";
+    if(/помощ|справ|ошиб/.test(value))return "help";
+    return "compass";
+  }
+  function navIcon(name){
+    const key=navIconKey(name);
+    return '<span class="n-icon n-icon-'+key+'" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none">'+NAV_ICON_PATHS[key]+'</svg></span>';
+  }
+  function buildNav(node, container, depth){
+    depth=depth||0;
     node.children.forEach(child => {
       const row = document.createElement("div"); row.className = "n-row"; row.dataset.id = child.id;
+      row.dataset.depth=String(depth);
       const caret = document.createElement("button");
       caret.className = "caret" + (child.children.length ? "" : " leaf");
       caret.setAttribute("aria-expanded", "false");
       caret.setAttribute("aria-label", "Развернуть");
-      caret.textContent = "▶";
+      caret.textContent = child.children.length ? "⌄" : "";
       const label = document.createElement("button");
-      label.className = "n-label"; label.textContent = child.name;
-      row.append(caret, label); container.appendChild(row);
+      label.className = "n-label";
+      label.setAttribute("aria-label",child.name);
+      label.innerHTML = navIcon(child.name)+'<span class="n-copy"><strong>'+esc(child.name)+'</strong>'+(child.children.length?'<small>'+child.children.length+' разделов</small>':'')+'</span>';
+      row.append(label, caret); container.appendChild(row);
       let kids = null;
       if (child.children.length){
         kids = document.createElement("div"); kids.className = "kids"; kids.hidden = true;
         container.appendChild(kids);
-        buildNav(child, kids);
+        buildNav(child, kids, depth+1);
         caret.addEventListener("click", e => { e.stopPropagation();
           const open = kids.hidden; kids.hidden = !open; caret.setAttribute("aria-expanded", String(open)); });
       }
@@ -45,13 +90,10 @@
   function switchSpace(k){ if(k===currentSpace) return; rememberInteraction("switch_space",k); currentSpace=k; rebuildNav(); go(kidOf(SPACE_NODES[k],"Главная")); }
   window.switchSpace = switchSpace;
   function renderSwitch(){
-    const signed = authState.signed_in;
     document.getElementById("switch").innerHTML =
-      '<div class="me"><div><div class="me-label">Пространство</div><div class="me-space">'+esc(currentSpace)+'</div></div>'+
-      '<button class="btn small" id="spacepick" type="button">Сменить</button><button class="me-av" id="meav" aria-haspopup="dialog" aria-label="'+(signed?"Аккаунт: "+esc(meName()):"Войти в ФиксАР")+'">'+esc(meInitials())+'</button></div>'+
+      '<button class="me" id="spacepick" type="button" aria-haspopup="dialog" aria-label="Сменить пространство: '+esc(currentSpace)+'">'+
+      '<span class="me-space-mark" aria-hidden="true">'+navIcon(currentSpace)+'</span><span class="me-space-copy"><span class="me-label">Пространство</span><strong class="me-space">'+esc(currentSpace)+'</strong></span><span class="me-space-arrow" aria-hidden="true">⌄</span></button>'+
       '<button class="credit-pill" id="sidecredits" type="button" hidden>кредиты —</button>';
-    const b=document.getElementById("meav"); if(b) b.addEventListener("click", openAccount);
-    paintUserAvatar(b);
     const p=document.getElementById("spacepick"); if(p) p.addEventListener("click", openSpacePicker);
     renderCredits();
   }
@@ -60,15 +102,15 @@
     const notif=findNode("Центр уведомлений"), settings=ACCOUNT_SETTINGS_NODE;
     const ctx=[["Публичная часть","Публичная часть"],["Первый запуск","Первый запуск"],["Структура дела","Внутренняя структура любого дела"],["Юридические","Юридические документы"]];
     el.innerHTML =
-      '<div class="nav-div">Аккаунт</div>'+
-      '<div class="acct-line"><span class="av" aria-hidden="true">'+esc(meInitials())+'</span><span class="who"><b>'+esc(meName())+'</b><small>'+(authState.signed_in?'вход подтверждён · уровень '+(authState.assurance||0):'вход не выполнен')+'</small></span></div>'+
-      (authState.signed_in
-        ? '<button class="foot-link" data-acct="open">Профиль и выход</button>'
-        : '<button class="foot-link enter" data-acct="open">Войти →</button>')+
-      (notif?'<button class="foot-link" onclick="go(\''+notif.id+'\')">Уведомления</button>':'')+
-      (settings?'<button class="foot-link" onclick="go(\''+settings.id+'\')">Настройки</button>':'')+
-      '<div class="nav-div">Помощь и правила</div>'+
-      ctx.map(c=>{ if(c[0]==="Структура дела") return '<button class="foot-link dim" onclick="openCaseRow(\'\',\'\',\'shkola-raspisanie\')">'+esc(c[0])+'</button>'; const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("");
+      '<section class="sidebar-profile" aria-label="Личные настройки">'+
+      '<button class="sidebar-profile-main" type="button" data-acct="open"><span class="av" data-sidebar-avatar aria-hidden="true">'+esc(meInitials())+'</span><span class="who"><b>'+esc(meName())+'</b><small>'+(authState.signed_in?'вход подтверждён · уровень '+(authState.assurance||0):'войти и сохранить дела')+'</small></span><span class="profile-arrow" aria-hidden="true">↗</span></button>'+
+      (settings?'<button class="sidebar-appearance" type="button" data-open-appearance><span class="sidebar-appearance-orb" aria-hidden="true"><i></i></span><span><b>Поймать настроение</b><small>Личные настройки оформления</small></span><span aria-hidden="true">›</span></button>':'')+
+      '</section><div class="sidebar-utility">'+
+      (notif?'<button class="foot-link" onclick="go(\''+notif.id+'\')">'+navIcon("Уведомления")+'<span>Уведомления</span></button>':'')+
+      (settings?'<button class="foot-link" onclick="go(\''+settings.id+'\')">'+navIcon("Настройки")+'<span>Все настройки</span></button>':'')+
+      '<details class="sidebar-more"><summary>Помощь и правила <span>+</span></summary><div>'+ctx.map(c=>{ if(c[0]==="Структура дела") return '<button class="foot-link dim" onclick="openCaseRow(\'\',\'\',\'shkola-raspisanie\')">'+esc(c[0])+'</button>'; const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("")+'</div></details></div>';
+    const avatar=el.querySelector("[data-sidebar-avatar]"); paintUserAvatar(avatar);
+    const appearance=el.querySelector("[data-open-appearance]"); if(appearance&&settings)appearance.onclick=()=>go(settings.id);
   }
   function rebuildNav(){ nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
   function openSpacePicker(){
@@ -223,19 +265,8 @@
     catch(error){ if(error&&error.status===409)openMoodCrossBorderQuestion(); else toast((error&&error.message)||uiText("Переключить не удалось.","Could not switch the setting.")); }
     finally{ button.disabled=false; }
   }
-  function myDayAppearance(){
-    const appearance=readAppearance(),language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru";
-    const modes=[["system",uiText("Авто","Auto")],["light",uiText("Светлая","Light")],["dark",uiText("Тёмная","Dark")]];
-    return '<section class="my-day-mood" data-my-day-mood style="--caught-h:'+appearance.hue+'" aria-label="'+uiText("Настройка оформления","Appearance playground")+'">'+
-      '<div class="my-day-mood-actions"><div class="my-day-mood-palette"><button class="my-day-mood-catcher" type="button" data-my-day-mood-catch><span class="my-day-mood-spark" aria-hidden="true">✦</span><span>'+uiText("Поймай своё настроение","Catch your mood")+'</span></button><button class="my-day-mood-manual" type="button" data-my-day-mood-manual aria-expanded="false" aria-controls="my-day-mood-controls">'+uiText("Настроить вручную","Fine-tune")+'</button></div>'+(authState.signed_in?'<button class="my-day-globe" type="button" data-my-day-globe data-state="loading" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><ellipse cx="10" cy="10" rx="3.2" ry="7.5"></ellipse><path d="M2.8 7.2h14.4M2.8 12.8h14.4"></path></svg><span data-my-day-globe-label>'+uiText("Проверяю…","Checking…")+'</span></button>':'<button class="my-day-signin" type="button" data-my-day-account>'+uiText("Войти","Sign in")+' →</button>')+'</div>'+
-      '<div class="my-day-mood-controls" id="my-day-mood-controls" data-my-day-mood-controls hidden><div class="my-day-mood-control-head"><b>'+uiText("Быстрая настройка","Quick setup")+'</b><span data-my-day-mood-time>'+uiText("10 секунд","10 seconds")+'</span></div><label><span>'+uiText("Цвет","Colour")+'</span><input type="range" min="0" max="359" step="1" value="'+appearance.hue+'" data-my-day-hue aria-label="'+uiText("Оттенок интерфейса","Interface hue")+'"><output data-my-day-hue-output>'+appearance.hue+'°</output></label>'+
-      '<label><span>'+uiText("Тон фона","Background hue")+'</span><input type="range" min="0" max="359" step="1" value="'+appearance.backgroundHue+'" data-my-day-background-hue aria-label="'+uiText("Оттенок фона","Background hue")+'"><output data-my-day-background-hue-output>'+appearance.backgroundHue+'°</output></label>'+
-      '<label><span>'+uiText("Свет фона","Background light")+'</span><input type="range" min="0" max="100" step="1" value="'+appearance.background+'" data-my-day-background aria-label="'+uiText("Яркость фона","Background brightness")+'"><output data-my-day-background-output>'+appearance.background+'%</output></label>'+
-      '<div class="my-day-mood-row"><div class="my-day-segment" role="group" aria-label="'+uiText("Тема интерфейса","Interface theme")+'">'+modes.map(item=>'<button type="button" data-my-day-theme="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div>'+
-      '<div class="my-day-segment" role="group" aria-label="Language"><button type="button" data-my-day-language="ru" aria-pressed="'+(language==="ru")+'">RU</button><button type="button" data-my-day-language="en" aria-pressed="'+(language==="en")+'">EN</button></div></div></div></section>';
-  }
-  function initHolographicHome(root){
-    const scene=root&&root.querySelector("[data-holographic-home]");
+  function initHolographicScene(root,selector){
+    const scene=root&&root.querySelector(selector);
     if(!scene||scene.dataset.textureReady==="1")return;
     scene.dataset.textureReady="1";
     const random=seed=>{let state=seed>>>0;return()=>{state=(Math.imul(1664525,state)+1013904223)>>>0;return state/4294967296}};
@@ -256,12 +287,14 @@
       context.putImageData(image,0,0);
     });
   }
+  function initHolographicHome(root){ initHolographicScene(root,"[data-holographic-home]"); }
+  function initHolographicShell(){ initHolographicScene(document,"[data-holographic-shell]"); }
   function myDayGuestHome(){
     const prompts=[["Найти квартиру","Find a flat"],["Разобраться с делами","Sort out my tasks"],["Выбрать лучшее","Choose the best option"]];
     const roadmap=[["01",uiText("Расскажите о задаче","Tell us about the task"),uiText("Обычными словами. Можно начать с одной мысли.","Use everyday language. One thought is enough to begin.")],["02",uiText("Найдите свой маршрут","Find your route"),uiText("Варианты, нужные помощники и понятный план.","Options, the right assistants and a clear plan.")],["03",uiText("Переходите к действию","Move to action"),uiText("Дело, люди и документы — вместе. Важные решения — с вами.","The case, people and documents stay together. Important decisions stay with you.")]];
     const roadmapIcons=['<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6 3V6a2 2 0 0 1 2-2Z"/><path d="M7 9h10M7 13h7"/></svg>','<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 18h5V6h6v12h5M12 3v3m-9 9 3 3-3 3m14-6 3 3-3 3"/></svg>','<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6M4 21h16"/></svg>'];
     const layout=[[69,-4,14,90,1],[86,12,12,95,0],[53,135,13,112,0],[70,135,25,112,2],[39,282,12,111,1],[54,282,26,111,0],[83,282,14,111,2],[47,428,14,111,0],[64,428,32,111,0],[39,574,24,111,2],[66,574,13,111,1],[82,574,15,111,2],[55,720,40,111,0],[17,720,18,111,0],[43,866,14,111,1],[61,866,33,111,2]];
-    const panels=layout.map((panel,index)=>'<span class="fixar-holo-panel" style="--hx:'+panel[0]+'%;--hy:'+panel[1]+'px;--hw:'+panel[2]+'%;--hh:'+panel[3]+'px;--hi:'+index+';--base:'+(0.55+(index%4)*.12)+';--duration:'+(14500+(index%5)*2300)+'ms;--delay:'+(-(index*3770+4900))+'ms"><canvas data-holo-seed="'+(312+index*79)+'" data-holo-variant="'+panel[4]+'"></canvas><i aria-hidden="true"></i></span>').join("");
+    const panels=layout.map((panel,index)=>'<span class="fixar-holo-panel'+([3,10].includes(index)?' is-flicker':'')+'" style="--hx:'+panel[0]+'%;--hy:'+panel[1]+'px;--hw:'+panel[2]+'%;--hh:'+panel[3]+'px;--hi:'+index+';--base:'+(0.55+(index%4)*.12)+';--duration:'+(14500+(index%5)*2300)+'ms;--delay:'+(-(index*3770+4900))+'ms"><canvas data-holo-seed="'+(312+index*79)+'" data-holo-variant="'+panel[4]+'"></canvas><i aria-hidden="true"></i></span>').join("");
     return '<main class="my-day-home my-day-guest"><div class="fixar-holo-scene" data-holographic-home aria-hidden="true"><div class="fixar-holo-grid"></div><div class="fixar-holo-panels">'+panels+'</div><div class="fixar-holo-ambient"></div><div class="fixar-holo-veil"></div></div><div class="holo-home-page"><header class="holo-home-header"><a class="holo-home-brand" href="/v2/" aria-label="FixAR"><span class="holo-home-brand-mark" aria-hidden="true">✳</span><strong>FixAR</strong><small>'+uiText("Личное пространство","Personal space")+'</small></a><div class="holo-header-actions"><span><i></i>'+uiText("Рядом, когда нужно","Here when you need us")+'</span><button class="my-day-signin" type="button" data-my-day-account>'+uiText("Войти","Sign in")+' <b aria-hidden="true">↗</b></button></div></header><section class="holo-home-stage"><div class="holo-home-content"><div class="holo-home-hero-copy"><p class="eyebrow">'+uiText("НАЧНИТЕ С ОДНОГО СООБЩЕНИЯ","START WITH ONE MESSAGE")+'</p><h1>'+uiText("Что хотите","What would you like")+'<br><span>'+uiText("решить?","to solve?")+'</span></h1><p class="my-day-guest-lede">'+uiText("Из множества возможностей — ваш следующий шаг. Расскажите о задаче. Фиксарик поможет собрать решение.","From many possibilities to your next step. Tell Fixarik about the task and build the solution together.")+'</p><div class="my-day-main"><form class="my-day-composer my-day-guest-composer" data-act="my-day-ask"><label><span aria-hidden="true">✣</span>'+uiText("Фиксарик слушает","Fixarik is listening")+'</label><textarea name="message" rows="3" maxlength="8000" required placeholder="'+uiText("Хочу разобраться с…","I want to figure out…")+'"></textarea><div class="my-day-composer-foot"><small>⌾ '+uiText("Сначала разговор. Решение — за вами.","Conversation first. The decision is yours.")+'</small><button class="btn primary holo-send" type="submit" aria-label="'+uiText("Отправить сообщение","Send message")+'"><span>'+uiText("Отправить","Send")+'</span><b aria-hidden="true">↑</b></button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Попробуйте начать так","Try starting here")+'">'+prompts.map(pair=>'<button class="my-day-prompt" type="button" data-my-day-prompt="'+attr(uiText(pair[0],pair[1]))+'">'+esc(uiText(pair[0],pair[1]))+' ↗</button>').join("")+'</div></div></div><aside class="holo-home-aside"><svg class="holo-orbit-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="m18 2 3.8 12.2L34 18l-12.2 3.8L18 34l-3.8-12.2L2 18l12.2-3.8L18 2Z"/><circle cx="18" cy="18" r="4"/></svg><h2>'+uiText("Всё начинается с ясности.","Everything begins with clarity.")+'</h2><p>'+uiText("Ваши мысли становятся планом. План — действием.","Your thoughts become a plan. The plan becomes action.")+'</p></aside></div></section><section class="my-day-roadmap" aria-labelledby="my-day-roadmap-title"><div class="my-day-roadmap-head"><p id="my-day-roadmap-title">'+uiText("ОТ ВОПРОСА К РЕЗУЛЬТАТУ","FROM QUESTION TO OUTCOME")+'</p><small>'+uiText("ВЫ УПРАВЛЯЕТЕ КАЖДЫМ ШАГОМ","YOU CONTROL EVERY STEP")+'</small></div><div class="my-day-roadmap-grid">'+roadmap.map((item,index)=>'<article><div class="holo-step-top"><span>'+roadmapIcons[index]+'</span><b>'+item[0]+' /</b></div><h3>'+item[1]+'</h3><p>'+item[2]+'</p></article>').join("")+'</div><p class="holo-consent-note">⌾ '+uiText("Помощники действуют с вашего согласия.","Assistants act with your permission.")+'</p></section></div></main>';
   }
   function myDayCopy(){
@@ -302,7 +335,7 @@
     const assistants=friendly?'<div class="my-day-section-head"><h2>'+uiText("Ваши помощники","In good company")+'</h2><small>'+uiText("У каждого — своё дело","A case for every assistant")+'</small></div><div class="my-day-agent-grid">'+agents.map(myDayAgentCard).join("")+'</div>':"";
     const extras=(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"");
     const spaceClass={"Семья":"space-family","Личное":"space-personal","Практика":"space-practice","Разработка":"space-development"}[currentSpace]||"space-personal";
-    return '<main class="my-day-home '+spaceClass+'">'+myDayAppearance()+'<header class="my-day-heading"><div><p class="eyebrow">'+uiText("ВАШЕ ПРОСТРАНСТВО ДЛЯ ЖИЗНИ","A LITTLE SPACE FOR YOUR LIFE")+'</p><h1>'+uiText("Меньше забот.<br>Больше вашей жизни.","Less to manage.<br>More life to live.")+'</h1><p>'+uiText("Вы решаете, что важно. Мы помогаем с остальным.","You choose what matters. We help with the rest.")+'</p></div><span class="my-day-badge">'+(hasSession()?uiText("Ваши данные","Your data"):uiText("Можно начать без входа","Start without signing in"))+'</span></header><div class="my-day-layout"><div class="my-day-main"><section class="my-day-highlight"><div><span class="eyebrow">'+uiText("ОДНА ХОРОШАЯ МЫСЛЬ НА СЕГОДНЯ","ONE GOOD IDEA FOR TODAY")+'</span><h2>'+copy.highlight+'</h2><p>'+copy.body+'</p><button class="my-day-text-button" type="button" '+(cases[0]?'data-my-day-case="'+attr(cases[0].id)+'"':'data-act="create-case"')+'>'+(cases[0]?uiText("Продолжить главное дело","Continue the main case"):uiText("Начать с одного дела","Start with one case"))+' →</button></div><div class="my-day-orbit" aria-hidden="true"><div class="my-day-orbit-card">'+copy.symbol+'<b>'+esc(currentSpace)+'</b></div></div></section><form class="my-day-composer" data-act="my-day-ask"><label>'+uiText("С чего начнём?","Where shall we start?")+'</label><textarea name="message" rows="2" maxlength="8000" required placeholder="'+uiText("Напишите, что хочется упростить…","What would you like to make easier?")+'"></textarea><div class="my-day-composer-foot"><small>'+uiText("Фиксарик видит текущую страницу и может передать вопрос профильному помощнику.","Fixarik sees this page and can hand the question to a specialist assistant.")+'</small><button class="btn primary" type="submit">'+uiText("Отправить","Send")+'</button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Умные подсказки","Smart suggestions")+'">'+prompts+'</div>'+assistants+'</div>'+myDayRail()+'</div>'+extras+'</main>';
+    return '<main class="my-day-home '+spaceClass+'"><header class="my-day-heading"><div><p class="eyebrow">'+uiText("ВАШЕ ПРОСТРАНСТВО ДЛЯ ЖИЗНИ","A LITTLE SPACE FOR YOUR LIFE")+'</p><h1>'+uiText("Меньше забот.<br>Больше вашей жизни.","Less to manage.<br>More life to live.")+'</h1><p>'+uiText("Вы решаете, что важно. Мы помогаем с остальным.","You choose what matters. We help with the rest.")+'</p></div><span class="my-day-badge">'+(hasSession()?uiText("Ваши данные","Your data"):uiText("Можно начать без входа","Start without signing in"))+'</span></header><div class="my-day-layout"><div class="my-day-main"><section class="my-day-highlight"><div><span class="eyebrow">'+uiText("ОДНА ХОРОШАЯ МЫСЛЬ НА СЕГОДНЯ","ONE GOOD IDEA FOR TODAY")+'</span><h2>'+copy.highlight+'</h2><p>'+copy.body+'</p><button class="my-day-text-button" type="button" '+(cases[0]?'data-my-day-case="'+attr(cases[0].id)+'"':'data-act="create-case"')+'>'+(cases[0]?uiText("Продолжить главное дело","Continue the main case"):uiText("Начать с одного дела","Start with one case"))+' →</button></div><div class="my-day-orbit" aria-hidden="true"><div class="my-day-orbit-card">'+copy.symbol+'<b>'+esc(currentSpace)+'</b></div></div></section><form class="my-day-composer" data-act="my-day-ask"><label>'+uiText("С чего начнём?","Where shall we start?")+'</label><textarea name="message" rows="2" maxlength="8000" required placeholder="'+uiText("Напишите, что хочется упростить…","What would you like to make easier?")+'"></textarea><div class="my-day-composer-foot"><small>'+uiText("Фиксарик видит текущую страницу и может передать вопрос профильному помощнику.","Fixarik sees this page and can hand the question to a specialist assistant.")+'</small><button class="btn primary" type="submit">'+uiText("Отправить","Send")+'</button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Умные подсказки","Smart suggestions")+'">'+prompts+'</div>'+assistants+'</div>'+myDayRail()+'</div>'+extras+'</main>';
   }
 
   function dashboard(node){
@@ -586,10 +619,11 @@
     const appearance=readAppearance(),fixarik=node.children.find(child=>child.name==="Фиксарик"),legal=findNode("Юридические документы");
     const language=(window.FixarV2I18n&&window.FixarV2I18n.code)||"ru";
     const modes=[["system","Как на устройстве"],["light","Светлая"],["dark","Тёмная"]];
-    const palettes=[["fixar","FixAR",155,145],["calm","Спокойная",215,220],["family","Семья",153,35],["practice","Практика",275,270]];
+    const palettes=[["fixar","FixAR",275,270],["calm","Спокойная",215,220],["family","Семья",153,35],["practice","Практика",305,300]];
     return crumbsBlock(node)+'<div class="appearance">'+
       '<div class="vhead"><p class="eyebrow">Ваш интерфейс</p><h1>Оформление под вас</h1><p>Выберите свет, характер и оттенок. Изменения видны сразу и сохраняются только на этом устройстве.</p></div>'+
       '<section class="theme-preview" aria-label="Предпросмотр оформления"><p class="eyebrow">ФиксАР рядом</p><h2>Важное видно. Лишнее не мешает.</h2><p>Короткие заголовки, спокойный ритм и один понятный следующий шаг на каждом экране.</p><div class="cta-row"><span class="btn primary">Главное действие</span><span class="btn">Второй шаг</span></div></section>'+
+      '<section class="settings-card appearance-mood-card" aria-labelledby="appearance-mood-title"><div class="appearance-mood-visual" aria-hidden="true"><span></span><i></i></div><div><p class="eyebrow">ЛИЧНОЕ НАСТРОЕНИЕ</p><h2 id="appearance-mood-title">Поймайте сочетание света</h2><p>Фиксар подберёт фиолетовый контекст и оттенок глубины. Тёплый сигнал действия, контраст текста и важные статусы останутся неизменными.</p><button class="btn appearance-mood-catch" type="button" data-catch-appearance-mood><span aria-hidden="true">✦</span> Поймать настроение</button></div></section>'+
       '<section class="settings-card"><div class="appearance-group"><div class="appearance-label">Язык</div><div class="choice-row" data-language-choices><button class="choice'+(language==='ru'?' active':'')+'" type="button" data-language="ru" aria-pressed="'+(language==='ru')+'">Русский</button><button class="choice'+(language==='en'?' active':'')+'" type="button" data-language="en" aria-pressed="'+(language==='en')+'">English</button></div></div>'+
       '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Свет</div><div class="choice-row" data-theme-choices>'+modes.map(item=>'<button class="choice'+(appearance.mode===item[0]?' active':'')+'" type="button" data-theme-mode="'+item[0]+'" aria-pressed="'+(appearance.mode===item[0])+'">'+item[1]+'</button>').join("")+'</div></div>'+
       '<div class="appearance-group" style="margin-top:20px"><div class="appearance-label">Палитра</div><div class="choice-row" data-palette-choices>'+palettes.map(item=>'<button class="choice palette-choice'+(appearance.preset===item[0]?' active':'')+'" type="button" data-palette="'+item[0]+'" data-hue="'+item[2]+'" data-background-hue="'+item[3]+'" aria-pressed="'+(appearance.preset===item[0])+'"><span class="palette-dot" style="--swatch:'+item[2]+'"></span>'+item[1]+'</button>').join("")+'</div></div>'+
@@ -788,8 +822,8 @@
   const pathKey = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
 
   function bindScreen(){
+    initHolographicShell();
     initHolographicHome(vwrap);
-    if(vwrap.querySelector("[data-my-day-mood]"))loadMoodCrossBorder();
     const appearancePanel=vwrap.querySelector('.appearance');
     if(appearancePanel){
       const sync=(value)=>{
@@ -801,7 +835,8 @@
         const language=event.target.closest('button[data-language]'); if(language){ if(window.FixarV2I18n)window.FixarV2I18n.choose(language.dataset.language); return; }
         const mode=event.target.closest('button[data-theme-mode]'); if(mode){ sync(applyAppearance({mode:mode.dataset.themeMode},true)); return; }
         const palette=event.target.closest('button[data-palette]'); if(palette){ sync(applyAppearance({preset:palette.dataset.palette,hue:Number(palette.dataset.hue),backgroundHue:Number(palette.dataset.backgroundHue)},true)); return; }
-        if(event.target.closest('[data-reset-appearance]'))sync(applyAppearance({mode:'system',preset:'fixar',hue:155,backgroundHue:145,background:62},true));
+        const mood=event.target.closest('[data-catch-appearance-mood]'); if(mood){ const hue=Math.floor(Math.random()*360),backgroundHue=(hue+24)%360; sync(applyAppearance({preset:'mood',hue,backgroundHue,moodCaught:true},true)); const card=mood.closest('.appearance-mood-card'); if(card){card.style.setProperty('--caught-h',hue);card.classList.remove('caught');requestAnimationFrame(()=>card.classList.add('caught'));} toast(uiText("Настроение поймано. Можно поймать ещё.","Mood caught. Try another anytime.")); return; }
+        if(event.target.closest('[data-reset-appearance]'))sync(applyAppearance({mode:'system',preset:'fixar',hue:275,backgroundHue:270,background:62},true));
       });
       const hue=appearancePanel.querySelector('#accent-hue'); if(hue)hue.addEventListener('input',()=>sync(applyAppearance({preset:'custom',hue:Number(hue.value)},true)));
       const backgroundHue=appearancePanel.querySelector('#background-hue'); if(backgroundHue)backgroundHue.addEventListener('input',()=>sync(applyAppearance({preset:'custom',backgroundHue:Number(backgroundHue.value)},true)));

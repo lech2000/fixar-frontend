@@ -7,7 +7,7 @@
     const PENDING_KEY="fixar.community.pending.v1";
     const ACTIVE_KEY="fixar.community.active.v1";
     const REF=/^[A-Za-z0-9_-]{12,32}$/;
-    const TEXT_CONFIRM=/^\s*(?:да[,\s:—-]*(?:создавай|заводи|начинай)|(?:создай|заведи|открой)\s+(?:это\s+)?дело)\s*[.!]*\s*$/i;
+    const TEXT_CONFIRM=/^\s*(?:(?:да|ага|подтверждаю)(?:[,\s:—-]*(?:создавай|заводи|начинай|запускай))?|(?:создай|заведи|открой|запусти|начни)\s+(?:это\s+)?дело|(?:запусти|начинай|создавай|заводи))\s*[.!]*\s*$/i;
     let pending=null, gate=null, decision=Promise.resolve(true), settleDecision=null;
     let proposal=null, historyTurns=[];
 
@@ -15,7 +15,14 @@
     function writeJson(key,value){ try{localStorage.setItem(key,JSON.stringify(value));}catch(_){} }
     function removeKey(key){ try{localStorage.removeItem(key);}catch(_){} }
     function active(){ const value=readJson(ACTIVE_KEY),accepted=Date.parse((value&&value.accepted_at)||""); if(!value||!REF.test(value.community_ref||"")||!Number.isFinite(accepted)||Date.now()-accepted>86400000){ if(value)removeKey(ACTIVE_KEY); return null; } return value; }
-    function handlesGeneral(){ return !!active(); }
+    // Общий чат ОДИН на все пространства: выбранный раздел меняет окружение,
+    // но не превращает короткое «запусти» в новую задачу. Сначала всегда идём
+    // через исполнимый intake: он возвращает подписанное предложение и только
+    // после отдельного подтверждения заводит дело. Районная ссылка добавляет
+    // атрибуцию, но не является условием рабочего цикла. Закреплённый
+    // software/cabinet работает уже внутри дела и в специальных экранах
+    // разработчика, а не подменяет общий вход.
+    function handlesGeneral(){ return true; }
     function cleanQuery(){
       try{ const url=new URL(location.href); url.searchParams.delete("community"); history.replaceState(null,"",url.pathname+(url.search?url.search:"")+url.hash); }catch(_){}
     }
@@ -107,7 +114,7 @@
     }
     async function inbox(message,side){
       const sent={id:turnId(),parts:[{type:"text",value:message}]};
-      const body={client_message_id:sent.id,parts:sent.parts,talk_id:talkId(),history:historyTurns.slice(-10),require_confirmation:true,community_context:true}; if(side)body.side_hint=side;
+      const body={client_message_id:sent.id,parts:sent.parts,talk_id:talkId(),history:historyTurns.slice(-10),require_confirmation:true,community_context:!!active()}; if(side)body.side_hint=side;
       const res=await authFetch("POST","/inbox/messages",body),route=res.route||{},plan=assessmentText(route.assessment);
       if(res.created_case){ const made=res.created_case; REAL.loaded=false; await loadRealCases(true); location.hash="#case/"+made.case_id; return "Дело создано: "+made.title; }
       if(route.kind==="propose_case"){ const text=proposalSheet(route,res,sent,plan||route.reason||"План подготовлен."); historyTurns.push({role:"user",text:message},{role:"assistant",text:text}); return text; }

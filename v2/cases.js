@@ -308,8 +308,9 @@
         try{ const list=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/threads?limit=100"); const ref=(list.threads||[]).find(thread=>thread.case_id===id); if(ref){ familyThread=await authFetch("GET","/threads/"+encodeURIComponent(ref.thread_id)); const messages=familyThread.messages||[]; if(messages.length)try{ await authFetch("POST","/threads/"+encodeURIComponent(ref.thread_id)+"/read",{seq:messages[messages.length-1].seq}); }catch(_){} } }catch(_){}
       }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      const pendingQuestionnaire=readQuestionnaire(id)||questionnaireForCase(c,events);
-      if(pendingQuestionnaire)rememberQuestionnaire(id,pendingQuestionnaire);
+      const eventQuestionnaire=questionnaireFromEvents(events);
+      const pendingQuestionnaire=eventQuestionnaire===undefined?readQuestionnaire(id):eventQuestionnaire;
+      rememberQuestionnaire(id,pendingQuestionnaire);
       activeReal={ c, events, runs, patches, drafts, nextActions, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", questionnaire:pendingQuestionnaire, questionnaireAutoOpen:!!pendingQuestionnaire, dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       rememberLastActiveCase(c);
       if(isDomashkinCase(c)&&activeReal.isOwner&&children.length) await loadSchoolDay(children[0].id,dateInputValue(new Date(Date.now()+24*60*60*1000)),false);
@@ -389,6 +390,13 @@
   function domashkinHomeworkAgent(){ return (activeReal.personalAgents||[]).find(agent=>agent.state==="active"&&(agent.modules||[]).indexOf("homework")>=0); }
   function smartCasePrompts(c){
     const prompts=[];
+    // В кабинете разработки подсказки — это две ступени настоящего F7a,
+    // а не общие вопросы по делу. Первая просит агента свести разговор в
+    // ратифицируемое ТЗ, вторая является отдельным словом человека, которое
+    // только и вправе поставить headless-сборку в очередь.
+    if(c.domain==="software"||c.selected_agent_id==="cabinet"){
+      return ["Собрать окончательное ТЗ","Запускай сборку"];
+    }
     if(c.needs_word)prompts.push("Что сейчас требует моего подтверждения?");
     if(isDomashkinCase(c)){
       const school=activeReal.school, assignments=school&&school.assignments||[];
@@ -403,6 +411,8 @@
   function questionnaireKey(caseId){ return "fixar-v2-questionnaire:"+caseId; }
   function normalizeQuestionnaire(action){
     if(!action||action.type!=="questionnaire"||!Array.isArray(action.fields))return null;
+    const actionId=String(action.id||"questionnaire").replace(/[^A-Za-z0-9_-]/g,"").slice(0,80);
+    if(actionId==="pack_requirements_v1"||actionId==="accounting_usn_requirements_v1")return null;
     const allowed=["text","textarea","single_choice","multi_choice"],fields=action.fields.slice(0,8).map((raw,index)=>{
       if(!raw||allowed.indexOf(raw.type)<0)return null;
       const name=String(raw.name||("field_"+index)).replace(/[^A-Za-z0-9_-]/g,"").slice(0,50),label=String(raw.label||"").trim().slice(0,180),options=Array.isArray(raw.options)?raw.options.map(value=>String(value).trim().slice(0,140)).filter(Boolean).slice(0,12):[];
@@ -410,33 +420,27 @@
       return {name,label,type:raw.type,required:raw.required===true,options,placeholder:String(raw.placeholder||"").slice(0,220)};
     }).filter(Boolean);
     if(!fields.length)return null;
-    return {type:"questionnaire",id:String(action.id||"questionnaire").replace(/[^A-Za-z0-9_-]/g,"").slice(0,80),title:String(action.title||"Уточняющие вопросы").trim().slice(0,180),intro:String(action.intro||"").trim().slice(0,500),submit_label:String(action.submit_label||"Отправить ответы").trim().slice(0,80),fields};
+    return {type:"questionnaire",id:actionId,title:String(action.title||"Уточняющие вопросы").trim().slice(0,180),intro:String(action.intro||"").trim().slice(0,500),submit_label:String(action.submit_label||"Отправить ответы").trim().slice(0,80),fields};
   }
   function readQuestionnaire(caseId){
-    try{return normalizeQuestionnaire(JSON.parse(store(questionnaireKey(caseId))||"null"));}catch(_){return null;}
+    try{ const questionnaire=normalizeQuestionnaire(JSON.parse(store(questionnaireKey(caseId))||"null"));if(!questionnaire)drop(questionnaireKey(caseId));return questionnaire; }catch(_){drop(questionnaireKey(caseId));return null;}
   }
   function rememberQuestionnaire(caseId,questionnaire){
     if(questionnaire)put(questionnaireKey(caseId),JSON.stringify(questionnaire));else drop(questionnaireKey(caseId));
   }
-  function questionnaireForCase(c,events){
-    const answered=(events||[]).some(event=>event.kind==="dialog"&&/^\s*ответы на анкету\s+«/i.test(evText(event)||""));
-    const developerPack=c&&(c.domain==="software"&&c.selected_agent_id==="cabinet")&&/(^|[^а-яё])пак([^а-яё]|$)/i.test(c.title||"");
-    if(answered||!developerPack)return null;
-    const accounting=/бухгалтер|усн/i.test(c.title||"");
-    return normalizeQuestionnaire(accounting?{
-      type:"questionnaire",id:"accounting_usn_requirements_v1",title:"Требования к паку «Бухгалтерия УСН»",intro:"Заполните поля — ФиксАР получит ответы одной репликой и соберёт из них проверяемый документ требований.",submit_label:"Передать ответы ФиксАР",fields:[
-        {name:"users",label:"Для кого работает пакет?",type:"multi_choice",required:true,options:["ИП","ООО"]},
-        {name:"tax_modes",label:"Какие режимы УСН поддержать?",type:"multi_choice",required:true,options:["Доходы","Доходы минус расходы"]},
-        {name:"inputs",label:"Какие исходные данные принимает пакет?",type:"multi_choice",required:true,options:["Банковские выписки","Касса","Первичные документы","Ручные операции"]},
-        {name:"outputs",label:"Какие результаты должен готовить пакет?",type:"multi_choice",required:true,options:["КУДиР","Расчёт авансов и налога","Проект декларации","Проекты платёжных документов"]},
-        {name:"automation_boundary",label:"Где проходит граница автоматизации?",type:"single_choice",required:true,options:["Только проверяемые черновики","Отправка в ФНС и банк через отдельные подтверждаемые коннекторы"]},
-        {name:"notes",label:"Дополнительные ограничения или пожелания",type:"textarea",required:false,placeholder:"Например: региональные ставки, сотрудники, НДС, патент"}
-      ]
-    }:{
-      type:"questionnaire",id:"pack_requirements_v1",title:"Анкета требований к паку",intro:"Ответы станут основой проверяемого документа требований.",submit_label:"Передать ответы ФиксАР",fields:[
-        {name:"users",label:"Кто будет пользоваться паком?",type:"textarea",required:true},{name:"jobs",label:"Какие задачи он должен решать?",type:"textarea",required:true},{name:"inputs",label:"Какие данные и документы получает на вход?",type:"textarea",required:true},{name:"outputs",label:"Какой проверяемый результат выдаёт?",type:"textarea",required:true},{name:"boundaries",label:"Что пак не делает без подтверждения человека?",type:"textarea",required:true},{name:"notes",label:"Дополнительные ограничения",type:"textarea",required:false}
-      ]
+  function questionnaireFromEvents(events){
+    let seen=false,pending=null;
+    (events||[]).forEach(event=>{
+      if(event.kind!=="dialog")return;
+      const payload=event.payload||{};
+      if(payload.role==="assistant"){
+        const action=normalizeQuestionnaire(payload.ui_action);
+        if(action){seen=true;pending=action;}
+        return;
+      }
+      if(payload.role==="user"&&pending&&/^\s*ответы на анкету\s+«/i.test(evText(event)||""))pending=null;
     });
+    return seen?pending:undefined;
   }
   function questionnaireField(field,index){
     const name="answer_"+index,required=field.required?' required':'';

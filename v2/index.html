@@ -17,10 +17,12 @@
         document.documentElement.dataset.theme=dark?"dark":"light";
         document.documentElement.dataset.themeMode=mode;
         var hue=Number(saved.hue);
-        if(!Number.isFinite(hue))hue=155;
+        if(!Number.isFinite(hue))hue=275;
+        if((saved.preset||"fixar")==="fixar"&&hue===155)hue=275;
         document.documentElement.style.setProperty("--accent-h",String(((Math.round(hue)%360)+360)%360));
         var backgroundHue=Number(saved.backgroundHue);
-        if(!Number.isFinite(backgroundHue))backgroundHue=145;
+        if(!Number.isFinite(backgroundHue))backgroundHue=270;
+        if((saved.preset||"fixar")==="fixar"&&backgroundHue===145)backgroundHue=270;
         backgroundHue=((Math.round(backgroundHue)%360)+360)%360;
         document.documentElement.style.setProperty("--background-h",String(backgroundHue));
         var background=Number(saved.background);
@@ -37,8 +39,8 @@
     @font-face{font-family:Inter;src:url('/v2/fonts/InterVariable.woff2?v=693b77d4f32e') format('woff2-variations');font-style:normal;font-weight:100 900;font-display:swap}
     :root{
       color-scheme:dark;
-      --accent-h:155;
-      --background-h:145;
+      --accent-h:275;
+      --background-h:270;
       --bg:#101713;--panel:#18221d;--panel-2:#18221d;--field:#131c17;--sidebar:#131c17;--hover:#202d26;--field-line:#43564b;
       --line:#34443c;--line-soft:color-mix(in srgb,var(--line) 55%,transparent);
       --text:#edf3ee;--muted:#a6b2aa;--dim:#7e8e84;
@@ -439,6 +441,7 @@
   </style>
   <link rel="stylesheet" href="/v2/my-day.css?v=9953093a913c">
   <link rel="stylesheet" href="/v2/community.css?v=fd0935f2fc48">
+  <link rel="stylesheet" href="/v2/holographic-shell.css?v=5016ecb6e905">
 </head>
 <body class="guest-shell">
   <div class="app">
@@ -451,6 +454,16 @@
     </aside>
 
     <div class="view" id="view">
+      <div class="shell-holo-scene" data-holographic-shell aria-hidden="true">
+        <div class="shell-holo-grid"></div>
+        <div class="shell-holo-panels">
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-a is-flicker" style="--hx:66%;--hy:7%;--hw:29%;--hh:118px;--base:.34;--duration:23100ms;--delay:-12700ms"><canvas data-holo-seed="2101" data-holo-variant="1"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-b" style="--hx:83%;--hy:27%;--hw:19%;--hh:164px;--base:.28;--duration:19800ms;--delay:-4300ms"><canvas data-holo-seed="2279" data-holo-variant="0"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-c is-flicker" style="--hx:58%;--hy:63%;--hw:36%;--hh:138px;--base:.3;--duration:31700ms;--delay:-23800ms"><canvas data-holo-seed="2467" data-holo-variant="2"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-d" style="--hx:79%;--hy:86%;--hw:22%;--hh:112px;--base:.24;--duration:26700ms;--delay:-19400ms"><canvas data-holo-seed="2659" data-holo-variant="1"></canvas><i></i></span>
+        </div>
+        <div class="shell-holo-veil"></div>
+      </div>
       <div class="topm">
         <button class="menu-btn" id="menu" aria-label="Меню" aria-controls="side" aria-expanded="false">☰</button>
         <span class="brand-mark" aria-hidden="true" style="width:32px;height:32px;border-radius:11px;font-size:24px">✳</span>
@@ -955,10 +968,10 @@
   <!-- Порядок — контракт исполнения: foundation публикует общие границы,
        shell строит экраны, cases добавляет дела, community ставит согласие
        перед сессией, bootstrap запускает UI. -->
-  <script src="/v2/foundation.js?v=68e838d4ed9f"></script>
-  <script src="/v2/shell.js?v=852ff6f71197"></script>
-  <script src="/v2/cases.js?v=5d9422ea305e"></script>
-  <script src="/v2/community.js?v=d40e679598dc"></script>
-  <script src="/v2/bootstrap.js?v=2b73ce7b6c72"></script>
+  <script src="/v2/foundation.js?v=733d44e8afac"></script>
+  <script src="/v2/shell.js?v=7ab4f869deb1"></script>
+  <script src="/v2/cases.js?v=bf5bd724488d"></script>
+  <script src="/v2/community.js?v=586da9fac501"></script>
+  <script src="/v2/bootstrap.js?v=e69e5df0163d"></script>
 </body>
 </html>
