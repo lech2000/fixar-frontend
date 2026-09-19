@@ -226,6 +226,7 @@
 
 .my-day-mood { display: grid; justify-self: start; gap: 9px; width: min(100%, 560px); }
 .my-day-mood-actions { display: flex; align-items: center; gap: 9px; }
+.my-day-mood-palette { display: flex; min-width: 0; align-items: center; gap: 7px; }
 .my-day-signin { min-height: 46px; padding: 0 18px; border: 1px solid var(--line); border-radius: 999px; background: var(--my-day-surface); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 750; }
 .my-day-signin:hover { border-color: var(--cyan); }
 .my-day-globe { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--my-day-surface); color: var(--text); cursor: pointer; font-size: 12px; font-weight: 760; transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
@@ -272,6 +273,9 @@
 .my-day-mood-catcher:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 14px 38px hsl(var(--caught-h) 70% 50% / .34); }
 .my-day-mood-catcher:active { transform: translateY(0) scale(.99); }
 .my-day-mood-spark { font-size: 16px; line-height: 1; }
+.my-day-mood-manual { min-height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--my-day-surface) 92%, transparent); color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 720; white-space: nowrap; }
+.my-day-mood-manual:hover,
+.my-day-mood-manual[aria-expanded="true"] { border-color: var(--accent-border); color: var(--text); background: var(--accent-soft); }
 .my-day-mood-controls {
   display: grid;
   gap: 10px;
@@ -1027,8 +1031,10 @@
 @media (max-width: 600px) {
   .my-day-home { gap: 19px; }
   .my-day-mood { width: 100%; }
-  .my-day-mood-actions { align-items: stretch; }
-  .my-day-mood-catcher { flex: 1; width: auto; padding-inline: 14px; }
+  .my-day-mood-actions { align-items: stretch; flex-wrap: wrap; }
+  .my-day-mood-palette { flex: 1 1 100%; }
+  .my-day-mood-catcher { flex: 1; width: auto; min-width: 0; padding-inline: 14px; }
+  .my-day-mood-manual { flex: none; }
   .my-day-signin { flex: none; padding-inline: 15px; }
   .my-day-mood-controls label { grid-template-columns: auto minmax(70px, 1fr) 38px; }
   .my-day-mood-row { align-items: stretch; flex-direction: column; }
