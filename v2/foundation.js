@@ -154,9 +154,11 @@
     if(!r.ok){ const e=new Error((data&&data.detail&&(data.detail.message||data.detail.reason))||(typeof (data&&data.detail)==="string"?data.detail:"отказ "+r.status)); e.status=r.status; throw e; }
     return data;
   }
-  async function authDownload(path, filename){
+  async function authDownload(path, filename, body){
     const headers={}; if(authState.token) headers.Authorization="Bearer "+authState.token;
-    const response=await HTTP.fetchApi(path,{headers});
+    const options={method:body===undefined?"GET":"POST",headers};
+    if(body!==undefined){ headers["Content-Type"]="application/json"; options.body=JSON.stringify(body); }
+    const response=await HTTP.fetchApi(path,options);
     if(!response.ok){ let detail="отказ "+response.status; try{ const data=await response.json(); detail=(data&&data.detail&&(data.detail.message||data.detail.reason))||(data&&data.detail)||detail; }catch(_){} const error=new Error(String(detail)); error.status=response.status; throw error; }
     const blob=await response.blob(), url=URL.createObjectURL(blob), link=document.createElement("a");
     link.href=url; link.download=filename||"material"; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
