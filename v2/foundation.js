@@ -112,6 +112,7 @@
     document.documentElement.dataset.themeMode=value.mode;
     document.documentElement.style.setProperty("--accent-h",String(value.hue));
     document.documentElement.style.setProperty("--background-h",String(value.backgroundHue));
+    document.documentElement.style.setProperty("--holo-lift",(value.background/200).toFixed(3));
     document.documentElement.style.setProperty("--body-art",backgroundColor);
     const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.content=backgroundColor;
     if(persist!==false)put(APPEARANCE_KEY,JSON.stringify(value));

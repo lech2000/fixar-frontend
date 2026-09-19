@@ -28,6 +28,7 @@
         var background=Number(saved.background);
         if(!Number.isFinite(background))background=62;
         background=Math.max(0,Math.min(100,Math.round(background)));
+        document.documentElement.style.setProperty("--holo-lift",(background/200).toFixed(3));
         var lightness=dark?8.5+(background-50)*.08:96.5+(background-50)*.05;
         var backgroundColor=dark?"hsl("+backgroundHue+" 18% "+lightness+"%)":"hsl("+backgroundHue+" 22% "+lightness+"%)";
         document.documentElement.style.setProperty("--body-art",backgroundColor);
@@ -41,6 +42,7 @@
       color-scheme:dark;
       --accent-h:275;
       --background-h:270;
+      --holo-lift:.31;
       --bg:#101713;--panel:#18221d;--panel-2:#18221d;--field:#131c17;--sidebar:#131c17;--hover:#202d26;--field-line:#43564b;
       --line:#34443c;--line-soft:color-mix(in srgb,var(--line) 55%,transparent);
       --text:#edf3ee;--muted:#a6b2aa;--dim:#7e8e84;
@@ -441,7 +443,7 @@
   </style>
   <link rel="stylesheet" href="/v2/my-day.css?v=9953093a913c">
   <link rel="stylesheet" href="/v2/community.css?v=fd0935f2fc48">
-  <link rel="stylesheet" href="/v2/holographic-shell.css?v=5016ecb6e905">
+  <link rel="stylesheet" href="/v2/holographic-shell.css?v=156e0acc9d85">
 </head>
 <body class="guest-shell">
   <div class="app">
@@ -457,10 +459,10 @@
       <div class="shell-holo-scene" data-holographic-shell aria-hidden="true">
         <div class="shell-holo-grid"></div>
         <div class="shell-holo-panels">
-          <span class="fixar-holo-panel shell-holo-panel shell-panel-a is-flicker" style="--hx:66%;--hy:7%;--hw:29%;--hh:118px;--base:.34;--duration:23100ms;--delay:-12700ms"><canvas data-holo-seed="2101" data-holo-variant="1"></canvas><i></i></span>
-          <span class="fixar-holo-panel shell-holo-panel shell-panel-b" style="--hx:83%;--hy:27%;--hw:19%;--hh:164px;--base:.28;--duration:19800ms;--delay:-4300ms"><canvas data-holo-seed="2279" data-holo-variant="0"></canvas><i></i></span>
-          <span class="fixar-holo-panel shell-holo-panel shell-panel-c is-flicker" style="--hx:58%;--hy:63%;--hw:36%;--hh:138px;--base:.3;--duration:31700ms;--delay:-23800ms"><canvas data-holo-seed="2467" data-holo-variant="2"></canvas><i></i></span>
-          <span class="fixar-holo-panel shell-holo-panel shell-panel-d" style="--hx:79%;--hy:86%;--hw:22%;--hh:112px;--base:.24;--duration:26700ms;--delay:-19400ms"><canvas data-holo-seed="2659" data-holo-variant="1"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-a is-flicker" style="--hx:72%;--hy:8%;--hw:18%;--hh:84px;--base:calc(.35 + var(--holo-lift));--duration:23100ms;--delay:-12700ms"><canvas data-holo-seed="2101" data-holo-variant="1"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-b" style="--hx:88%;--hy:29%;--hw:12%;--hh:106px;--base:calc(.3 + var(--holo-lift));--duration:19800ms;--delay:-4300ms"><canvas data-holo-seed="2279" data-holo-variant="0"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-c is-flicker" style="--hx:61%;--hy:61%;--hw:22%;--hh:92px;--base:calc(.33 + var(--holo-lift));--duration:31700ms;--delay:-23800ms"><canvas data-holo-seed="2467" data-holo-variant="2"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-d" style="--hx:84%;--hy:84%;--hw:14%;--hh:78px;--base:calc(.28 + var(--holo-lift));--duration:26700ms;--delay:-19400ms"><canvas data-holo-seed="2659" data-holo-variant="1"></canvas><i></i></span>
         </div>
         <div class="shell-holo-veil"></div>
       </div>
@@ -968,9 +970,9 @@
   <!-- Порядок — контракт исполнения: foundation публикует общие границы,
        shell строит экраны, cases добавляет дела, community ставит согласие
        перед сессией, bootstrap запускает UI. -->
-  <script src="/v2/foundation.js?v=733d44e8afac"></script>
-  <script src="/v2/shell.js?v=7ab4f869deb1"></script>
-  <script src="/v2/cases.js?v=bf5bd724488d"></script>
+  <script src="/v2/foundation.js?v=04a03e009402"></script>
+  <script src="/v2/shell.js?v=5bcc7abe43c5"></script>
+  <script src="/v2/cases.js?v=f93831e0f4c4"></script>
   <script src="/v2/community.js?v=586da9fac501"></script>
   <script src="/v2/bootstrap.js?v=e69e5df0163d"></script>
 </body>

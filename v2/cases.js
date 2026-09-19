@@ -168,7 +168,7 @@
   const RUN_STATUS={queued:"в очереди",running:"выполняется",waiting_approval:"ждёт подтверждения",succeeded:"завершён",failed:"не удался",cancelled:"отменён",pending:"ожидает",claimed:"взят",skipped:"пропущен"};
   const INVITE_ROLES=["colleague","spouse","observer","lawyer","client","doctor","agronomist"];
   const SPACE_SCOPE={"Личное":"personal","Семья":"home","Практика":"pro"};
-  const KIND_RU={"case.created":"дело создано","case.updated":"дело обновлено","case.state_changed":"статус изменён","routing.set":"назначен агент","brief.updated":"бриф обновлён","workflow.transitioned":"этап изменён","participant.added":"участник добавлен","participant.removed":"участник удалён","participant.may_see_changed":"доступ участника изменён","subject.added":"объект добавлен","client.set":"клиент задан","scope_set":"область задана","decision.made":"решение принято","action.added":"добавлено действие","action.completed":"действие выполнено","material.added":"добавлен материал","material.extracted":"материал разобран","source.read":"источник прочитан","deal.stage_set":"стадия сделки","option.added":"вариант добавлен","calendar.event.added":"событие в календаре","draft.added":"черновик добавлен","dialog":"сообщение","thread_started":"начато обсуждение","handoff":"передача","owner_transferred":"передано владение","permit.granted":"разрешение выдано","permit.revoked":"разрешение отозвано","patch.proposed":"агент предлагает изменение","patch.applied":"изменение применено","patch.denied":"изменение отклонено","run.created":"запущен агент","run.step.claimed":"шаг взят","run.step.waiting_approval":"шаг ждёт подтверждения","run.step.succeeded":"шаг выполнен","run.step.skipped":"шаг пропущен","run.step.failed":"шаг не удался","run.succeeded":"агент завершил","run.failed":"агент не смог"};
+  const KIND_RU={"case.created":"дело создано","case.updated":"дело обновлено","work.commissioned":"работа заказана","case.state_changed":"статус изменён","routing.set":"назначен агент","brief.updated":"бриф обновлён","workflow.transitioned":"этап изменён","participant.added":"участник добавлен","participant.removed":"участник удалён","participant.may_see_changed":"доступ участника изменён","subject.added":"объект добавлен","client.set":"клиент задан","scope_set":"область задана","decision.made":"решение принято","action.added":"добавлено действие","action.completed":"действие выполнено","material.added":"добавлен материал","material.extracted":"материал разобран","source.read":"источник прочитан","deal.stage_set":"стадия сделки","option.added":"добавлен вариант","calendar.event.added":"событие в календаре","draft.added":"черновик добавлен","dialog":"сообщение","thread_started":"начато обсуждение","handoff":"передача","owner_transferred":"передано владение","permit.granted":"разрешение выдано","permit.revoked":"разрешение отозвано","patch.proposed":"агент предлагает изменение","patch.applied":"изменение применено","patch.denied":"изменение отклонено","run.created":"запущен агент","run.step.claimed":"шаг взят","run.step.waiting_approval":"шаг ждёт подтверждения","run.step.succeeded":"шаг выполнен","run.step.skipped":"шаг пропущен","run.step.failed":"шаг не удался","run.succeeded":"агент завершил","run.failed":"агент не смог"};
 
   let REAL={loaded:false,loading:false,cases:[],error:null};
   let activeReal=null, realTab="Обзор";
@@ -293,12 +293,15 @@
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const caseSpace=spaceForRealCase(c); if(currentSpace!==caseSpace){currentSpace=caseSpace;rebuildNav();}
       const events=await loadAllEvents(id);
-      let runs=[],patches=[],drafts=[],nextActions=[],children=[],childrenError="",personalAgents=[],familyThread=null,materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
+      let runs=[],patches=[],drafts=[],nextActions=[],children=[],childrenError="",personalAgents=[],familyThread=null,materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="",workOffers=[];
       try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
       try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
       try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
       try{ const aa=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/actions"); nextActions=Array.isArray(aa)?aa:[]; }catch(_){}
       try{ const mm=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/materials"); materials=Array.isArray(mm&&mm.materials)?mm.materials:[]; hiddenMaterials=Number(mm&&mm.hidden)||0; }catch(_){}
+      if(c.owner_id===authState.principal&&c.template_id){
+        try{ const oo=await authFetch("GET","/offers?q="+encodeURIComponent(c.goal||c.title||"")); const domain=String(c.template_id||"").split(".")[0]; workOffers=(oo.offers||[]).filter(offer=>offer.domain===domain); }catch(_){}
+      }
       if(c.owner_id===authState.principal){ try{ const ce=await authFetch("GET","/calendar?case_id="+encodeURIComponent(id)+"&days=730&past=365"); calendarEvents=Array.isArray(ce&&ce.events)?ce.events:[]; }catch(error){ calendarError=(error&&error.message)||"Календарь временно недоступен."; } }
       if(isDomashkinCase(c)&&c.owner_id===authState.principal){
         try{ const cc=await authFetch("GET","/homework/children"); children=Array.isArray(cc)?cc:[]; }catch(error){ childrenError=(error&&error.message)||"Не удалось проверить профили детей."; }
@@ -311,7 +314,7 @@
       const eventQuestionnaire=questionnaireFromEvents(events);
       const pendingQuestionnaire=eventQuestionnaire===undefined?readQuestionnaire(id):eventQuestionnaire;
       rememberQuestionnaire(id,pendingQuestionnaire);
-      activeReal={ c, events, runs, patches, drafts, nextActions, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", questionnaire:pendingQuestionnaire, questionnaireAutoOpen:!!pendingQuestionnaire, dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      activeReal={ c, events, runs, patches, drafts, nextActions, materials, hiddenMaterials, calendarEvents, calendarError, workOffers, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", questionnaire:pendingQuestionnaire, questionnaireAutoOpen:!!pendingQuestionnaire, dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       rememberLastActiveCase(c);
       if(isDomashkinCase(c)&&activeReal.isOwner&&children.length) await loadSchoolDay(children[0].id,dateInputValue(new Date(Date.now()+24*60*60*1000)),false);
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
@@ -480,12 +483,23 @@
     if(c.active_run_id)return {title:"Помощник работает",note:"Можно посмотреть ход работы, не прерывая выполнение.",tab:"План",action:"Открыть ход работы"};
     return {title:"Продолжить разговор",note:"Опишите изменение или спросите, какой шаг сейчас самый полезный.",tab:"Диалог",action:"Написать помощнику"};
   }
+  function commissionedOffer(c){
+    const offers=activeReal.workOffers||[];
+    if(c.tariff_id)return offers.find(offer=>offer.id===c.tariff_id)||null;
+    return offers[0]||null;
+  }
+  function workCommissionPanel(c){
+    if(!activeReal.isOwner||c.active_run_id||(activeReal.runs||[]).length)return "";
+    const offer=commissionedOffer(c);if(!offer)return "";
+    const price=String(offer.price).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" "+(offer.currency||"CREDITS"),selected=!!c.tariff_id;
+    return '<section class="case-form-card tone-blue"><p class="eyebrow">'+(selected?'РАБОТА ОПЛАЧЕНА':'ОБЪЯВЛЕННАЯ РАБОТА')+'</p><h2>'+esc(offer.title)+' — '+esc(price)+'</h2><p>'+esc(offer.deliverable)+'</p><div class="case-form-note"><span>◎</span><p><b>Не входит:</b> '+esc((offer.excludes||[]).join("; "))+'.</p></div><button class="btn primary case-form-submit" type="button" data-act="commission-work" data-offer="'+attr(offer.id)+'">'+(selected?'Продолжить запуск':'Посмотреть условия и запустить')+'</button></section>';
+  }
   function realOverviewPanel(){
     const c=activeReal.c,next=realCaseNextStep(c),assistant=assistantName(c),goal=c.goal||"Сформулируйте желаемый результат вместе с помощником.";
     const related=realLinksPanel(),needs=c.needs_word?'<div class="case-attention">По делу ждут вашего решения. Внешнее действие не выполнено без подтверждения.</div>':"";
     const primary='<article class="case-result-card"><div class="case-result-head"><div><p class="eyebrow">ГЛАВНОЕ В ДЕЛЕ</p><h2>'+esc(goal)+'</h2></div><span class="my-day-status '+(c.needs_word?'attention':'')+'">'+esc(caseListStatusLabel(caseListStatus(c)))+'</span></div><div class="case-facts">'+kvRow("Помощник",assistant)+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+'</div>'+needs+related+'<div class="case-question"><p class="eyebrow">С ЧЕГО ПРОДОЛЖИМ?</p><form class="my-day-composer" data-act="ask-agent"><textarea name="message" required rows="2" placeholder="Напишите, что изменилось или что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="my-day-composer-foot"><small>'+esc(assistant)+' знает контекст этого дела и доступные здесь инструменты.</small><button class="btn primary" type="submit">Отправить</button></div></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble readable-answer" role="button" tabindex="0" data-act="read-agent-answer" data-reader-source="reply">'+agentRichText(activeReal.reply)+'<span class="answer-open-hint">Открыть чистый текст ↗</span></div>':'')+'</div></div></article>';
     const nextRail='<aside class="case-next-rail"><p class="eyebrow">ЧТО ДАЛЬШЕ?</p><button class="case-next-primary" type="button" data-act="rc-goto" data-tab="'+attr(next.tab)+'"><span class="case-next-icon">→</span><span><b>'+esc(next.title)+'</b><small>'+esc(next.note)+'</small><em>'+esc(next.action)+' →</em></span></button><div class="case-next-links"><button type="button" data-act="rc-goto" data-tab="План"><b>План и действия</b><small>Что уже сделано и что впереди</small></button><button type="button" data-act="rc-goto" data-tab="Участники"><b>Люди и доступ</b><small>Кто участвует и что может</small></button><button type="button" data-act="rc-goto" data-tab="Документы"><b>Материалы дела</b><small>Файлы, результаты и общие ссылки</small></button></div><section class="case-gentle-note"><p class="eyebrow">ОДИН НЕБОЛЬШОЙ ШАГ</p><p>Не нужно решать всё сразу. Сохраните полезное и вернитесь, когда удобно.</p></section></aside>';
-    return '<div class="case-overview-layout"><div>'+primary+'</div>'+nextRail+'</div>'+domashkinParentInvitePanel()+domashkinBookPanel()+domashkinFamilyThreadPanel();
+    return '<div class="case-overview-layout"><div>'+primary+workCommissionPanel(c)+'</div>'+nextRail+'</div>'+domashkinParentInvitePanel()+domashkinBookPanel()+domashkinFamilyThreadPanel();
   }
   function nextActionOwnerName(owner){
     if(!owner)return "Ответственный не назначен";
@@ -720,6 +734,11 @@
       }
       if(act==="calendar-cancel"){ if(!window.confirm("Отменить это событие? Запись останется в истории календаря."))return; b.disabled=true; try{ await authFetch("POST","/calendar/"+encodeURIComponent(b.dataset.id)+"/cancel",{}); realTab="Сроки"; renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось отменить событие."); } return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
+      if(act==="commission-work"){
+        const offer=(activeReal.workOffers||[]).find(item=>item.id===b.dataset.offer);
+        if(!offer){ toast("Условия работы не загрузились — обновите дело."); return; }
+        openWorkCommission(offer); return;
+      }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
       if(act==="plan-from-dialog"){ openPlanImport(c.id,suggestedPlanActions()); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
@@ -839,6 +858,16 @@
       body=>{ const f=body.querySelector("#runf"); f.query.focus(); f.onsubmit=async e=>{ e.preventDefault(); const btn=f.querySelector("button"); btn.disabled=true; btn.textContent="Поручаю…";
         try{ await authFetch("POST","/cases/"+encodeURIComponent(caseId)+"/runs",{idempotency_key:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),kind:"case.execute",input:{query:(f.query.value||"").trim()}}); modalClose(); renderRealCase(caseId); }
         catch(err){ btn.disabled=false; btn.textContent="Поручить"; toast((err&&err.message)||"Не удалось поручить работу агенту."); } }; });
+  }
+  function openWorkCommission(offer){
+    const c=activeReal.c,price=String(offer.price).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" "+(offer.currency||"CREDITS"),already=!!c.tariff_id;
+    modalOpen(already?"Продолжить запуск":"Подтвердить работу",
+      '<p class="lead"><b>'+esc(offer.title)+' — '+esc(price)+'</b></p><p>'+esc(offer.deliverable)+'</p><div class="case-consent-guardrails"><div><span>1</span><p><b>Одно существующее дело</b><small>Нового дубля не появится.</small></p></div><div><span>2</span><p><b>Фиксированная цена</b><small>'+(offer.charge_on==="acceptance"?'Списание после вашей приёмки.':'Списание при подтверждении.')+'</small></p></div><div><span>3</span><p><b>Результат в деле</b><small>Агент работает по закреплённому плану; опасные действия подтверждаются отдельно.</small></p></div></div><p class="rc-hint"><b>Не входит:</b> '+esc((offer.excludes||[]).join("; "))+'.</p>'+
+      '<form id="commissionf" class="pform case-modern-form"><label class="case-consent-check"><input name="consent" type="checkbox" required><span><b>'+(already?'Подтверждаю продолжение запуска':'Подтверждаю работу за '+esc(price))+'</b><small>Это отдельное согласие на платную работу, не подтверждение создания дела.</small></span></label><button class="btn primary case-form-submit" type="submit">'+(already?'Продолжить запуск':'Списать и запустить')+'</button></form>',
+      body=>{ const form=body.querySelector("#commissionf"); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector('button[type="submit"]');button.disabled=true;button.textContent=already?"Продолжаю…":"Запускаю…";
+        try{ const result=await authFetch("POST","/dialog/work/commission",{case_id:c.id,domain:offer.domain,tariff_id:offer.id,request:c.goal||c.title||offer.title,confirmed:true}); modalClose(); realTab="План"; await renderRealCase(c.id); toast((result.charged?"Списано "+price+". ":"")+"Агент начал работу в этом деле."); }
+        catch(error){ button.disabled=false;button.textContent=already?"Продолжить запуск":"Списать и запустить";toast((error&&error.message)||"Не удалось запустить работу."); }
+      }; });
   }
   function openPatchDecision(patchId,approve){
     const action=approve?"подтвердить":"отклонить";
