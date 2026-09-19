@@ -308,7 +308,8 @@
         try{ const list=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/threads?limit=100"); const ref=(list.threads||[]).find(thread=>thread.case_id===id); if(ref){ familyThread=await authFetch("GET","/threads/"+encodeURIComponent(ref.thread_id)); const messages=familyThread.messages||[]; if(messages.length)try{ await authFetch("POST","/threads/"+encodeURIComponent(ref.thread_id)+"/read",{seq:messages[messages.length-1].seq}); }catch(_){} } }catch(_){}
       }
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      const pendingQuestionnaire=readQuestionnaire(id);
+      const pendingQuestionnaire=readQuestionnaire(id)||questionnaireForCase(c,events);
+      if(pendingQuestionnaire)rememberQuestionnaire(id,pendingQuestionnaire);
       activeReal={ c, events, runs, patches, drafts, nextActions, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", questionnaire:pendingQuestionnaire, questionnaireAutoOpen:!!pendingQuestionnaire, dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
       rememberLastActiveCase(c);
       if(isDomashkinCase(c)&&activeReal.isOwner&&children.length) await loadSchoolDay(children[0].id,dateInputValue(new Date(Date.now()+24*60*60*1000)),false);
@@ -416,6 +417,26 @@
   }
   function rememberQuestionnaire(caseId,questionnaire){
     if(questionnaire)put(questionnaireKey(caseId),JSON.stringify(questionnaire));else drop(questionnaireKey(caseId));
+  }
+  function questionnaireForCase(c,events){
+    const answered=(events||[]).some(event=>event.kind==="dialog"&&/^\s*ответы на анкету\s+«/i.test(evText(event)||""));
+    const developerPack=c&&(c.domain==="software"&&c.selected_agent_id==="cabinet")&&/(^|[^а-яё])пак([^а-яё]|$)/i.test(c.title||"");
+    if(answered||!developerPack)return null;
+    const accounting=/бухгалтер|усн/i.test(c.title||"");
+    return normalizeQuestionnaire(accounting?{
+      type:"questionnaire",id:"accounting_usn_requirements_v1",title:"Требования к паку «Бухгалтерия УСН»",intro:"Заполните поля — ФиксАР получит ответы одной репликой и соберёт из них проверяемый документ требований.",submit_label:"Передать ответы ФиксАР",fields:[
+        {name:"users",label:"Для кого работает пакет?",type:"multi_choice",required:true,options:["ИП","ООО"]},
+        {name:"tax_modes",label:"Какие режимы УСН поддержать?",type:"multi_choice",required:true,options:["Доходы","Доходы минус расходы"]},
+        {name:"inputs",label:"Какие исходные данные принимает пакет?",type:"multi_choice",required:true,options:["Банковские выписки","Касса","Первичные документы","Ручные операции"]},
+        {name:"outputs",label:"Какие результаты должен готовить пакет?",type:"multi_choice",required:true,options:["КУДиР","Расчёт авансов и налога","Проект декларации","Проекты платёжных документов"]},
+        {name:"automation_boundary",label:"Где проходит граница автоматизации?",type:"single_choice",required:true,options:["Только проверяемые черновики","Отправка в ФНС и банк через отдельные подтверждаемые коннекторы"]},
+        {name:"notes",label:"Дополнительные ограничения или пожелания",type:"textarea",required:false,placeholder:"Например: региональные ставки, сотрудники, НДС, патент"}
+      ]
+    }:{
+      type:"questionnaire",id:"pack_requirements_v1",title:"Анкета требований к паку",intro:"Ответы станут основой проверяемого документа требований.",submit_label:"Передать ответы ФиксАР",fields:[
+        {name:"users",label:"Кто будет пользоваться паком?",type:"textarea",required:true},{name:"jobs",label:"Какие задачи он должен решать?",type:"textarea",required:true},{name:"inputs",label:"Какие данные и документы получает на вход?",type:"textarea",required:true},{name:"outputs",label:"Какой проверяемый результат выдаёт?",type:"textarea",required:true},{name:"boundaries",label:"Что пак не делает без подтверждения человека?",type:"textarea",required:true},{name:"notes",label:"Дополнительные ограничения",type:"textarea",required:false}
+      ]
+    });
   }
   function questionnaireField(field,index){
     const name="answer_"+index,required=field.required?' required':'';
