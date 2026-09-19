@@ -77,6 +77,33 @@
     if (byId[id]) go(id);
   });
 
+  // «Назад» возвращает по экранам оболочки, а не на чужой сайт.
+  // Свой стек нужен и для входа по прямой ссылке: там запасная дорога —
+  // главная текущего пространства. Ограничение не даёт долгой сессии расти без конца.
+  const screenNav=document.getElementById("screenNav"),screenTrail=[];
+  function screenHomeHash(){ return "#"+kidOf(SPACE_NODES[currentSpace],"Главная"); }
+  function currentScreenHash(){ return location.hash||screenHomeHash(); }
+  function screenFallbackHash(){
+    const raw=currentScreenHash().slice(1),split=raw.indexOf("~"),id=split>=0?raw.slice(0,split):raw,node=byId[id];
+    if(node&&node.parent&&node.parent.name!=="__root__"&&node.parent!==SPACE_NODES[currentSpace])return "#"+node.parent.id;
+    return screenHomeHash();
+  }
+  function updateScreenBack(){
+    const fallback=screenFallbackHash(),available=screenTrail.length>1||currentScreenHash()!==fallback;
+    screenNav.hidden=!available;
+    const label=screenNav.querySelector("[data-screen-back-label]"); if(label)label.textContent=uiText("Назад","Back");
+  }
+  function rememberScreenRoute(){
+    const route=currentScreenHash(); if(screenTrail[screenTrail.length-1]!==route)screenTrail.push(route);
+    if(screenTrail.length>40)screenTrail.splice(0,screenTrail.length-40); updateScreenBack();
+  }
+  function returnToPreviousScreen(){
+    let target; if(screenTrail.length>1){screenTrail.pop();target=screenTrail[screenTrail.length-1];}else target=screenFallbackHash();
+    closeNav(); if(target&&target!==currentScreenHash())location.hash=target; else updateScreenBack();
+  }
+  screenNav.addEventListener("click",event=>{ if(event.target.closest("[data-screen-back]"))returnToPreviousScreen(); });
+  window.addEventListener("hashchange",rememberScreenRoute);
+
   // --- Поиск ---
   document.getElementById("q").addEventListener("input", e => {
     const term = e.target.value.trim().toLowerCase();
@@ -177,3 +204,4 @@
     const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; if(t>=0) listFilter=decodeURIComponent(h.slice(t+1));
     go(byId[id] ? id : kidOf(SPACE_NODES[currentSpace],"Главная"));
   })();
+  rememberScreenRoute();

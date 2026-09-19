@@ -108,6 +108,11 @@
 
     /* Контент */
     .view{ overflow:auto; min-height:0; -webkit-overflow-scrolling:touch }
+    .screen-nav{ position:sticky; top:0; z-index:9; width:min(1180px,100%); margin:0 auto; padding:12px clamp(16px,4vw,52px) 0; pointer-events:none }
+    .screen-nav[hidden]{ display:none }
+    .screen-back{ display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:8px 13px; border:1px solid var(--line); border-radius:999px; background:color-mix(in srgb,var(--panel) 92%,transparent); color:var(--muted); box-shadow:0 8px 24px rgba(4,18,24,.12); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); cursor:pointer; pointer-events:auto; font-size:13px; font-weight:750 }
+    .screen-back:hover{ border-color:var(--accent-border); color:var(--text) }
+    .screen-back .screen-back-arrow{ color:var(--cyan); font-size:18px; line-height:1 }
     .vwrap{ width:min(1180px,100%); margin:0 auto; padding:clamp(24px,4vw,52px) clamp(16px,4vw,52px) 72px }
     .crumbs{ display:flex; flex-wrap:wrap; gap:6px; color:var(--muted); font-size:13px; margin-bottom:12px }
     .crumbs a{ color:var(--muted) } .crumbs a:hover{ color:var(--cyan) }
@@ -309,6 +314,8 @@
       .scrim{ display:block; position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity var(--dur) }
       body.nav-open .scrim{ opacity:1; visibility:visible }
       .topm{ display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line-soft); position:sticky; top:0; background:color-mix(in srgb,var(--bg) 90%,transparent); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); z-index:10 }
+      .screen-nav{ top:63px; padding:8px 12px 0 }
+      .screen-back{ min-height:38px; padding:7px 12px }
       .menu-btn{ display:grid; place-items:center; width:38px;height:38px;border:1px solid var(--line);border-radius:11px;background:var(--panel);cursor:pointer }
       .dash{ grid-template-columns:1fr }
     }
@@ -320,6 +327,7 @@
     body.guest-shell .topm,
     body.guest-shell .scrim,
     body.guest-shell .agent-dock{ display:none!important }
+    body.guest-shell .screen-nav{ top:0 }
     body.guest-shell .vwrap{ width:min(980px,100%); padding-top:clamp(22px,4vw,48px) }
 
     /* ── Аккаунт и вход (Фаза 1: реальная личность, тот же субъект, что и в оболочке) ── */
@@ -444,6 +452,9 @@
         <button class="credit-pill" id="mobilecredits" type="button" hidden>кредиты —</button>
         <button class="lang-switch" type="button" data-lang-switch>EN</button>
         <button class="acct-btn" id="acct" aria-label="Аккаунт" aria-haspopup="dialog"><span class="av" id="acctav">Г</span><span class="nm" id="acctnm">Гость</span></button>
+      </div>
+      <div class="screen-nav" id="screenNav" hidden>
+        <button class="screen-back" type="button" data-screen-back aria-label="Вернуться на предыдущий экран"><span class="screen-back-arrow" aria-hidden="true">←</span><span data-screen-back-label>Назад</span></button>
       </div>
       <div class="vwrap" id="vwrap"></div>
     </div>
@@ -940,6 +951,6 @@
   <script src="/v2/foundation.js?v=28024323fd1e"></script>
   <script src="/v2/shell.js?v=7e8e7ca47318"></script>
   <script src="/v2/cases.js?v=547faaaca7e4"></script>
-  <script src="/v2/bootstrap.js?v=6ec5f3bc485f"></script>
+  <script src="/v2/bootstrap.js?v=87546431ea3b"></script>
 </body>
 </html>
