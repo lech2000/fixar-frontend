@@ -98,7 +98,9 @@
     if(screenTrail.length>40)screenTrail.splice(0,screenTrail.length-40); updateScreenBack();
   }
   function returnToPreviousScreen(){
-    let target; if(screenTrail.length>1){screenTrail.pop();target=screenTrail[screenTrail.length-1];}else target=screenFallbackHash();
+    let target;
+    if(screenTrail.length>1){screenTrail.pop();target=screenTrail[screenTrail.length-1];}
+    else{target=screenFallbackHash();screenTrail.length=0;if(target)screenTrail.push(target);}
     closeNav(); if(target&&target!==currentScreenHash())location.hash=target; else updateScreenBack();
   }
   screenNav.addEventListener("click",event=>{ if(event.target.closest("[data-screen-back]"))returnToPreviousScreen(); });
