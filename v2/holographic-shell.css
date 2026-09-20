@@ -148,15 +148,18 @@ body.guest-shell .shell-holo-scene { display: none; }
     linear-gradient(0deg,#09090c 0%,rgba(9,9,12,.07) 47%,rgba(9,9,12,.19) 85%,rgba(9,9,12,.85) 100%);
 }
 @keyframes fixar-holo-lamp-flicker {
-  0%, 61.8%, 66.3%, 100% { opacity: var(--base); }
-  62% { opacity: .1; }
-  62.35% { opacity: min(1,calc(var(--base) + .36)); }
-  62.75% { opacity: .22; }
-  63.15% { opacity: calc(var(--base) + .08); }
-  63.55% { opacity: .08; }
-  63.9% { opacity: min(1,calc(var(--base) + .28)); }
-  64.45% { opacity: .31; }
-  65.1% { opacity: min(1,calc(var(--base) + .18)); }
+  0%, 43%, 78%, 100% { opacity: var(--base); }
+  45% { opacity: .1; }
+  47% { opacity: min(1,calc(var(--base) + .36)); }
+  50% { opacity: .22; }
+  53% { opacity: calc(var(--base) + .08); }
+  56% { opacity: .08; }
+  59% { opacity: min(1,calc(var(--base) + .28)); }
+  63% { opacity: .31; }
+  67% { opacity: min(1,calc(var(--base) + .18)); }
+  71% { opacity: .16; }
+  74% { opacity: min(1,calc(var(--base) + .3)); }
+  76% { opacity: calc(var(--base) + .04); }
 }
 
 /* ── Боковая панель: самостоятельный объёмный объект ───────────────── */
