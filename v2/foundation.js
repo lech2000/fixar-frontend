@@ -94,6 +94,7 @@
   function safeBackgroundHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:270; }
   function safeBackground(value){ const background=Number(value); return Number.isFinite(background)?Math.max(0,Math.min(100,Math.round(background))):62; }
   function holographicGlow(background){ return background<=62?.1+(background/62)*.77:.87+((background-62)/38)*.13; }
+  function holographicVeilOpacity(background){ return .78-(background/100)*.68; }
   function readAppearance(){
     try{
       const value=JSON.parse(store(APPEARANCE_KEY)||"{}");
@@ -114,6 +115,7 @@
     document.documentElement.style.setProperty("--accent-h",String(value.hue));
     document.documentElement.style.setProperty("--background-h",String(value.backgroundHue));
     document.documentElement.style.setProperty("--holo-glow",holographicGlow(value.background).toFixed(3));
+    document.documentElement.style.setProperty("--holo-veil-opacity",holographicVeilOpacity(value.background).toFixed(3));
     document.documentElement.style.setProperty("--body-art",backgroundColor);
     const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.content=backgroundColor;
     if(persist!==false)put(APPEARANCE_KEY,JSON.stringify(value));
@@ -342,7 +344,7 @@
         '<button class="account-personal-link" id="doAppearance" type="button" data-open-appearance><span class="account-appearance-orb" aria-hidden="true"><i></i></span><span><b>Оформление и настроение</b><small>Цвет, фон и личные настройки</small></span><span aria-hidden="true">›</span></button>'+
         '<button class="btn-out" id="doLogout">Выйти из аккаунта</button>';
       const appearance=body.querySelector("#doAppearance"),lo=body.querySelector("#doLogout");
-      appearance.onclick=()=>{ closeAccount(); if(typeof go==="function"&&typeof ACCOUNT_SETTINGS_NODE!=="undefined")go(ACCOUNT_SETTINGS_NODE); };
+      appearance.onclick=()=>{ closeAccount(); if(typeof window.go==="function"&&window.FixarV2AppearanceRoute)window.go(window.FixarV2AppearanceRoute); };
       appearance.focus();
       lo.onclick=()=>{ lo.disabled=true; lo.textContent="Выхожу…"; logout(); };
       return;

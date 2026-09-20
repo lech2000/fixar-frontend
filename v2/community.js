@@ -80,12 +80,14 @@
     function beforeSession(){ return decision; }
     function turnId(){ return "community_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,10); }
     function talkId(){ let id=store("fixar-community-talk"); if(!id){id="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10);put("fixar-community-talk",id);}return id; }
-    function assessmentText(value){
-      if(!value)return ""; const fit=value.platform_fit==="full"?"платформа покрывает задачу":(value.platform_fit==="partial"?"платформа покрывает задачу частично":"готового контура пока нет"),lines=[value.summary||"Задача разобрана.","","Цель: "+(value.goal||"—"),"Покрытие: "+fit+"."];
-      if(value.domain||value.template_id)lines.push("Контур: "+[value.domain,value.template_id].filter(Boolean).join(" · "));
-      if((value.plan||[]).length){ lines.push("","План работы:"); value.plan.forEach(step=>{ const actor=step.executor==="agent"?"агент":(step.executor==="human"?"человек":"внешний исполнитель"),mechanism=step.capability||step.tool||""; lines.push(step.order+". "+step.title+" — "+step.outcome+" ("+actor+(mechanism?", "+mechanism:"")+(step.approval_required?", после подтверждения":"")+")."); }); }
-      if((value.gaps||[]).length)lines.push("","Границы: "+value.gaps.join("; ")+".");
-      if(value.next_question)lines.push("",value.next_question);
+    function assessmentText(value,routeKind,title){
+      if(!value)return "";
+      let summary=String(value.summary||"").trim();
+      const internal=/^(?:человек|пользователь|сторона)(?:\s|$)/i.test(summary)||/(?:platform_fit|template_id|capability|контур)/i.test(summary);
+      if(!summary||internal)summary=title?("Понял. Помогу с задачей: "+title+". Проведу по шагам."):"Понял вас. Помогу разобраться и организую работу по шагам.";
+      const lines=[summary];
+      if((value.gaps||[]).length&&routeKind!=="clarify_side")lines.push("","Сразу учту: "+value.gaps.join("; ")+".");
+      if(value.next_question&&routeKind!=="clarify_side")lines.push("",value.next_question);
       return lines.join("\n");
     }
     async function generalAnswer(message){
@@ -115,7 +117,7 @@
     async function inbox(message,side){
       const sent={id:turnId(),parts:[{type:"text",value:message}]};
       const body={client_message_id:sent.id,parts:sent.parts,talk_id:talkId(),history:historyTurns.slice(-10),require_confirmation:true,community_context:!!active()}; if(side)body.side_hint=side;
-      const res=await authFetch("POST","/inbox/messages",body),route=res.route||{},plan=assessmentText(route.assessment);
+      const res=await authFetch("POST","/inbox/messages",body),route=res.route||{},plan=assessmentText(route.assessment,route.kind,route.proposed_title||"");
       if(res.created_case){ const made=res.created_case; REAL.loaded=false; await loadRealCases(true); location.hash="#case/"+made.case_id; return "Дело создано: "+made.title; }
       if(route.kind==="propose_case"){ const text=proposalSheet(route,res,sent,plan||route.reason||"План подготовлен."); historyTurns.push({role:"user",text:message},{role:"assistant",text:text}); return text; }
       if(route.kind==="clarify_side"){ sideSheet(message,res); const text=(plan?plan+"\n\n":"")+(res.side_question||"Уточните, пожалуйста, вашу роль."); historyTurns.push({role:"user",text:message},{role:"assistant",text:text}); return text; }

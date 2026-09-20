@@ -28,8 +28,8 @@
         var background=Number(saved.background);
         if(!Number.isFinite(background))background=62;
         background=Math.max(0,Math.min(100,Math.round(background)));
-        var holographicGlow=background<=62?.1+(background/62)*.77:.87+((background-62)/38)*.13;
-        document.documentElement.style.setProperty("--holo-glow",holographicGlow.toFixed(3));
+        var holographicGlow=background<=62?.1+(background/62)*.77:.87+((background-62)/38)*.13,holographicVeilOpacity=.78-(background/100)*.68;
+        document.documentElement.style.setProperty("--holo-glow",holographicGlow.toFixed(3)); document.documentElement.style.setProperty("--holo-veil-opacity",holographicVeilOpacity.toFixed(3));
         document.documentElement.style.setProperty("--holo-scale",Math.min(1,innerHeight/1120).toFixed(3));
         var lightness=dark?8.5+(background-50)*.08:96.5+(background-50)*.05;
         var backgroundColor=dark?"hsl("+backgroundHue+" 18% "+lightness+"%)":"hsl("+backgroundHue+" 22% "+lightness+"%)";
@@ -44,7 +44,7 @@
       color-scheme:dark;
       --accent-h:275;
       --background-h:270;
-      --holo-glow:.87;
+      --holo-glow:.87;--holo-veil-opacity:.36;
       --holo-scale:1;
       --bg:#101713;--panel:#18221d;--panel-2:#18221d;--field:#131c17;--sidebar:#131c17;--hover:#202d26;--field-line:#43564b;
       --line:#34443c;--line-soft:color-mix(in srgb,var(--line) 55%,transparent);
@@ -446,7 +446,7 @@
   </style>
   <link rel="stylesheet" href="/v2/my-day.css?v=61e1ec3dc8a5">
   <link rel="stylesheet" href="/v2/community.css?v=fd0935f2fc48">
-  <link rel="stylesheet" href="/v2/holographic-shell.css?v=ee20347756fb">
+  <link rel="stylesheet" href="/v2/holographic-shell.css?v=4e8a6cfece16">
 </head>
 <body class="guest-shell">
   <div class="app">
@@ -987,13 +987,12 @@
   <script src="/document-export.js?v=c1c487e682a1"></script>
   <script src="/core/config.js?v=bb43a234e799"></script>
   <script src="/core/http.js?v=ec111efbef20"></script>
-  <!-- Порядок — контракт исполнения: foundation публикует общие границы,
-       shell строит экраны, cases добавляет дела, community ставит согласие
-       перед сессией, bootstrap запускает UI. -->
-  <script src="/v2/foundation.js?v=72f823de00a3"></script>
-  <script src="/v2/shell.js?v=8ed4a9e82f0a"></script>
-  <script src="/v2/cases.js?v=0150758b02b5"></script>
-  <script src="/v2/community.js?v=586da9fac501"></script>
-  <script src="/v2/bootstrap.js?v=205d7e5bf5c9"></script>
+  <!-- Контракт порядка: foundation → shell → cases → case-actions → community → bootstrap. -->
+  <script src="/v2/foundation.js?v=9a17dffc2a90"></script>
+  <script src="/v2/shell.js?v=db9cb5b336ea"></script>
+  <script src="/v2/cases.js?v=4a67e8e74625"></script>
+  <script src="/v2/case-actions.js?v=613de9ae72f2"></script>
+  <script src="/v2/community.js?v=d343a377279f"></script>
+  <script src="/v2/bootstrap.js?v=346e8429a905"></script>
 </body>
 </html>

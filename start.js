@@ -385,12 +385,17 @@ var state = { token: "", principal: "", assurance: 0, свой: false,
        из адреса в базу пускать нельзя, её туда кто угодно впишет. */
     var откуда = /[#&]from=([a-z]{3,12})/.exec(ФРАГМЕНТ);
     var метка = откуда && ДВЕРИ.indexOf(откуда[1]) >= 0
-      ? "vhod:" + откуда[1] : (ПОДПИСКА ? "vhod:podpiska" : "start");
-    /* КЛЮЧ ПОДПИСКИ — В ЗАВЕДЕНИЕ, и только в заведение: у того, кто уже
-       входил, запись «кто привёл» давно лежит, и чужая ссылка её не
-       перепишет — ни здесь, ни в базе. */
+      ? "vhod:" + откуда[1]
+      : (ПОДПИСКА ? "vhod:podpiska"
+      : (КОМАНДА ? "vhod:team-invite" : "start"));
+    /* КЛЮЧ ПОДПИСКИ ИЛИ ПРИГЛАШЕНИЯ — В ЗАВЕДЕНИЕ, и только в заведение:
+       Identity разрешает его в конкретного практика и кладёт first-touch в
+       ТОЙ ЖЕ транзакции, что нового субъекта. У того, кто уже входил, запись
+       «кто привёл» давно лежит, и чужая ссылка её не перепишет — ни здесь,
+       ни в базе. */
     var телоВхода = { label: метка };
     if (ПОДПИСКА) телоВхода.page_key = ПОДПИСКА;
+    else if (КОМАНДА) телоВхода.page_key = КОМАНДА;
     var публичное = await публичныеНастройки();
     if (публичное && публичное.new_visitors_enabled === false) {
       var закрыто = new Error(публичное.notice ||
@@ -10191,6 +10196,21 @@ var state = { token: "", principal: "", assurance: 0, свой: false,
       return;
     }
     s.textContent = _подпись(инв.kind_title, инв.domain_title);
+    if (инв.needs_questionnaire) {
+      var пояснение = эл2("div", "cardnote");
+      пояснение.textContent = T("Пригласивший создал реферальную ссылку. " +
+        "Специализацию, территорию и график заполняете вы сами.");
+      тело.appendChild(пояснение);
+      var кАнкете = document.createElement("button");
+      кАнкете.className = "main";
+      кАнкете.textContent = T("Заполнить анкету");
+      кАнкете.addEventListener("click", function () {
+        location.href = "/v2/#specialist=" + encodeURIComponent(код);
+      });
+      тело.appendChild(кАнкете);
+      кАнкете.focus();
+      return;
+    }
     if (инв.note) {
       var зачем = эл2("div", "zovnote");
       зачем.textContent = инв.note;
@@ -10209,6 +10229,11 @@ var state = { token: "", principal: "", assurance: 0, свой: false,
     var платит = эл2("div", "cardnote");
     платит.textContent = инв.who_pays || "";
     тело.appendChild(платит);
+    if (инв.acquisition && инв.acquisition.disclosure) {
+      var привёл = эл2("div", "cardnote");
+      привёл.textContent = инв.acquisition.disclosure;
+      тело.appendChild(привёл);
+    }
     if (инв.needs_verified_login) {
       var вход2 = эл2("div", "cardnote");
       вход2.textContent = T("Помощник рабочего кабинета видит чужие бумаги, поэтому " +

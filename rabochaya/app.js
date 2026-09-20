@@ -15398,43 +15398,38 @@
      длинная память здесь стоила бы токенов на каждом сообщении. */
   var общаяПамять = [];
 
-  function текстОценки(a) {
+  /* Assessment — проверенный машинный план, но не отладочный протокол.
+
+     Прежний рендер вываливал в разговор `platform_fit`,
+     `finance.budget`, имена capability, хэш снимка и даже
+     «Человек хочет…». Это верно для аудита и неверно для личного
+     помощника. В ленту идут только человеческое резюме, честная
+     граница и один следующий вопрос. Полный план покажет карточка
+     предложения, где он нужен. */
+  function текстОценки(a, видМаршрута, название) {
     if (!a) return "";
-    var покрытие = a.platform_fit === "full" ? "платформа покрывает полностью"
-      : (a.platform_fit === "partial" ? "платформа покрывает частично"
-      : "в платформе нет подходящего контура");
-    var строки = [a.summary || "Задача разобрана.", "",
-      T("Цель: ") + (a.goal || "—"), T("Покрытие: ") + покрытие + "."];
-    if (a.domain || a.template_id) {
-      строки.push(T("Контур: ") + [a.domain, a.template_id].filter(Boolean).join(" · "));
+    var резюме = String(a.summary || "").trim();
+    var служебное = /^(?:человек|пользователь|сторона)(?:\s|$)/i.test(резюме)
+      || /(?:platform_fit|template_id|capability|контур)/i.test(резюме);
+    if (!резюме || служебное) {
+      резюме = название
+        ? T("Понял. Помогу с задачей: ") + название + T(". Проведу по шагам.")
+        : "Понял вас. Помогу разобраться и организую работу по шагам.";
     }
-    if ((a.matched_capabilities || []).length) {
-      строки.push(T("Доступно: ") + a.matched_capabilities.join(", ") + ".");
+    var строки = [резюме];
+    if ((a.gaps || []).length && видМаршрута !== "clarify_side") {
+      строки.push("", T("Сразу учту: ") + a.gaps.join("; ") + ".");
     }
-    if ((a.plan || []).length) {
-      строки.push("", "План работы:");
-      a.plan.forEach(function (шаг) {
-        var кто = шаг.executor === "agent" ? "агент"
-          : (шаг.executor === "human" ? "человек" : "внешний исполнитель");
-        var механизм = шаг.capability || шаг.tool;
-        строки.push(String(шаг.order) + ". " + шаг.title + " — " + шаг.outcome
-          + " (" + кто + (механизм ? ", " + механизм : "")
-          + (шаг.approval_required ? ", после подтверждения" : "") + ").");
-      });
-    }
-    if ((a.gaps || []).length) {
-      строки.push("", T("Границы: ") + a.gaps.join("; ") + ".");
-    }
-    if (a.next_question) строки.push("", a.next_question);
-    if (a.capability_snapshot_hash) {
-      строки.push("", T("Проверено по каталогу возможностей: ")
-        + a.capability_snapshot_hash.slice(0, 12) + ".");
+    // clarify_side уже покажет один вопрос двумя кнопками. Второй
+    // вопрос из assessment в том же ходу превращал помощь в анкету.
+    if (a.next_question && видМаршрута !== "clarify_side") {
+      строки.push("", a.next_question);
     }
     return строки.join("\n");
   }
 
-  function показатьОценку(a) {
-    var сказано = текстОценки(a);
+  function показатьОценку(a, видМаршрута, название) {
+    var сказано = текстОценки(a, видМаршрута, название);
     if (!сказано) return "";
     var b = bubble("bot", "Ф");
     render(b, сказано);
@@ -15599,7 +15594,7 @@
   async function showRoute(res, sent, text) {
     var r = res.route || {};
     var оценка = r.assessment || null;
-    var сказано = показатьОценку(оценка);
+    var сказано = показатьОценку(оценка, r.kind, r.proposed_title || "");
     if (оценка && !res.created_case && !sent.hint) {
       запомнитьОценку(text, сказано);
     }

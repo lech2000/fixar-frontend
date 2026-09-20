@@ -26,7 +26,6 @@ body:not(.guest-shell) {
   --warm: #f19a78;
   --warm-soft: rgba(239,126,86,.12);
   --depth-edge: rgba(236,221,255,.16);
-  --body-art: #09090c;
   --shadow: inset 0 1px rgba(255,255,255,.075), inset 0 -1px rgba(0,0,0,.55),
     0 2px 0 #070608, 0 22px 48px -14px rgba(0,0,0,.82);
   --shadow-deep: inset 0 1px rgba(255,255,255,.11), inset 1px 0 rgba(255,255,255,.035),
@@ -34,7 +33,7 @@ body:not(.guest-shell) {
     0 30px 65px -17px rgba(0,0,0,.92), 0 8px 18px rgba(0,0,0,.38);
   --radius: 18px;
   --nav-w: 286px;
-  background: #09090c;
+  background: var(--body-art,#09090c);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -63,7 +62,6 @@ body:not(.guest-shell) {
   --warm: #b55d3f;
   --warm-soft: rgba(181,93,63,.1);
   --depth-edge: rgba(255,255,255,.72);
-  --body-art: #eeecef;
   --shadow: inset 0 1px rgba(255,255,255,.9), inset 0 -1px rgba(53,37,61,.05),
     0 2px 0 rgba(54,38,63,.04), 0 18px 36px -18px rgba(49,36,55,.22);
   --shadow-deep: inset 0 1px #fff, inset 1px 0 rgba(255,255,255,.7),
@@ -97,7 +95,7 @@ body:not(.guest-shell) .screen-nav {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  background: #09090c;
+  background: var(--body-art,#09090c);
 }
 body.guest-shell .shell-holo-scene { display: none; }
 .shell-holo-grid {
@@ -146,6 +144,8 @@ body.guest-shell .shell-holo-scene { display: none; }
   background:
     linear-gradient(90deg,rgba(9,9,12,.985) 0%,rgba(9,9,12,.925) 26%,rgba(9,9,12,.54) 52%,rgba(9,9,12,.02) 86%),
     linear-gradient(0deg,#09090c 0%,rgba(9,9,12,.07) 47%,rgba(9,9,12,.19) 85%,rgba(9,9,12,.85) 100%);
+  opacity: var(--holo-veil-opacity,.36);
+  transition: opacity .5s ease;
 }
 @keyframes fixar-holo-lamp-flicker {
   0%, 43%, 78%, 100% { opacity: var(--base); }
@@ -571,8 +571,10 @@ body:not(.guest-shell) .screen-back .screen-back-arrow { color: #c5afe8; }
 
 body:not(.guest-shell) :is(.tile,.card,.pcard,.stub,.lst,.kv,.stage,.flow-step,.rc-strip,.case-dialog,.settings-card,.case-result-card,.case-next-links,.case-form-card,.case-documents-main,.case-document-tool,.case-setting-panel,.owner-block,.owner-metric,.owner-mail-hero,.owner-setting,.legal-section,.legal-overview-card,.legal-document-card,.assistant-channel-card,.assistant-vault-card,.assistant-pack-card,.fixarik-settings-hero) {
   border-color: rgba(217,204,235,.105);
-  background: linear-gradient(145deg,rgba(31,28,35,.97),rgba(18,17,21,.97));
+  background: linear-gradient(145deg,rgba(42,37,47,.84),rgba(16,15,20,.78));
   box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 body:not(.guest-shell) :is(.tile,.card,.pcard,.case-result-card,.settings-card,.owner-block,.owner-metric,.legal-section,.assistant-channel-card)::before {
   content: "";
@@ -650,9 +652,11 @@ body:not(.guest-shell) .case-detail-shell > .case-tabs .ct.active {
 }
 
 /* Дела и диалог: эффект остаётся по краям, текст — на спокойной поверхности. */
-body:not(.guest-shell) .case-detail-shell { --case-surface: rgba(22,20,25,.97); }
+body:not(.guest-shell) .case-detail-shell { --case-surface: rgba(27,24,31,.82); }
 body:not(.guest-shell) .case-detail-header { padding-bottom: 9px; border-bottom-color: rgba(255,255,255,.055); }
 body:not(.guest-shell) .case-detail-header h1 { font-weight: 570; letter-spacing: -1.8px; }
+body:not(.guest-shell) .case-result-head h2 { font-size: clamp(19px,1.6vw,23px); line-height: 1.22; }
+body:not(.guest-shell) .case-result-card { padding: clamp(19px,2.2vw,25px); }
 body:not(.guest-shell) .case-detail-avatar {
   border: 1px solid rgba(197,171,235,.18);
   background: linear-gradient(145deg,rgba(102,73,135,.34),rgba(40,30,49,.5));
@@ -661,7 +665,7 @@ body:not(.guest-shell) .case-detail-avatar {
 }
 body:not(.guest-shell) .case-dialog {
   border-radius: 21px;
-  background: linear-gradient(145deg,rgba(28,25,32,.985),rgba(16,15,19,.99));
+  background: linear-gradient(145deg,rgba(38,33,43,.88),rgba(15,14,18,.84));
   box-shadow: var(--shadow-deep);
 }
 body:not(.guest-shell) .case-thread .bubble {
@@ -676,7 +680,7 @@ body:not(.guest-shell) .case-thread .bubble.user {
 }
 body:not(.guest-shell) .chat-composer {
   border-color: rgba(210,194,231,.15);
-  background: linear-gradient(137deg,rgba(37,34,43,.98),rgba(20,19,24,.98));
+  background: linear-gradient(137deg,rgba(45,39,51,.9),rgba(18,17,22,.86));
   box-shadow: var(--shadow-deep);
 }
 body:not(.guest-shell) .smart-prompt { border-color: rgba(255,255,255,.075); border-radius: 8px; }
@@ -692,7 +696,9 @@ body:not(.guest-shell) .case-document-card,
 body:not(.guest-shell) .case-person-card,
 body:not(.guest-shell) .case-time-item {
   border-color: rgba(255,255,255,.055);
-  background: rgba(21,19,24,.58);
+  background: rgba(35,30,39,.62);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 body:not(.guest-shell) :is(.my-case-row,.lrow,.case-document-card,.case-person-card,.case-time-item):hover { background: rgba(79,58,94,.2); }
 
@@ -767,7 +773,7 @@ body:not(.guest-shell) .topm {
 body:not(.guest-shell) .topm .brand-mark { width: 34px!important; height: 34px!important; border-radius: 10px!important; font-size: 19px!important; }
 body:not(.guest-shell) .acct-btn { border-color: rgba(255,255,255,.085); background: rgba(26,23,30,.8); color: #ded7e2; }
 
-/* Анкета-приглашение специалиста: главный вход в команду практики. */
+/* Реферальная ссылка — вход; анкету заполняет сам приглашённый. */
 .specialist-invite-card {
   display: grid;
   grid-template-columns: minmax(0,1fr) auto;
@@ -794,6 +800,15 @@ body:not(.guest-shell) .acct-btn { border-color: rgba(255,255,255,.085); backgro
 .weekday-pills span { display: block; min-width: 39px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 999px; text-align: center; }
 .weekday-pills input:checked + span { border-color: var(--cyan); background: color-mix(in srgb,var(--cyan) 16%,transparent); color: var(--text); }
 .specialist-terms { overflow: hidden; margin: 14px 0; border: 1px solid var(--line); border-radius: 14px; }
+.practice-cabinet { margin: 0 0 14px; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: color-mix(in srgb,var(--panel) 94%,transparent); box-shadow: var(--shadow); }
+.practice-cabinet header { margin-bottom: 14px; }
+.practice-cabinet h3 { margin-top: 3px; font-size: clamp(22px,2.7vw,30px); }
+.practice-tabs { display: flex; gap: 7px; overflow-x: auto; padding: 2px 1px 10px; scrollbar-width: thin; }
+.practice-tabs button { flex: 0 0 auto; min-height: 38px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb,var(--panel-2) 90%,transparent); color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; }
+.practice-tabs button:hover { border-color: var(--accent-border); color: var(--text); }
+.practice-tabs button[aria-selected="true"] { border-color: var(--cyan); background: color-mix(in srgb,var(--cyan) 14%,var(--panel)); color: var(--text); }
+.practice-section-body { display: grid; gap: 12px; min-height: 86px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.practice-section-body > .btn { justify-self: start; }
 
 /* Светлая тема сохраняет геометрию, но не притворяется чёрным экраном. */
 :root[data-theme="light"] body:not(.guest-shell) .shell-holo-scene { opacity: .16; }
