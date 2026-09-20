@@ -238,8 +238,12 @@
   }
 
   function applyIdentity(){
-    const av=document.getElementById("acctav"), nm=document.getElementById("acctnm");
-    paintUserAvatar(av); if(nm) nm.textContent=meName();
+    [["acctav","acctnm"],["desktopacctav","desktopacctnm"]].forEach(ids=>{
+      const av=document.getElementById(ids[0]),nm=document.getElementById(ids[1]);
+      paintUserAvatar(av); if(nm)nm.textContent=meName();
+    });
+    const desktopMeta=document.getElementById("desktopacctmeta");
+    if(desktopMeta)desktopMeta.textContent=authState.signed_in?"Личные настройки · уровень "+(authState.assurance||0):"Войти и сохранить дела";
     document.body.classList.toggle("guest-shell",!authState.signed_in);
     if(!authState.signed_in&&typeof closeNav==="function")closeNav();
     if(typeof renderSwitch==="function") renderSwitch();
@@ -334,8 +338,11 @@
       body.innerHTML='<h2>'+esc(meName())+'</h2><p class="lead">Вы вошли — это тот же аккаунт и те же дела во всех версиях ФиксАР.</p>'+
         (via?'<div class="prov-chips">'+via+'</div>':'')+
         '<span class="assure">Уровень подтверждения: '+(authState.assurance||0)+'</span>'+
+        '<button class="account-personal-link" id="doAppearance" type="button" data-open-appearance><span class="account-appearance-orb" aria-hidden="true"><i></i></span><span><b>Оформление и настроение</b><small>Цвет, фон и личные настройки</small></span><span aria-hidden="true">›</span></button>'+
         '<button class="btn-out" id="doLogout">Выйти из аккаунта</button>';
-      const lo=body.querySelector("#doLogout"); lo.focus();
+      const appearance=body.querySelector("#doAppearance"),lo=body.querySelector("#doLogout");
+      appearance.onclick=()=>{ closeAccount(); if(typeof go==="function"&&typeof ACCOUNT_SETTINGS_NODE!=="undefined")go(ACCOUNT_SETTINGS_NODE); };
+      appearance.focus();
       lo.onclick=()=>{ lo.disabled=true; lo.textContent="Выхожу…"; logout(); };
       return;
     }

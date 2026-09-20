@@ -149,6 +149,7 @@
 
   // Аккаунт: триггеры (мобильная шапка + подвал навигации) и загрузка личности
   document.getElementById("acct").addEventListener("click", openAccount);
+  document.getElementById("desktopacct").addEventListener("click", openAccount);
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
   document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab=defaultRealTab(); location.hash="#case/"+rr.dataset.id; } });

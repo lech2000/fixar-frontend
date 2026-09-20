@@ -102,15 +102,10 @@
     const notif=findNode("Центр уведомлений"), settings=ACCOUNT_SETTINGS_NODE;
     const ctx=[["Публичная часть","Публичная часть"],["Первый запуск","Первый запуск"],["Структура дела","Внутренняя структура любого дела"],["Юридические","Юридические документы"]];
     el.innerHTML =
-      '<section class="sidebar-profile" aria-label="Личные настройки">'+
-      '<button class="sidebar-profile-main" type="button" data-acct="open"><span class="av" data-sidebar-avatar aria-hidden="true">'+esc(meInitials())+'</span><span class="who"><b>'+esc(meName())+'</b><small>'+(authState.signed_in?'вход подтверждён · уровень '+(authState.assurance||0):'войти и сохранить дела')+'</small></span><span class="profile-arrow" aria-hidden="true">↗</span></button>'+
-      (settings?'<button class="sidebar-appearance" type="button" data-open-appearance><span class="sidebar-appearance-orb" aria-hidden="true"><i></i></span><span><b>Поймать настроение</b><small>Личные настройки оформления</small></span><span aria-hidden="true">›</span></button>':'')+
-      '</section><div class="sidebar-utility">'+
+      '<div class="sidebar-utility">'+
       (notif?'<button class="foot-link" onclick="go(\''+notif.id+'\')">'+navIcon("Уведомления")+'<span>Уведомления</span></button>':'')+
       (settings?'<button class="foot-link" onclick="go(\''+settings.id+'\')">'+navIcon("Настройки")+'<span>Все настройки</span></button>':'')+
       '<details class="sidebar-more"><summary>Помощь и правила <span>+</span></summary><div>'+ctx.map(c=>{ if(c[0]==="Структура дела") return '<button class="foot-link dim" onclick="openCaseRow(\'\',\'\',\'shkola-raspisanie\')">'+esc(c[0])+'</button>'; const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("")+'</div></details></div>';
-    const avatar=el.querySelector("[data-sidebar-avatar]"); paintUserAvatar(avatar);
-    const appearance=el.querySelector("[data-open-appearance]"); if(appearance&&settings)appearance.onclick=()=>go(settings.id);
   }
   function rebuildNav(){ nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
   function openSpacePicker(){

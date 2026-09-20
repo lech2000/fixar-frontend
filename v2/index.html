@@ -443,7 +443,7 @@
   </style>
   <link rel="stylesheet" href="/v2/my-day.css?v=9953093a913c">
   <link rel="stylesheet" href="/v2/community.css?v=fd0935f2fc48">
-  <link rel="stylesheet" href="/v2/holographic-shell.css?v=156e0acc9d85">
+  <link rel="stylesheet" href="/v2/holographic-shell.css?v=e80ac12c7023">
 </head>
 <body class="guest-shell">
   <div class="app">
@@ -466,6 +466,11 @@
         </div>
         <div class="shell-holo-veil"></div>
       </div>
+      <button class="desktop-account" id="desktopacct" type="button" aria-label="Личный профиль и настройки" aria-haspopup="dialog">
+        <span class="av" id="desktopacctav" aria-hidden="true">Г</span>
+        <span class="desktop-account-copy"><b id="desktopacctnm">Гость</b><small id="desktopacctmeta">Личные настройки</small></span>
+        <span class="desktop-account-arrow" aria-hidden="true">⌄</span>
+      </button>
       <div class="topm">
         <button class="menu-btn" id="menu" aria-label="Меню" aria-controls="side" aria-expanded="false">☰</button>
         <span class="brand-mark" aria-hidden="true" style="width:32px;height:32px;border-radius:11px;font-size:24px">✳</span>
@@ -970,10 +975,10 @@
   <!-- Порядок — контракт исполнения: foundation публикует общие границы,
        shell строит экраны, cases добавляет дела, community ставит согласие
        перед сессией, bootstrap запускает UI. -->
-  <script src="/v2/foundation.js?v=04a03e009402"></script>
-  <script src="/v2/shell.js?v=5bcc7abe43c5"></script>
+  <script src="/v2/foundation.js?v=345440cf381d"></script>
+  <script src="/v2/shell.js?v=d7437a7220c6"></script>
   <script src="/v2/cases.js?v=f93831e0f4c4"></script>
   <script src="/v2/community.js?v=586da9fac501"></script>
-  <script src="/v2/bootstrap.js?v=e69e5df0163d"></script>
+  <script src="/v2/bootstrap.js?v=c38b26b5f909"></script>
 </body>
 </html>
