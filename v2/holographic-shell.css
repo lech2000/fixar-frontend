@@ -94,44 +94,58 @@ body:not(.guest-shell) .screen-nav {
 .shell-holo-scene {
   position: fixed;
   z-index: 0;
-  inset: 0 0 0 var(--nav-w);
+  inset: 0;
   overflow: hidden;
   pointer-events: none;
-  background: var(--bg);
+  background: #09090c;
 }
 body.guest-shell .shell-holo-scene { display: none; }
 .shell-holo-grid {
   position: absolute;
   inset: 0;
-  opacity: .72;
   background-image:
-    linear-gradient(90deg,transparent calc(100% - 1px),rgba(170,166,190,.075) 0),
-    linear-gradient(transparent calc(100% - 1px),rgba(170,166,190,.075) 0);
+    linear-gradient(90deg,transparent calc(100% - 1px),rgba(170,166,190,.083) 0),
+    linear-gradient(transparent calc(100% - 1px),rgba(170,166,190,.083) 0);
   background-size: 172px 146px;
   background-position: 0 -26px;
-  mask-image: linear-gradient(115deg,rgba(0,0,0,.22),#000);
+  mask-image: linear-gradient(115deg,rgba(0,0,0,.4),#000);
 }
-.shell-holo-panels { position: absolute; inset: 0; opacity: 1; }
+.shell-holo-panels {
+  position: absolute;
+  inset: 0;
+  opacity: var(--holo-glow,.87);
+  transform: scale(var(--holo-scale,1));
+  transform-origin: top right;
+  transition: opacity .5s,transform .25s ease-out;
+}
 .shell-holo-panel {
   left: var(--hx);
   top: var(--hy);
   width: var(--hw);
   height: var(--hh);
-  filter: saturate(1.24) brightness(1.12);
+  box-shadow: 0 35.56px 60.96px -7px rgba(0,0,0,.93),0 2px 4px #000,inset 0 1px rgba(255,255,255,.13);
 }
-.shell-holo-panel canvas { filter: saturate(1.3) contrast(1.05); }
+.shell-holo-panel canvas { filter: saturate(1.12); }
 .shell-holo-panel.is-flicker,
 .fixar-holo-panel.is-flicker {
   animation-name: fixar-holo-lamp-flicker;
   animation-timing-function: linear;
 }
+.shell-holo-ambient {
+  position: absolute;
+  width: 760px;
+  height: 520px;
+  right: -240px;
+  top: 220px;
+  background: radial-gradient(ellipse,rgba(135,58,102,.075),transparent 68%);
+  filter: blur(30px);
+}
 .shell-holo-veil {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg,var(--bg) 0%,color-mix(in srgb,var(--bg) 88%,transparent) 18%,color-mix(in srgb,var(--bg) 58%,transparent) 58%,color-mix(in srgb,var(--bg) 16%,transparent) 100%),
-    linear-gradient(0deg,var(--bg) 0%,color-mix(in srgb,var(--bg) 36%,transparent) 34%,color-mix(in srgb,var(--bg) 56%,transparent) 100%);
-  opacity: calc(.76 - var(--holo-lift));
+    linear-gradient(90deg,rgba(9,9,12,.985) 0%,rgba(9,9,12,.925) 26%,rgba(9,9,12,.54) 52%,rgba(9,9,12,.02) 86%),
+    linear-gradient(0deg,#09090c 0%,rgba(9,9,12,.07) 47%,rgba(9,9,12,.19) 85%,rgba(9,9,12,.85) 100%);
 }
 @keyframes fixar-holo-lamp-flicker {
   0%, 61.8%, 66.3%, 100% { opacity: var(--base); }
@@ -750,6 +764,34 @@ body:not(.guest-shell) .topm {
 body:not(.guest-shell) .topm .brand-mark { width: 34px!important; height: 34px!important; border-radius: 10px!important; font-size: 19px!important; }
 body:not(.guest-shell) .acct-btn { border-color: rgba(255,255,255,.085); background: rgba(26,23,30,.8); color: #ded7e2; }
 
+/* Анкета-приглашение специалиста: главный вход в команду практики. */
+.specialist-invite-card {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 22px;
+  margin: 0 0 14px;
+  padding: clamp(18px,3vw,26px);
+  border: 1px solid color-mix(in srgb,var(--cyan) 46%,var(--line));
+  border-radius: 18px;
+  background: linear-gradient(135deg,color-mix(in srgb,var(--panel) 86%,var(--cyan) 14%),var(--panel-2));
+  box-shadow: 0 18px 42px -30px color-mix(in srgb,var(--cyan) 70%,transparent);
+}
+.specialist-invite-card h3 { margin: 2px 0 7px; font-size: clamp(20px,2.6vw,28px); }
+.specialist-invite-card p:not(.eyebrow) { max-width: 68ch; margin: 0; color: var(--muted); line-height: 1.55; }
+.specialist-invite-form fieldset { margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 13px; }
+.specialist-invite-form legend { padding: 0 5px; color: var(--muted); font-size: 12.5px; }
+.check-line { display: flex!important; flex-direction: row!important; align-items: flex-start; gap: 9px!important; }
+.check-line input { width: auto; margin-top: 3px; }
+.check-line span { display: grid; gap: 3px; color: var(--text); }
+.check-line small { color: var(--muted); line-height: 1.4; }
+.weekday-pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.weekday-pills label { cursor: pointer; }
+.weekday-pills input { position: absolute; opacity: 0; pointer-events: none; }
+.weekday-pills span { display: block; min-width: 39px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 999px; text-align: center; }
+.weekday-pills input:checked + span { border-color: var(--cyan); background: color-mix(in srgb,var(--cyan) 16%,transparent); color: var(--text); }
+.specialist-terms { overflow: hidden; margin: 14px 0; border: 1px solid var(--line); border-radius: 14px; }
+
 /* Светлая тема сохраняет геометрию, но не притворяется чёрным экраном. */
 :root[data-theme="light"] body:not(.guest-shell) .shell-holo-scene { opacity: .16; }
 :root[data-theme="light"] body:not(.guest-shell) .side { color-scheme: dark; }
@@ -780,9 +822,6 @@ body:not(.guest-shell) .acct-btn { border-color: rgba(255,255,255,.085); backgro
   .shell-holo-scene { inset: 0; }
   .shell-holo-grid { background-size: 86px 73px; opacity: .56; }
   .shell-holo-panel { transform: none; }
-  .shell-panel-a { left: 68%!important; width: 26%!important; }
-  .shell-panel-b,.shell-panel-d { display: none; }
-  .shell-panel-c { left: 57%!important; width: 32%!important; }
   body:not(.guest-shell) .side { width: min(90vw,310px); }
   body:not(.guest-shell) .brand { min-height: 82px; padding-top: 19px; }
   body:not(.guest-shell) .vwrap { padding: 21px 14px calc(92px + env(safe-area-inset-bottom)); }
@@ -794,6 +833,8 @@ body:not(.guest-shell) .acct-btn { border-color: rgba(255,255,255,.085); backgro
   body:not(.guest-shell) .menu-btn { border-color: rgba(255,255,255,.09); background: rgba(25,22,29,.86); color: #d8ccdf; box-shadow: inset 0 1px rgba(255,255,255,.05),0 4px 12px rgba(0,0,0,.25); }
   .appearance-mood-card { grid-template-columns: 1fr; }
   .appearance-mood-visual { min-height: 142px; }
+  .specialist-invite-card { grid-template-columns: 1fr; }
+  .specialist-invite-card .btn { width: 100%; }
   body:not(.guest-shell) .case-dialog { border-radius: 17px; }
 }
 

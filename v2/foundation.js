@@ -93,6 +93,7 @@
   function safeHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:275; }
   function safeBackgroundHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:270; }
   function safeBackground(value){ const background=Number(value); return Number.isFinite(background)?Math.max(0,Math.min(100,Math.round(background))):62; }
+  function holographicGlow(background){ return background<=62?.1+(background/62)*.77:.87+((background-62)/38)*.13; }
   function readAppearance(){
     try{
       const value=JSON.parse(store(APPEARANCE_KEY)||"{}");
@@ -112,7 +113,7 @@
     document.documentElement.dataset.themeMode=value.mode;
     document.documentElement.style.setProperty("--accent-h",String(value.hue));
     document.documentElement.style.setProperty("--background-h",String(value.backgroundHue));
-    document.documentElement.style.setProperty("--holo-lift",(value.background/200).toFixed(3));
+    document.documentElement.style.setProperty("--holo-glow",holographicGlow(value.background).toFixed(3));
     document.documentElement.style.setProperty("--body-art",backgroundColor);
     const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.content=backgroundColor;
     if(persist!==false)put(APPEARANCE_KEY,JSON.stringify(value));

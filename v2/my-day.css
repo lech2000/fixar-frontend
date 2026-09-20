@@ -57,7 +57,14 @@ body.guest-shell .storage-notice { color: #f1efef; background: rgba(24,22,29,.96
   background-position: 0 -26px;
   mask-image: linear-gradient(115deg,rgba(0,0,0,.42),#000);
 }
-.fixar-holo-panels { position: absolute; inset: 0; opacity: .86; }
+.fixar-holo-panels {
+  position: absolute;
+  inset: 0;
+  opacity: .86;
+  transform: scale(var(--holo-scale,1));
+  transform-origin: top right;
+  transition: transform .25s ease-out;
+}
 .fixar-holo-panel {
   position: absolute;
   left: var(--hx);

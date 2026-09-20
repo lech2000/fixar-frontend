@@ -184,6 +184,7 @@
     {domain:"education",agent:"tutor_planner",title:"Обучение",limits:"Планирование и материалы; решения об ученике остаются за человеком."}
   ];
   const practiceTitle = item => item.kind_title||item.title||item.domain_title||item.domain||"Кабинет";
+  const SPECIALIST_INVITE_KEY="fixar-v2-specialist-invite";
   function practiceStorageKey(){ return "fixar-v2-practice:"+(authState.principal||"guest"); }
   function selectedPractice(){ return PRACTICE.items.find(item=>item.id===PRACTICE.selectedId)||null; }
   function practiceCaseStorageKey(caseId){ return "fixar-v2-practice-case:"+(authState.principal||"guest")+":"+caseId; }
@@ -202,7 +203,8 @@
     if(PRACTICE.error) return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-note">'+esc(PRACTICE.error)+'</p><button class="btn" data-act="practice-reload">Повторить</button></div>';
     const rows=PRACTICE.items.length?PRACTICE.items.map(item=>'<button class="lrow" data-act="practice-select" data-id="'+attr(item.id)+'"><span><h4>'+esc(practiceTitle(item))+'</h4><p>'+esc(item.domain_title||item.domain||"Рабочее направление")+'</p></span>'+(item.id===PRACTICE.selectedId?'<span class="chip">выбран</span>':'<span class="when">выбрать →</span>')+'</button>').join(""):'<p class="rc-hint">Вы ещё не открывали кабинеты.</p>';
     const add=authState.assurance>=2?'<button class="btn primary" data-act="practice-add">Добавить кабинет</button>':'<p class="rc-note">Чтобы добавить кабинет, подтвердите вход до уровня 2.</p>';
-    return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Выберите кабинет, в котором сейчас работаете. В списке только ваши кабинеты.</p><div class="lst">'+rows+'</div><div class="cta-row" style="margin-top:12px">'+add+'</div></div>';
+    const practice=selectedPractice(),invite=practice&&authState.assurance>=2?'<section class="specialist-invite-card"><div><p class="eyebrow">КОМАНДА · '+esc(practiceTitle(practice))+'</p><h3>Подключить специалиста</h3><p>Одна анкета для входа через Telegram или MAX, территории выезда и повторяющегося календаря. Можно задать строгую специализацию — например, <b>только котлы Buderus</b>.</p></div><button class="btn primary" type="button" data-act="practice-specialist-invite">Создать приглашение</button></section>':'';
+    return invite+'<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Выберите кабинет, в котором сейчас работаете. В списке только ваши кабинеты.</p><div class="lst">'+rows+'</div><div class="cta-row" style="margin-top:12px">'+add+'</div></div>';
   }
   async function openPracticeAdd(){
     if(!authState.token){ openAccount(); return; }
@@ -212,6 +214,55 @@
     const choices=[]; (packs.packs||[]).forEach(pack=>(pack.practice&&pack.practice.kinds||[]).forEach(kind=>{ if(!enabled[pack.id+"/"+kind.id]) choices.push({domain:pack.id,kind:kind.id,title:(pack.title||pack.id)+" — "+(kind.title||kind.id)}); }));
     if(!choices.length){ toast("Все доступные кабинеты уже открыты."); return; }
     modalOpen("Добавить кабинет",'<p class="lead">Выберите направление. Новый кабинет создаётся только в вашем аккаунте и не даёт доступа к чужим делам.</p><div class="tiles" id="practicechoices">'+choices.map(choice=>'<button class="tile" type="button" data-domain="'+attr(choice.domain)+'" data-kind="'+attr(choice.kind)+'" data-title="'+attr(choice.title)+'"><span><h3>'+esc(choice.title)+'</h3><p>Открыть кабинет</p></span><span class="chev" aria-hidden="true">→</span></button>').join("")+'</div>',body=>{ body.querySelector("#practicechoices").onclick=async event=>{ const button=event.target.closest("[data-domain]"); if(!button)return; button.disabled=true; try{ const item=await authFetch("POST","/practice",{domain:button.dataset.domain,kind:button.dataset.kind,title:button.dataset.title}); await loadPracticeCabinets(true); PRACTICE.selectedId=item.id||PRACTICE.selectedId; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} modalClose(); refreshCurrentView(); }catch(error){ button.disabled=false; toast((error&&error.message)||"Кабинет не добавлен."); } }; });
+  }
+
+  function specialistDays(days){
+    const names={1:"пн",2:"вт",3:"ср",4:"чт",5:"пт",6:"сб",7:"вс"};
+    return (days||[]).map(day=>names[day]||day).join(", ");
+  }
+  function specialistTerms(data){
+    const s=data&&data.specialist;if(!s)return "";
+    const narrow=(s.narrow_specializations||[]).join(", "),territory=s.territory||{},radius=territory.radius_km?" · до "+territory.radius_km+" км":"",messenger=s.messenger_preference==="tg"?"только Telegram":s.messenger_preference==="max"?"только MAX":"Telegram или MAX — доступный канал автоматически";
+    return '<div class="specialist-terms"><div class="prow"><span>Специализация</span><b>'+esc(s.specialty||"")+'</b></div>'+(narrow?'<div class="prow"><span>'+(s.strict_specialization?'Только':'В том числе')+'</span><b>'+esc(narrow)+'</b></div>':'')+'<div class="prow"><span>Территория</span><b>'+esc((territory.name||"")+radius)+'</b></div><div class="prow"><span>Календарь</span><b>'+esc(specialistDays(s.weekdays)+' · '+String(s.start_local||"").slice(0,5)+'–'+String(s.end_local||"").slice(0,5)+' · '+(s.timezone||""))+'</b></div><div class="prow"><span>Мессенджер</span><b>'+esc(messenger)+'</b></div><div class="prow"><span>Публикация окон</span><b>'+(s.publish_availability?'да, для подбора':'нет, только личный календарь')+'</b></div></div>';
+  }
+  function openSpecialistInvite(){
+    const practice=selectedPractice();
+    if(!practice){toast("Сначала выберите кабинет.");return;}
+    if(!authState.token||authState.assurance<2){toast("Подтвердите вход до уровня 2, чтобы звать специалиста.");openAccount();return;}
+    const dayNames=[[1,"Пн"],[2,"Вт"],[3,"Ср"],[4,"Чт"],[5,"Пт"],[6,"Сб"],[7,"Вс"]];
+    modalOpen("Подключить специалиста",'<p class="lead">Приглашение в кабинет «'+esc(practiceTitle(practice))+'». Специалист увидит все условия до согласия.</p><form id="specialistInviteForm" class="pform specialist-invite-form"><label>Основная специализация<input name="specialty" maxlength="200" required placeholder="Ремонт и обслуживание котлов"></label><label>Узкая специализация, марки через запятую<input name="narrow" maxlength="500" placeholder="Buderus"></label><label class="check-line"><input name="strict" type="checkbox"> <span><b>Только указанная специализация</b><small>«Buderus» не попадёт в подбор по Baxi или по общему запросу без марки.</small></span></label><div class="pf-row"><label>Территория покрытия<input name="territory" maxlength="200" required placeholder="Приветнинское и окрестности"></label><label>Радиус, км<input name="radius" type="number" min="1" max="500" inputmode="numeric" placeholder="30"></label></div><fieldset><legend>Повторяющиеся рабочие дни</legend><div class="weekday-pills">'+dayNames.map(item=>'<label><input type="checkbox" name="weekday" value="'+item[0]+'" '+(item[0]<=5?'checked':'')+'><span>'+item[1]+'</span></label>').join("")+'</div></fieldset><div class="pf-row"><label>С<input name="start" type="time" value="09:00" required></label><label>До<input name="end" type="time" value="18:00" required></label><label>Часовой пояс<input name="timezone" value="Europe/Moscow" maxlength="64" required></label></div><label>Мессенджер<select name="messenger"><option value="auto">Telegram или MAX — выбрать автоматически</option><option value="tg">Только Telegram</option><option value="max">Только MAX</option></select></label><label>Месячный предел оплаты работы агента, кредитов<input name="credits" type="number" min="1" max="1000000" required inputmode="numeric" placeholder="Задайте явно"></label><label>Комментарий приглашённому<textarea name="note" maxlength="300" rows="2" placeholder="Что важно знать до подключения"></textarea></label><label class="check-line"><input name="publish" type="checkbox" checked> <span><b>Показывать свободные окна в подборе</b><small>Личность не раскрывается до согласованного контакта; видны специализация, территория и окно.</small></span></label><div class="rc-note" data-specialist-status aria-live="polite"></div><div class="cta-row"><button class="btn primary" type="submit">Создать ссылку</button></div></form>',body=>{
+      const form=body.querySelector("#specialistInviteForm"),status=body.querySelector("[data-specialist-status]");form.specialty.focus();
+      form.onsubmit=async event=>{event.preventDefault();const button=form.querySelector('button[type="submit"]'),narrow=(form.narrow.value||"").split(",").map(value=>value.trim()).filter(Boolean),weekdays=Array.from(form.querySelectorAll('input[name="weekday"]:checked')).map(input=>Number(input.value));
+        if(form.strict.checked&&!narrow.length){status.textContent="Для строгой специализации укажите хотя бы одну марку или вид работ.";form.narrow.focus();return;}
+        if(!weekdays.length){status.textContent="Выберите хотя бы один рабочий день.";return;}
+        if(form.start.value===form.end.value){status.textContent="Начало и конец рабочего окна не могут совпадать.";return;}
+        button.disabled=true;button.textContent="Создаю…";status.textContent="";
+        const territory={name:form.territory.value.trim()};if(form.radius.value)territory.radius_km=Number(form.radius.value);
+        try{const response=await authFetch("POST","/practice/team/invites",{practice_id:practice.id,may:[],monthly_credits:Number(form.credits.value),note:form.note.value.trim(),specialist:{specialty:form.specialty.value.trim(),narrow_specializations:narrow,strict_specialization:form.strict.checked,territory,timezone:form.timezone.value.trim(),weekdays,start_local:form.start.value,end_local:form.end.value,messenger_preference:form.messenger.value,publish_availability:form.publish.checked}}),link=location.origin+"/v2/#specialist="+encodeURIComponent(response.code);
+          body.innerHTML='<h2>Приглашение готово</h2><p class="lead">Передайте ссылку специалисту. Она одноразовая и действует до '+esc(new Date(response.expires_at).toLocaleString("ru-RU"))+'.</p>'+specialistTerms(response)+'<label>Ссылка<input data-specialist-link readonly value="'+attr(link)+'"></label><div class="cta-row"><button class="btn primary" type="button" data-copy-specialist>Копировать ссылку</button></div><p class="rc-note">После принятия ФиксАР проверит выбранный мессенджер, создаст профиль мощности и соберёт обычные окна календаря.</p>';
+          const copy=body.querySelector("[data-copy-specialist]"),input=body.querySelector("[data-specialist-link]");copy.onclick=async()=>{try{await navigator.clipboard.writeText(link);copy.textContent="Скопировано";}catch(_){input.select();document.execCommand("copy");copy.textContent="Скопировано";}};
+        }catch(error){button.disabled=false;button.textContent="Создать ссылку";status.textContent=(error&&error.message)||"Приглашение не создано.";}
+      };
+    });
+  }
+
+  function specialistInviteCode(){
+    const raw=location.hash.match(/^#specialist=([^&]+)$/);if(raw){const code=decodeURIComponent(raw[1]);try{localStorage.setItem(SPECIALIST_INVITE_KEY,code);}catch(_){}return code;}
+    try{return localStorage.getItem(SPECIALIST_INVITE_KEY)||"";}catch(_){return "";}
+  }
+  function specialistLogin(code){
+    try{localStorage.setItem(SPECIALIST_INVITE_KEY,code);localStorage.setItem("fixar.login.back","/v2/#specialist="+encodeURIComponent(code));}catch(_){}
+    location.href="/start/";
+  }
+  async function handleSpecialistInviteLink(){
+    const code=specialistInviteCode();if(!code)return false;
+    let data;try{data=await authFetch("GET","/team-invites/"+encodeURIComponent(code));}catch(error){try{localStorage.removeItem(SPECIALIST_INVITE_KEY);}catch(_){}toast((error&&error.message)||"Приглашение недоступно.");return true;}
+    const need=data.specialist&&data.specialist.messenger_preference,channel=need==="tg"?"Telegram":need==="max"?"MAX":"Telegram или MAX";
+    modalOpen("Приглашение специалиста",'<p class="lead">Вас приглашают в команду направления «'+esc(data.domain_title||data.kind_title||"практика")+'».</p>'+specialistTerms(data)+'<div class="prow"><span>Работу агента оплачивает кабинет</span><b>до '+esc(data.monthly_credits)+' кредитов/мес.</b></div>'+(data.note?'<p class="rc-note">'+esc(data.note)+'</p>':'')+'<p class="rc-note">Членство само не открывает дела клиентов. Каждое дело появится только после отдельного назначения и согласия клиента.</p><div class="rc-note" data-specialist-accept-status aria-live="polite"></div><div class="cta-row"><button class="btn primary" type="button" data-accept-specialist>'+(authState.signed_in?'Принять условия':'Войти и принять')+'</button><button class="btn" type="button" data-specialist-messenger>Подключить '+esc(channel)+'</button></div>',body=>{
+      const status=body.querySelector("[data-specialist-accept-status]"),accept=body.querySelector("[data-accept-specialist]");body.querySelector("[data-specialist-messenger]").onclick=()=>specialistLogin(code);
+      accept.onclick=async()=>{if(!authState.signed_in){specialistLogin(code);return;}if(Number(authState.assurance||0)<2){status.textContent="Для рабочего кабинета нужен подтверждённый вход уровня 2.";return;}accept.disabled=true;accept.textContent="Подключаю…";try{const result=await authFetch("POST","/team-invites/"+encodeURIComponent(code)+"/accept",{});try{localStorage.removeItem(SPECIALIST_INVITE_KEY);}catch(_){}if(location.hash.indexOf("#specialist=")===0)history.replaceState(null,"",location.pathname+location.search);body.innerHTML='<h2>Специалист подключён</h2><p class="lead">Профиль и повторяющийся календарь созданы.</p>'+specialistTerms(result)+'<p class="rc-note">'+(result.calendar_materialized?'Свободные окна уже собраны.':'Фоновая служба соберёт окна календаря автоматически.')+'</p><div class="cta-row"><button class="btn primary" type="button" data-finish-specialist>Готово</button></div>';body.querySelector("[data-finish-specialist]").onclick=()=>{modalClose();currentSpace="Практика";rebuildNav();go(kidOf(SPACE_NODES[currentSpace],"Главная"));};}catch(error){accept.disabled=false;accept.textContent="Принять условия";status.textContent=(error&&error.message)||"Не удалось принять приглашение.";if(error&&error.status===409)status.insertAdjacentHTML("beforeend",' <a href="/start/" data-specialist-start>Подключить мессенджер →</a>');const link=status.querySelector("[data-specialist-start]");if(link)link.onclick=event=>{event.preventDefault();specialistLogin(code);};}};
+    });
+    return true;
   }
 
   function openFixarCase(){
@@ -284,6 +335,9 @@
   }
   function initHolographicHome(root){ initHolographicScene(root,"[data-holographic-home]"); }
   function initHolographicShell(){ initHolographicScene(document,"[data-holographic-shell]"); }
+  function syncHolographicScale(){ document.documentElement.style.setProperty("--holo-scale",Math.min(1,innerHeight/1120).toFixed(3)); }
+  syncHolographicScale();
+  window.addEventListener("resize",syncHolographicScale,{passive:true});
   function myDayGuestHome(){
     const prompts=[["Найти квартиру","Find a flat"],["Разобраться с делами","Sort out my tasks"],["Выбрать лучшее","Choose the best option"]];
     const roadmap=[["01",uiText("Расскажите о задаче","Tell us about the task"),uiText("Обычными словами. Можно начать с одной мысли.","Use everyday language. One thought is enough to begin.")],["02",uiText("Найдите свой маршрут","Find your route"),uiText("Варианты, нужные помощники и понятный план.","Options, the right assistants and a clear plan.")],["03",uiText("Переходите к действию","Move to action"),uiText("Дело, люди и документы — вместе. Важные решения — с вами.","The case, people and documents stay together. Important decisions stay with you.")]];
