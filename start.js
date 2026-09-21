@@ -3547,7 +3547,10 @@ var state = { token: "", principal: "", assurance: 0, свой: false,
     }
     try {
       localStorage.setItem(КЛЮЧ_ВХОДА, r.state);
-      localStorage.setItem(КЛЮЧ_ВОЗВРАТА_ВХОДА, "/start/");
+      // Приглашение хранится отдельно: callback принимает только фиксированный путь.
+      localStorage.setItem(КЛЮЧ_ВОЗВРАТА_ВХОДА,
+        КОМАНДА && localStorage.getItem("fixar-v2-specialist-invite") === КОМАНДА
+          ? "/v2/" : "/start/");
     } catch (e) {
       кнопка.disabled = false;
       кнопка.textContent = было;

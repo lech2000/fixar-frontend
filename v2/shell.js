@@ -303,17 +303,22 @@
   }
 
   function specialistInviteCode(){
-    const raw=location.hash.match(/^#specialist=([^&]+)$/);if(raw){const code=decodeURIComponent(raw[1]);try{localStorage.setItem(SPECIALIST_INVITE_KEY,code);}catch(_){}return code;}
-    try{return localStorage.getItem(SPECIALIST_INVITE_KEY)||"";}catch(_){return "";}
+    const raw=location.hash.match(/^#specialist=(tm_[A-Za-z0-9_-]{8,64})$/);if(raw){const code=raw[1];try{localStorage.setItem(SPECIALIST_INVITE_KEY,code);}catch(_){}return code;}
+    try{const code=localStorage.getItem(SPECIALIST_INVITE_KEY)||"";return /^tm_[A-Za-z0-9_-]{8,64}$/.test(code)?code:"";}catch(_){return "";}
   }
   function specialistLogin(code){
-    try{localStorage.setItem(SPECIALIST_INVITE_KEY,code);localStorage.setItem("fixar.login.back","/v2/#specialist="+encodeURIComponent(code));}catch(_){}
-    location.href="/start/#komanda="+encodeURIComponent(code);
+    try{localStorage.setItem(SPECIALIST_INVITE_KEY,code);localStorage.setItem("fixar.login.back","/v2/");}catch(_){}
+    // /start/ и / перенаправляют в v2: входы MAX/Telegram живут в /classic/.
+    location.href="/classic/#komanda="+encodeURIComponent(code);
   }
   async function handleSpecialistInviteLink(){
     const code=specialistInviteCode();if(!code)return false;
     let data;try{data=await authFetch("GET","/team-invites/"+encodeURIComponent(code));}catch(error){try{localStorage.removeItem(SPECIALIST_INVITE_KEY);}catch(_){}toast((error&&error.message)||"Приглашение недоступно.");return true;}
-    if(!data.needs_questionnaire)return handleLegacySpecialistInviteLink();
+    if(!data.needs_questionnaire){
+      modalOpen("Приглашение в практику",'<p class="lead">'+esc(data.what_it_is||"Вас приглашают в команду практики.")+'</p><p class="rc-note">'+esc(data.who_pays||"")+'</p><div class="cta-row"><button class="btn primary" type="button" data-accept-specialist>Принять приглашение</button></div><p data-specialist-status aria-live="polite"></p>',body=>{
+        const button=body.querySelector("[data-accept-specialist]"),status=body.querySelector("[data-specialist-status]");button.onclick=async()=>{if(!authState.signed_in){specialistLogin(code);return;}if(authState.assurance<2){status.textContent="Для рабочего кабинета нужен подтверждённый вход уровня 2.";return;}button.disabled=true;try{await authFetch("POST","/team-invites/"+encodeURIComponent(code)+"/accept",{});localStorage.removeItem(SPECIALIST_INVITE_KEY);modalClose();currentSpace="Практика";rebuildNav();go(kidOf(SPACE_NODES[currentSpace],"Главная"));}catch(error){button.disabled=false;status.textContent=error.message||"Приглашение не принято.";}};
+      });return true;
+    }
     let draft=null;try{draft=JSON.parse(localStorage.getItem(specialistDraftKey(code))||"null");}catch(_){}
     modalOpen("Анкета нового практика",'<p class="lead">Вас приглашают в направление «'+esc(data.domain_title||data.kind_title||"практика")+'». Заполните сведения о своей работе — пригласивший их за вас не задавал.</p><div class="prow"><span>Работу агента оплачивает кабинет</span><b>до '+esc(data.monthly_credits)+' кредитов/мес.</b></div>'+acquisitionTerms(data)+(data.note?'<p class="rc-note">'+esc(data.note)+'</p>':'')+specialistQuestionnaireHtml()+'<p class="rc-note">Членство не открывает дела клиентов автоматически: каждое назначение требует отдельного основания и согласия клиента.</p>',body=>{
       const form=body.querySelector("#specialistQuestionnaire"),status=body.querySelector("[data-specialist-status]"),button=form.querySelector('button[type="submit"]');fillSpecialistQuestionnaire(form,draft);button.textContent=authState.signed_in?"Заполнить и подключиться":"Сохранить и войти";form.specialty.focus();
@@ -712,28 +717,63 @@
 
   function screenCatalog(node){
     return crumbsBlock(node)+
-      '<div class="vhead"><p class="eyebrow">Публичная часть · пример</p><h1>Каталог решений</h1><p>Предварительный вид каталога. Реальная установка и показатели паков ещё подключаются.</p></div>'+
-      '<div class="tabs" data-cat>'+node.children.map((c,i)=>'<button class="tab'+(i===0?' active':'')+'" data-tab="'+esc(c.name)+'">'+esc(c.name)+'</button>').join('')+'</div>'+
-      '<div class="pgrid" id="pgrid">'+PACKS.map(packCard).join('')+'</div>';
+      '<div class="vhead"><p class="eyebrow">Каталог решений</p><h1>Каталог решений</h1><p>Все паки реестра. Нажмите на карточку, чтобы увидеть сценарии, сущности и документы.</p></div>'+
+      '<div class="pgrid" id="pgrid"><div class="skel-card" style="height:120px"></div><div class="skel-card" style="height:120px"></div><div class="skel-card" style="height:120px"></div></div>';
   }
 
   function screenPack(node){
-    const perms=["Чтение календаря","Доступ к документам дела","Отправка уведомлений","Подключение электронного дневника"];
-    const conns=["Telegram","Электронный дневник","Google Календарь","Почта"];
-    let b = crumbsBlock(node)+
-      '<div class="pack-head"><span class="big">С</span><div style="flex:1;min-width:220px">'+
-      '<p class="eyebrow">Публичная часть · пример карточки</p><h1 style="font-size:30px;margin:2px 0 6px">Семейные дела</h1>'+
-      '<div class="pmeta"><span>Показатели и отзывы демонстрационные</span></div></div>'+
-      '<button class="btn primary" style="align-self:center" disabled>Установка подключается</button></div>';
-    node.children.forEach(s=>{ b+='<div class="section-t">'+esc(s.name)+'</div>';
-      if(/разрешен/i.test(s.name)) b+='<div>'+perms.map(x=>'<div class="perm"><span class="dot"></span><b>'+esc(x)+'</b><span>по запросу</span></div>').join('')+'</div>';
-      else if(/коннектор/i.test(s.name)) b+='<div class="tabs">'+conns.map(x=>'<span class="tab">'+esc(x)+'</span>').join('')+'</div>';
-      else if(/отзыв|рейтинг/i.test(s.name)) b+='<p class="rc-hint">Настоящие рейтинг и отзывы появятся после подключения registry.</p>';
-      else if(/разработчик/i.test(s.name)) b+='<div class="perm"><span class="pico" style="width:32px;height:32px">L</span><b>Пример разработчика</b><span>профиль подключается</span></div>';
-      else b+='<p style="color:var(--muted);max-width:72ch;margin:4px 0 0">Раздел «'+esc(s.name)+'»: содержательный текст пака в дизайне v2.</p>';
-    });
+    return crumbsBlock(node)+
+      '<div class="pack-head"><span class="big" id="pack-initial">…</span><div style="flex:1;min-width:220px">'+
+      '<p class="eyebrow">Пак · <span id="pack-version-eyebrow">каталог</span></p><h1 style="font-size:30px;margin:2px 0 6px" id="pack-title">Загружаем пак…</h1>'+
+      '<div class="pmeta" id="pack-meta"><span>Загрузка из реестра…</span></div></div>'+
+      '<button class="btn primary" style="align-self:center" data-act="create-case" id="pack-cta">Создать дело по паку</button></div>'+
+      '<div id="pack-body"><div class="skel-card" style="height:200px"></div></div>';
+  }
+  window.FixarPackPage = { current:null };
+  async function loadPackPage(){
+    const title=document.getElementById("pack-title"); if(!title) return;
+    const urlPack=new URLSearchParams(location.hash.split("?")[1]||"").get("pack");
+    try{
+      const data=await authFetch("GET","/packs");
+      const packs=(data&&data.packs)||[];
+      if(!packs.length) throw new Error("Реестр паков пуст");
+      let p=urlPack?packs.find(x=>x.id===urlPack):null;
+      if(!p) p=packs.find(x=>x.id==="software")||packs[0];
+      window.FixarPackPage.current=p;
+      title.textContent=p.title||p.id;
+      const init=document.getElementById("pack-initial"); if(init) init.textContent=(p.title||"П")[0].toUpperCase();
+      const eyebrow=document.getElementById("pack-version-eyebrow"); if(eyebrow) eyebrow.textContent="v"+(p.version||1)+" · "+esc(p.id);
+      const meta=document.getElementById("pack-meta");
+      if(meta) meta.innerHTML='<span>'+esc(p.id)+'</span><span>v'+esc(String(p.version||1))+'</span><span>'+esc(String((p.deal_kinds||[]).length))+' тип(ов) дел</span>';
+      document.getElementById("pack-body").innerHTML=packBodyHtml(p,packs);
+    }catch(err){
+      document.getElementById("pack-body").innerHTML='<div class="stub"><span class="tag">Ошибка</span><p>'+esc((err&&err.message)||"Не удалось загрузить пак")+'</p></div>';
+    }
+  }
+  function packBodyHtml(p,allPacks){
+    const desc=esc(p.description||"Описание пока не заполнено.");
+    const deals=(p.deal_kinds||[]).map(k=>'<div class="perm"><span class="dot"></span><b>'+esc(k.title||k.kind)+'</b><span>'+esc((k.stages||[]).join(" → ")||"этапы уточняются")+'</span></div>').join("")||'<p class="rc-hint">Типы дел пока не заданы.</p>';
+    const entities=(p.entity_types||[]).map(e=>'<span class="tab">'+esc(e.title||e.type)+'</span>').join("");
+    const docs=(p.document_kinds||[]).map(d=>'<div class="perm"><span class="dot"></span><b>'+esc(d)+'</b></div>').join("")||'<p class="rc-hint">Документы не перечислены.</p>';
+    const tmpls=(p.case_templates||[]).map(t=>'<div class="perm"><span class="dot"></span><b>'+esc(t.title||t.id)+'</b><span>'+esc(t.id)+'</span></div>').join("")||'';
+    let b='<div class="section-t">Что это</div><p style="max-width:72ch">'+desc+'</p>';
+    b+='<div class="section-t">Сценарии ('+(p.deal_kinds||[]).length+')</div><div>'+deals+'</div>';
+    if(entities) b+='<div class="section-t">Сущности</div><div class="tabs">'+entities+'</div>';
+    if(docs) b+='<div class="section-t">Документы</div><div>'+docs+'</div>';
+    if(tmpls) b+='<div class="section-t">Шаблоны дел</div><div>'+tmpls+'</div>';
+    if(p.id==="software") b+=softwareTutorialHtml();
+    const others=(allPacks||[]).filter(x=>x.id!==p.id).slice(0,6);
+    if(others.length) b+='<div class="section-t">Другие паки</div><div class="pgrid">'+others.map(x=>'<button class="pcard" data-pack-open="'+attr(x.id)+'"><div style="display:flex;gap:10px;align-items:center"><span class="pico">'+esc(((x.title||"П")[0]).toUpperCase())+'</span><span class="chip">v'+esc(String(x.version||1))+'</span></div><h3>'+esc(x.title||x.id)+'</h3><p>'+esc((x.description||"").slice(0,100))+'</p><span class="popen">Открыть →</span></button>').join("")+'</div>';
     return b;
   }
+  function softwareTutorialHtml(){
+    return '<div class="section-t">Обучающий пак для разработчиков</div>'+
+    '<div class="settings-card"><p class="eyebrow">КАК СОБРАН ЭТОТ ПАК</p><h3>Разработка ПО — пример живого пака</h3>'+
+    '<p>Этот пак описан одним YAML-файлом <b>packs/software.yaml</b>: id, title, description, сущности (product, stand, release), типы дел (work_scope, support) с этапами, документы и шаблоны дел. Реестр читает YAML через <b>GET /packs</b>, а эта страница рисует его без единой строчки захардкоженного текста.</p>'+
+    '<p><b>Чтобы собрать свой пак:</b> 1) скопируйте software.yaml под новым id; 2) опишите свои сущности и этапы; 3) положите в packs/ и выполните <b>POST /packs/reload</b>; 4) ваш пак появится в каталоге и здесь — с сценариями, сущностями и документами.</p>'+
+    '<div class="cta-row"><a class="btn" href="https://github.com/lech2000/fixar-frontend" target="_blank" rel="noopener">Формат пака на GitHub</a></div></div>';
+  }
+  document.addEventListener("click",e=>{ const b=e.target.closest("[data-pack-open]"); if(b){ location.hash="#"+PACK_NODE.id+"?pack="+encodeURIComponent(b.dataset.packOpen); } });
 
   const CHANNEL_INFO = {
     tg:{title:"Telegram",icon:"TG",note:"Фиксарик видит сообщения своему боту и явно пересланные ему сообщения. Личные чаты без бота недоступны."},
@@ -935,8 +975,8 @@
   }
   function screenDevAgents(node){
     return crumbsBlock(node)+
-      '<div class="vhead"><p class="eyebrow">Разработка · Агенты</p><h1>Мои агенты</h1><p>Агенты и их настройки. Скоро — реальные данные из identity-service.</p></div>'+
-      '<div class="stub"><span class="tag">Подключается</span><p>Список агентов будет загружаться из identity-service.</p></div>';
+      '<div class="vhead"><p class="eyebrow">Разработка · Агенты</p><h1>Мои агенты</h1><p>Личные и деловые помощники. Данные — из ваших дел.</p></div>'+
+      '<div id="dev-agents-grid" class="pgrid"><div class="skel-card" style="height:120px"></div></div>';
   }
   function screenDevTesting(node){
     return crumbsBlock(node)+
@@ -945,12 +985,12 @@
   }
   function screenDevPublications(node){
     return crumbsBlock(node)+
-      '<div class="vhead"><p class="eyebrow">Разработка · Публикации</p><h1>Публикации</h1><p>Версии паков и их статус. Данные из registry.</p></div>'+
+      '<div class="vhead"><p class="eyebrow">Разработка · Публикации</p><h1>Публикации</h1><p>Версии паков в реестре — что уже опубликовано.</p></div>'+
       '<div id="dev-pub-grid" class="pgrid"><div class="skel-card" style="height:120px"></div></div>';
   }
   function screenDevAnalytics(node){
     return crumbsBlock(node)+
-      '<div class="vhead"><p class="eyebrow">Разработка · Аналитика</p><h1>Аналитика паков</h1><p>Активные пользователи, установки, удержание из registry/analytics.</p></div>'+
+      '<div class="vhead"><p class="eyebrow">Разработка · Аналитика</p><h1>Аналитика паков</h1><p>Что уже измеряется платформой, а что ещё предстоит подключить.</p></div>'+
       '<div id="dev-analytics-grid" class="pgrid"><div class="skel-card" style="height:120px"></div></div>';
   }
   async function loadDevPacks(grid){
@@ -962,7 +1002,7 @@
         const title=esc(p.title||p.id), desc=esc((p.description||"").slice(0,120));
         const ver=p.version?'<span class="chip">v'+esc(String(p.version))+'</span>':'';
         const kinds=(p.deal_kinds||[]).length, kindsLabel=kinds?kinds+' тип(ов) дел':'';
-        return '<button class="pcard" onclick="go(\''+PACK_NODE.id+'\')">'+
+        return '<button class="pcard" data-pack-open="'+attr(p.id)+'">'+
           '<div style="display:flex;gap:10px;align-items:center"><span class="pico">'+esc((title[0]||"П").toUpperCase())+'</span>'+ver+'</div>'+
           '<h3>'+title+'</h3><p>'+desc+'</p>'+
           '<div class="pmeta"><span>'+esc(p.id)+'</span><span>'+esc(kindsLabel)+'</span></div>'+
@@ -980,6 +1020,38 @@
         models.map(m=>'<tr><td>'+esc(m.agent_id||"—")+'</td><td>'+esc(m.model||"—")+'</td><td>'+esc(m.egress||"—")+'</td><td>'+esc(String(m.calls||0))+'</td><td>'+esc(String(m.denied||0))+'</td></tr>').join("")+
         '</tbody></table></div>';
     }catch(err){ grid.innerHTML='<div class="stub"><span class="tag">Ошибка</span><p>'+esc((err&&err.message)||"Не удалось загрузить метрики")+'</p></div>'; }
+  }
+  // --- Агенты: помощники из ваших дел (case_service, без нового бэкенда) ---
+  async function loadDevAgents(grid){
+    if(!hasSession()){ grid.innerHTML='<section class="my-cases-empty"><span aria-hidden="true">○</span><h2>Войдите, чтобы увидеть помощников</h2><p>Помощники живут в ваших делах. Без входа их список недоступен.</p><div class="cta-row"><button class="btn primary" data-my-day-account>Войти</button></div></section>'; return; }
+    try{
+      const cases=(REAL&&REAL.cases)||[];
+      const seen={};
+      cases.forEach(c=>{ const a=c.assistant||c.agent_id; if(a&&!seen[a]) seen[a]={name:a,cases:0}; if(a) seen[a].cases++; });
+      const agents=Object.values(seen);
+      if(!agents.length){ grid.innerHTML='<section class="my-cases-empty"><span aria-hidden="true">○</span><h2>Помощников пока нет</h2><p>Создайте первое дело — в нём появится помощник.</p><div class="cta-row"><button class="btn primary" data-act="create-case">Создать дело</button></div></section>'; return; }
+      grid.innerHTML=agents.map(a=>'<div class="perm"><span class="pico">'+esc((a.name[0]||"✦").toUpperCase())+'</span><b>'+esc(a.name)+'</b><span>'+esc(String(a.cases))+' дел(а)</span></div>').join("");
+    }catch(err){ grid.innerHTML='<div class="stub"><span class="tag">Ошибка</span><p>'+esc((err&&err.message)||"Не удалось загрузить помощников")+'</p></div>'; }
+  }
+  // --- Публикации: версии паков прямо из /packs (каждый пак = опубликованная версия) ---
+  async function loadDevPublications(grid){
+    try{
+      const data=await authFetch("GET","/packs");
+      const packs=(data&&data.packs)||[];
+      if(!packs.length){ grid.innerHTML='<div class="stub"><span class="tag">Паков нет</span><p>В реестре пока нет опубликованных паков.</p></div>'; return; }
+      grid.innerHTML='<div class="section-t">Опубликовано: '+packs.length+'</div>'+
+        '<div style="overflow-x:auto"><table class="otable"><thead><tr><th>Пак</th><th>ID</th><th>Версия</th><th>Типов дел</th></tr></thead><tbody>'+
+        packs.map(p=>'<tr><td>'+esc(p.title||p.id)+'</td><td>'+esc(p.id)+'</td><td>v'+esc(String(p.version||1))+'</td><td>'+esc(String((p.deal_kinds||[]).length))+'</td></tr>').join("")+
+        '</tbody></table></div>'+
+        '<p class="rc-hint">Статусы «на модерации / отклонённые» появятся после подключения registry API наружу. Пока наружу открыт только список опубликованных.</p>';
+    }catch(err){ grid.innerHTML='<div class="stub"><span class="tag">Ошибка</span><p>'+esc((err&&err.message)||"Не удалось загрузить публикации")+'</p></div>'; }
+  }
+  // --- Аналитика: честное описание задачи, бэкенда наружу нет ---
+  function loadDevAnalytics(grid){
+    grid.innerHTML='<div class="stub"><span class="tag">Задача для бэкенда</span>'+
+      '<p><b>Что нужно:</b> открыть наружу <b>GET /registry/analytics/{publisher}/{pack}/{metric}</b> (сейчас отвечает «этот путь наружу не открыт») и решить, чьи данные показывать: агрегированные по всем пользователям или только свои.</p>'+
+      '<p><b>Что уже есть:</b> телеметрия пишется внутри (landscape_service/telemetry.py), owner-метрики доступны через <b>/ops/owner/metrics</b> — их видно во вкладке «Тестирование».</p>'+
+      '<p><b>Временно:</b> смотрите метрики агентов и моделей во вкладке «Тестирование».</p></div>';
   }
 
   const SCREENS = {
@@ -1010,12 +1082,21 @@
     initHolographicShell();
     initHolographicHome(vwrap);
     // --- Загрузка реальных данных для экранов «Разработка» ---
+    const catGrid=vwrap.querySelector('#pgrid');
+    if(catGrid) loadDevPacks(catGrid);
     const packsGrid=vwrap.querySelector('#dev-packs-grid');
     if(packsGrid) loadDevPacks(packsGrid);
     const packsHome=vwrap.querySelector('#dev-packs-home');
     if(packsHome) loadDevPacks(packsHome);
     const testsGrid=vwrap.querySelector('#dev-tests-grid');
     if(testsGrid) loadDevTests(testsGrid);
+    const agentsGrid=vwrap.querySelector('#dev-agents-grid');
+    if(agentsGrid) loadDevAgents(agentsGrid);
+    const pubGrid=vwrap.querySelector('#dev-pub-grid');
+    if(pubGrid) loadDevPublications(pubGrid);
+    const analyticsGrid=vwrap.querySelector('#dev-analytics-grid');
+    if(analyticsGrid) loadDevAnalytics(analyticsGrid);
+    if(vwrap.querySelector('#pack-title')) loadPackPage();
     const appearancePanel=vwrap.querySelector('.appearance');
     if(appearancePanel){
       const sync=(value)=>{

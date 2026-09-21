@@ -553,7 +553,7 @@
         const isSkip=!!skipped[action.id];
         const dot=isSkip?"skip":(action.done?"done":"todo");
         const stateNote=isSkip?'<div class="tstate"><b>Пропущено.</b> '+esc(skipped[action.id]||"Без пояснения.")+'</div>':"";
-        const buttons=(canDecide&&!action.done&&!isSkip)?'<span class="task-actions"><button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button><button class="btn small" type="button" data-act="skip-action" data-id="'+attr(action.id)+'">Пропустить</button></span>':(action.done?'<span class="done-mark">выполнено</span>':(isSkip?'<span class="done-mark">пропущено</span>':''));
+        const buttons=(canDecide&&!action.done&&!isSkip)?'<span class="task-actions"><button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button><button class="btn small" type="button" data-act="skip-action" data-id="'+attr(action.id)+'">Пропустить</button></span>':(action.done?'<span class="done-mark">выполнено</span>':(isSkip?'<span class="task-actions"><span class="done-mark">пропущено</span><button class="btn small" type="button" data-act="unskip-action" data-id="'+attr(action.id)+'">Вернуть</button></span>':''));
         return '<div class="task'+(isSkip?' task-skipped':'')+'"><span class="tstat '+dot+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(action.what||"Шаг")+'</b><span>'+esc(nextActionOwnerName(action.owner))+(action.due?' · до '+esc(fmtWhen(action.due)):'')+(action.waiting_for?' · ждём: '+esc(action.waiting_for):'')+'</span>'+stateNote+'</div>'+buttons+'</div>';
       }).join("");
       const ownerOptions='<option value="">Пока не назначен</option>'+(c.participants||[]).map(participant=>'<option value="'+attr(participant.principal_id)+'">'+esc(participant.display_name||(participant.principal_id===authState.principal?'Вы':'Участник'))+'</option>').join("")+(c.selected_agent_id?'<option value="'+attr(c.selected_agent_id)+'">'+esc(assistantName(c))+'</option>':'');
@@ -779,6 +779,10 @@
         const reason=window.prompt("Почему пропускаем этот шаг? (видно только вам, в этом браузере)","Не хочу делать запросы");
         if(reason===null) return;
         try{ const key="fixar-v2-plan-skipped:"+(authState.principal||"guest")+":"+c.id; const map=JSON.parse(localStorage.getItem(key)||"{}"); map[b.dataset.id]=(reason||"").trim()||"Без пояснения."; localStorage.setItem(key,JSON.stringify(map)); }catch(_){ toast("Не удалось сохранить пропуск."); return; }
+        realTab="План"; await renderRealCase(c.id); return;
+      }
+      if(act==="unskip-action"){
+        try{ const key="fixar-v2-plan-skipped:"+(authState.principal||"guest")+":"+c.id; const map=JSON.parse(localStorage.getItem(key)||"{}"); delete map[b.dataset.id]; localStorage.setItem(key,JSON.stringify(map)); }catch(_){ toast("Не удалось вернуть шаг."); return; }
         realTab="План"; await renderRealCase(c.id); return;
       }
       if(act==="state"){ const st=b.dataset.state; const nm={closed:"завершить",archived:"архивировать",active:"возобновить"}; if(!window.confirm("Точно "+(nm[st]||st)+" это дело?")) return; b.disabled=true;

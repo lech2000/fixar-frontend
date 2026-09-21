@@ -189,6 +189,8 @@
   }
   initStorageNotice();
   if(window.FixarCommunity) window.FixarCommunity.init();
+  // Сохраняем код до первого go(): он заменяет hash адресом экрана.
+  if(location.hash.indexOf("#specialist=")===0) specialistInviteCode();
   bootIdentity().then(handleSpecialistInviteLink);
 
   // старт
