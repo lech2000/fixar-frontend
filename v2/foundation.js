@@ -248,6 +248,10 @@
     const desktopMeta=document.getElementById("desktopacctmeta");
     if(desktopMeta)desktopMeta.textContent=authState.signed_in?"Личные настройки · уровень "+(authState.assurance||0):"Войти и сохранить дела";
     document.body.classList.toggle("guest-shell",!authState.signed_in);
+    if(typeof syncHomeChrome==="function"){
+      const raw=location.hash.slice(1),cut=raw.indexOf("~"),id=cut>=0?raw.slice(0,cut):raw;
+      syncHomeChrome(typeof byId==="object"?(byId[id]||null):null);
+    }
     if(!authState.signed_in&&typeof closeNav==="function")closeNav();
     if(typeof renderSwitch==="function") renderSwitch();
     if(typeof renderFoot==="function") renderFoot();

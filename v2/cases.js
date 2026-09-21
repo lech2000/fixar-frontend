@@ -167,7 +167,7 @@
   const ENG_RU={owner:"владелец",paid:"платно",volunteer:"добровольно",partner:"партнёр"};
   const RUN_STATUS={queued:"в очереди",running:"выполняется",waiting_approval:"ждёт подтверждения",succeeded:"завершён",failed:"не удался",cancelled:"отменён",pending:"ожидает",claimed:"взят",skipped:"пропущен"};
   const INVITE_ROLES=["colleague","spouse","observer","lawyer","client","doctor","agronomist"];
-  const SPACE_SCOPE={"Личное":"personal","Семья":"home","Практика":"pro"};
+  const SPACE_SCOPE={"Личное":"personal","Семья":"home","Практика":"pro","Исследования":"research"};
   const KIND_RU={"case.created":"дело создано","case.updated":"дело обновлено","work.commissioned":"работа заказана","case.state_changed":"статус изменён","routing.set":"назначен агент","brief.updated":"бриф обновлён","workflow.transitioned":"этап изменён","participant.added":"участник добавлен","participant.removed":"участник удалён","participant.may_see_changed":"доступ участника изменён","subject.added":"объект добавлен","client.set":"клиент задан","scope_set":"область задана","decision.made":"решение принято","action.added":"добавлено действие","action.completed":"действие выполнено","material.added":"добавлен материал","material.extracted":"материал разобран","source.read":"источник прочитан","deal.stage_set":"стадия сделки","option.added":"добавлен вариант","calendar.event.added":"событие в календаре","draft.added":"черновик добавлен","dialog":"сообщение","thread_started":"начато обсуждение","handoff":"передача","owner_transferred":"передано владение","permit.granted":"разрешение выдано","permit.revoked":"разрешение отозвано","patch.proposed":"агент предлагает изменение","patch.applied":"изменение применено","patch.denied":"изменение отклонено","run.created":"запущен агент","run.step.claimed":"шаг взят","run.step.waiting_approval":"шаг ждёт подтверждения","run.step.succeeded":"шаг выполнен","run.step.skipped":"шаг пропущен","run.step.failed":"шаг не удался","run.succeeded":"агент завершил","run.failed":"агент не смог"};
 
   let REAL={loaded:false,loading:false,cases:[],error:null};
@@ -192,8 +192,11 @@
     REAL.loading=false;
   }
   const isLegacyHomeworkAnalysisCase = c => /^Разбор домашнего задания$/i.test(String(c&&c.title||"").trim());
+  const SBERINDEX_AGENTS=["sberindex_atlas_researcher","sberindex_radar_researcher","sberindex_graph_steward","sberindex_research_curator"];
+  const isResearchCase = c => SBERINDEX_AGENTS.includes(c.selected_agent_id);
   function spaceForRealCase(c){
     if((c.scope||"")==="home")return "Семья";
+    if(isResearchCase(c))return "Исследования";
     if((c.scope||"")==="pro")return c.domain==="software"?"Разработка":"Практика";
     return "Личное";
   }
@@ -203,7 +206,8 @@
     if(space==="Личное") return cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
     if(space==="Семья")  return cases.filter(c=>(c.scope||"")==="home");
     if(space==="Практика")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain!=="software");
-    if(space==="Разработка")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain==="software");
+    if(space==="Разработка")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain==="software"&&!isResearchCase(c));
+    if(space==="Исследования")return cases.filter(isResearchCase);
     return [];
   }
   const LAST_ACTIVE_CASE_KEY="fixar-v2-last-active-case:";
@@ -283,6 +287,7 @@
   function ownerName(){ const c=activeReal.c; const o=(c.participants||[]).find(p=>p.role==="owner"); if(o&&o.display_name)return o.display_name; return c.owner_id===authState.principal?"Вы":"—"; }
 
   function routeCase(id){
+    syncHomeChrome(null);
     if(!authState.ready){ window.setTimeout(()=>{ if(location.hash==="#case/"+id) routeCase(id); },80); return; }
     if (CASE_SEEDS[id] || CASES[id] || /^gen-/.test(id)){ if(!CASES[id]&&CASE_SEEDS[id])CASES[id]=cloneCase(CASE_SEEDS[id]); if(CASES[id]){ activeReal=null; activeCaseId=id; caseTab="Обзор"; renderCase(); } return; }
     if (hasSession()){ activeCaseId=null; realTab=defaultRealTab(); renderRealCase(id); return; }
@@ -600,7 +605,7 @@
       return '<div class="case-form-layout"><section class="case-form-main"><div class="case-section-heading"><div><p class="eyebrow">ЛЮДИ И ДОСТУП</p><h2>Каждый видит только нужное</h2></div><p>Роль отвечает за место человека в деле, права — за действия, категории — за видимые сведения.</p></div><div class="case-people-grid">'+people+'</div></section>'+invite+'</div>'+domashkinParentInvitePanel();
     }
     if(realTab==="Настройки"){
-      let s=""; const workSpace=caseSpaceName({scope:"pro",domain:c.domain}),workSpaceNote=workSpace==="Разработка"?"Проекты, паки и автоматизации":"Работа с профильным специалистом";
+      let s=""; const workSpace=caseSpaceName({scope:"pro",domain:c.domain,selected_agent_id:c.selected_agent_id}),workSpaceNote=workSpace==="Разработка"?"Проекты, паки и автоматизации":workSpace==="Исследования"?"Исследовательские дела и ворота":"Работа с профильным специалистом";
       if(canDecide){ s+='<section class="case-setting-panel tone-purple"><div class="case-setting-copy"><p class="eyebrow">СМЫСЛ ДЕЛА</p><h2>Название и результат</h2><p>Короткое название помогает найти дело, а цель объясняет помощнику, что считать готовым результатом.</p></div><form class="pform case-modern-form" data-act="case-details"><label><span>Название</span><input name="title" required maxlength="500" value="'+attr(c.title||"")+'"></label><label><span>Что должно получиться</span><textarea name="goal" rows="4" maxlength="4000" placeholder="Например, новое расписание согласовано со школой и семьёй">'+esc(c.goal||"")+'</textarea></label><button class="btn primary case-form-submit" type="submit">Сохранить</button></form></section>'; }
       if(isOwner){ s+='<section class="case-setting-panel tone-blue"><div class="case-setting-copy"><p class="eyebrow">ПРОСТРАНСТВО</p><h2>Где живёт это дело?</h2><p>Пространство меняет окружение и быстрые переходы, но не удаляет историю, людей или материалы.</p></div><form class="pform case-modern-form" data-act="scope"><fieldset class="case-space-choice">'+[["personal","Личное","Только ваши повседневные вопросы","●"],["home","Семья","Общие дела и согласованные решения","⌂"],["pro",workSpace,workSpaceNote,"§"]].map(x=>'<label><input type="radio" name="scope" value="'+x[0]+'"'+((c.scope||"")===x[0]?' checked':'')+'><span><i>'+x[3]+'</i><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></span></label>').join("")+'</fieldset><button class="btn case-form-submit" type="submit">Перенести дело</button></form></section>'; }
       if(canDecide){ s+='<section class="case-setting-panel tone-peach"><div class="case-setting-copy"><p class="eyebrow">СОСТОЯНИЕ</p><h2>Что сделать с делом?</h2><p>Завершённое дело остаётся в истории. Архив убирает его из активной работы. Любое из них можно возобновить.</p></div><div class="case-state-actions">'+

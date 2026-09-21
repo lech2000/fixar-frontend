@@ -77,7 +77,8 @@
     "Личное": findNode("Для жизни · Личное"),
     "Семья": findNode("Для жизни · Семья"),
     "Практика": findNode("Для работы · Практика"),
-    "Разработка": findNode("Для работы · Разработка")
+    "Разработка": findNode("Для работы · Разработка"),
+    "Исследования": findNode("Для работы · Исследования")
   };
   const ACCOUNT_SETTINGS_NODE = ROOT.children.find(node=>node.name==="Настройки");
   window.FixarV2AppearanceRoute=ACCOUNT_SETTINGS_NODE?ACCOUNT_SETTINGS_NODE.id:"";
@@ -175,6 +176,12 @@
       "Рейтинг паков": {rank:[["Семейные дела","12k · ★4.8"],["Школьный дневник","9k · ★4.7"],["Личные документы","7k · ★4.6"]]},
       "Рейтинг запросов": {rank:[["Учёт лекарств","+320% спрос"],["Садовод-помощник","+180%"],["Репетитор по математике","+90%"]]},
       projects:[["Семейные дела 1.3.0","на тестировании","12k пользователей · ★4.8"],["Школьный дневник 2.1","опубликован","9k пользователей · ★4.7"],["Автопомощник","черновик","создан 2 дня назад"],["Учёт лекарств","идея по запросу","+320% спрос"]]
+    },
+    "Исследования": {
+      "Диалог с исследователем": {dialog:"Атлас держит ворота A1, Радар — R0. Куда двинем следующий атомарный шаг?"},
+      "Активные исследования": {rows:[["Экономический атлас","ворота A1","2 190 серий · кластеризация"],["Радар сдвигов","ворота R0","прогноз · ранние сигналы"]]},
+      "Сводка прогресса": {metrics:[["A1","атлас · кроссволк"],["R0","радар · доступность"],["G","граф · почасовой контур"]]},
+      projects:[["Сбериндекс","исследования","Атлас · Радар · Инфраструктура"]]
     }
   };
 
@@ -395,6 +402,12 @@
   syncHolographicScale();
   window.addEventListener("resize",syncHolographicScale,{passive:true});
   const HOME_WORK_MODE={"Личное":false,"Семья":false};
+  function syncHomeChrome(node){
+    const friendly=currentSpace==="Личное"||currentSpace==="Семья";
+    const chatHome=Boolean(authState.signed_in&&friendly&&node&&node.name==="Главная"&&!HOME_WORK_MODE[currentSpace]);
+    document.body.classList.toggle("chat-home-shell",chatHome);
+    if(chatHome&&typeof closeNav==="function")closeNav();
+  }
   function myDayGuestHome(workEntry){
     const prompts=[["Найти квартиру","Find a flat"],["Разобраться с делами","Sort out my tasks"],["Выбрать лучшее","Choose the best option"]];
     const roadmap=[["01",uiText("Расскажите о задаче","Tell us about the task"),uiText("Обычными словами. Можно начать с одной мысли.","Use everyday language. One thought is enough to begin.")],["02",uiText("Найдите свой маршрут","Find your route"),uiText("Варианты, нужные помощники и понятный план.","Options, the right assistants and a clear plan.")],["03",uiText("Переходите к действию","Move to action"),uiText("Дело, люди и документы — вместе. Важные решения — с вами.","The case, people and documents stay together. Important decisions stay with you.")]];
@@ -409,6 +422,7 @@
     if(currentSpace==="Семья")return {highlight:uiText("Вечер можно освободить","Make room for your evening"),body:uiText("Соберите семейные дела в один понятный план. Остальное — время вместе.","Bring family tasks into one simple plan. The rest is time together."),prompts:[["Что важно сделать семье сегодня?","What matters for the family today?"],["Помоги разобраться с ближайшими сроками","Help me review upcoming deadlines"]],symbol:"⌂"};
     if(currentSpace==="Личное")return {highlight:uiText("Оставьте время для себя","Leave some time for yourself"),body:uiText("Важное — на виду. Фиксарик поможет разложить заботы на небольшие шаги.","Keep what matters in sight. Fixarik turns everyday concerns into small steps."),prompts:[["Помоги спланировать день","Help me plan my day"],["Какой следующий шаг по моим делам?","What is the next step in my cases?"]],symbol:"✦"};
     if(currentSpace==="Практика")return {highlight:uiText("Начните с ясного вопроса","Start with a clear question"),body:uiText("Соберите факты и документы. Профильный помощник подскажет, с чего начать подготовку.","Collect the facts and documents. A specialist assistant shows where to start."),prompts:[["Помоги сформулировать задачу","Help me frame the task"],["Какие материалы подготовить?","What materials should I prepare?"]],symbol:"§"};
+    if(currentSpace==="Исследования")return {highlight:uiText("Атлас и Радар — по воротам","Atlas and Radar, gate by gate"),body:uiText("Два исследования и инфраструктура графа: каждый шаг закрывается артефактом и отчётом ворот.","Two studies plus graph infrastructure: every step closes with an artifact and a gate report."),prompts:[["Что на воротах A1?","What is on gate A1?"],["Что на воротах R0?","What is on gate R0?"]],symbol:"◈"};
     return {highlight:uiText("От идеи к безопасной публикации","From an idea to a safe release"),body:uiText("Инструменты владельца, паки и проверки собраны вокруг следующего проверяемого шага.","Owner tools, packs, and checks revolve around the next verifiable step."),prompts:[["Что требует проверки?","What needs review?"],["Покажи следующий шаг публикации","Show the next release step"]],symbol:"⌘"};
   }
   function myDayCases(){
@@ -442,8 +456,9 @@
     const agents=currentSpace==="Семья"?["domashkin","fixarik"]:["fixarik","domashkin"];
     const prompts=copy.prompts.map(pair=>'<button class="my-day-prompt" type="button" data-my-day-prompt="'+attr(uiText(pair[0],pair[1]))+'">'+esc(uiText(pair[0],pair[1]))+'</button>').join("");
     const assistants=friendly?'<div class="my-day-section-head"><h2>'+uiText("Ваши помощники","In good company")+'</h2><small>'+uiText("У каждого — своё дело","A case for every assistant")+'</small></div><div class="my-day-agent-grid">'+agents.map(myDayAgentCard).join("")+'</div>':"";
-    const extras=(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"");
-    const spaceClass={"Семья":"space-family","Личное":"space-personal","Практика":"space-practice","Разработка":"space-development"}[currentSpace]||"space-personal";
+    const devPacksSection=currentSpace==="Разработка"?'<section class="my-day-highlight" id="dev-packs-preview"><div><span class="eyebrow">ПАКИ РЕЕСТРА</span><h2>Загрузка паков…</h2><div id="dev-packs-home" class="pgrid" style="margin-top:12px"><div class="skel-card" style="height:80px"></div></div></div></section>':'';
+    const extras=devPacksSection+(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"");
+    const spaceClass={"Семья":"space-family","Личное":"space-personal","Практика":"space-practice","Разработка":"space-development","Исследования":"space-development"}[currentSpace]||"space-personal";
     return '<main class="my-day-home '+spaceClass+'"><header class="my-day-heading"><div><p class="eyebrow">'+uiText("ВАШЕ ПРОСТРАНСТВО ДЛЯ ЖИЗНИ","A LITTLE SPACE FOR YOUR LIFE")+'</p><h1>'+uiText("Меньше забот.<br>Больше вашей жизни.","Less to manage.<br>More life to live.")+'</h1><p>'+uiText("Вы решаете, что важно. Мы помогаем с остальным.","You choose what matters. We help with the rest.")+'</p></div><button class="my-day-badge" type="button" data-my-day-chat>'+uiText("К чату","Back to chat")+' ←</button></header><div class="my-day-layout"><div class="my-day-main"><section class="my-day-highlight"><div><span class="eyebrow">'+uiText("ОДНА ХОРОШАЯ МЫСЛЬ НА СЕГОДНЯ","ONE GOOD IDEA FOR TODAY")+'</span><h2>'+copy.highlight+'</h2><p>'+copy.body+'</p><button class="my-day-text-button" type="button" '+(cases[0]?'data-my-day-case="'+attr(cases[0].id)+'"':'data-act="create-case"')+'>'+(cases[0]?uiText("Продолжить главное дело","Continue the main case"):uiText("Начать с одного дела","Start with one case"))+' →</button></div><div class="my-day-orbit" aria-hidden="true"><div class="my-day-orbit-card">'+copy.symbol+'<b>'+esc(currentSpace)+'</b></div></div></section><form class="my-day-composer" data-act="my-day-ask"><label>'+uiText("С чего начнём?","Where shall we start?")+'</label><textarea name="message" rows="2" maxlength="8000" required placeholder="'+uiText("Напишите, что хочется упростить…","What would you like to make easier?")+'"></textarea><div class="my-day-composer-foot"><small>'+uiText("Фиксарик видит текущую страницу и может передать вопрос профильному помощнику.","Fixarik sees this page and can hand the question to a specialist assistant.")+'</small><button class="btn primary" type="submit">'+uiText("Отправить","Send")+'</button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Умные подсказки","Smart suggestions")+'">'+prompts+'</div>'+assistants+'</div>'+myDayRail()+'</div>'+extras+'</main>';
   }
 
@@ -537,6 +552,7 @@
   }
   function ownerBody(tab,data){ if(tab==="overview")return ownerOverview(data); if(tab==="users")return ownerUsers(data); if(tab==="acquisition")return ownerAcquisition(data); if(tab==="settings")return ownerSettingsPanel(data); if(tab==="integrations")return ownerYandex360(data); if(tab==="backups")return ownerBackups(data); if(tab==="broadcast")return ownerBroadcast(data); return ownerAudit(data); }
   async function renderOwnerRoute(requested,options){
+    syncHomeChrome(null);
     const tab=ownerTool(requested)[0],token=++ownerRouteToken;
     currentSpace="Разработка"; rebuildNav(); closeNav(); vwrap.classList.remove("dialog-view");
     vwrap.innerHTML=ownerShell(tab,'<div class="owner-loading">'+skelCard(5)+'</div>',"Проверяю доступ и читаю данные…"); vwrap.parentElement.scrollTop=0;
@@ -911,6 +927,61 @@
       '<div id="casepanel">'+casePanel(tabs[0])+'</div>';
   }
 
+  // --- Экраны «Разработка» — реальные данные ---
+  function screenDevPacks(node){
+    return crumbsBlock(node)+
+      '<div class="vhead"><p class="eyebrow">Разработка · Паки</p><h1>Мои паки</h1><p>Реальные паки из реестра.</p></div>'+
+      '<div id="dev-packs-grid" class="pgrid"><div class="skel-card" style="height:120px"></div><div class="skel-card" style="height:120px"></div></div>';
+  }
+  function screenDevAgents(node){
+    return crumbsBlock(node)+
+      '<div class="vhead"><p class="eyebrow">Разработка · Агенты</p><h1>Мои агенты</h1><p>Агенты и их настройки. Скоро — реальные данные из identity-service.</p></div>'+
+      '<div class="stub"><span class="tag">Подключается</span><p>Список агентов будет загружаться из identity-service.</p></div>';
+  }
+  function screenDevTesting(node){
+    return crumbsBlock(node)+
+      '<div class="vhead"><p class="eyebrow">Разработка · Тестирование</p><h1>Тесты и результаты</h1><p>Метрики golden-прогонов и агентов за 24 часа.</p></div>'+
+      '<div id="dev-tests-grid" class="pgrid"><div class="skel-card" style="height:120px"></div></div>';
+  }
+  function screenDevPublications(node){
+    return crumbsBlock(node)+
+      '<div class="vhead"><p class="eyebrow">Разработка · Публикации</p><h1>Публикации</h1><p>Версии паков и их статус. Данные из registry.</p></div>'+
+      '<div id="dev-pub-grid" class="pgrid"><div class="skel-card" style="height:120px"></div></div>';
+  }
+  function screenDevAnalytics(node){
+    return crumbsBlock(node)+
+      '<div class="vhead"><p class="eyebrow">Разработка · Аналитика</p><h1>Аналитика паков</h1><p>Активные пользователи, установки, удержание из registry/analytics.</p></div>'+
+      '<div id="dev-analytics-grid" class="pgrid"><div class="skel-card" style="height:120px"></div></div>';
+  }
+  async function loadDevPacks(grid){
+    try{
+      const data=await authFetch("GET","/packs");
+      const packs=(data&&data.packs)||[];
+      if(!packs.length){ grid.innerHTML='<div class="stub"><span class="tag">Паков нет</span><p>В реестре пока нет паков.</p></div>'; return; }
+      grid.innerHTML=packs.map(p=>{
+        const title=esc(p.title||p.id), desc=esc((p.description||"").slice(0,120));
+        const ver=p.version?'<span class="chip">v'+esc(String(p.version))+'</span>':'';
+        const kinds=(p.deal_kinds||[]).length, kindsLabel=kinds?kinds+' тип(ов) дел':'';
+        return '<button class="pcard" onclick="go(\''+PACK_NODE.id+'\')">'+
+          '<div style="display:flex;gap:10px;align-items:center"><span class="pico">'+esc((title[0]||"П").toUpperCase())+'</span>'+ver+'</div>'+
+          '<h3>'+title+'</h3><p>'+desc+'</p>'+
+          '<div class="pmeta"><span>'+esc(p.id)+'</span><span>'+esc(kindsLabel)+'</span></div>'+
+          '<span class="popen">Открыть пак →</span></button>';
+      }).join("");
+    }catch(err){ grid.innerHTML='<div class="stub"><span class="tag">Ошибка</span><p>'+esc((err&&err.message)||"Не удалось загрузить паки")+'</p></div>'; }
+  }
+  async function loadDevTests(grid){
+    try{
+      const data=await authFetch("GET","/ops/owner/metrics?hours=24");
+      const models=(data&&data.models)||[];
+      if(!models.length){ grid.innerHTML='<div class="stub"><span class="tag">Нет данных</span><p>Метрики за 24 часа пусты.</p></div>'; return; }
+      grid.innerHTML='<div class="section-t">Агенты и модели за 24ч</div>'+
+        '<div style="overflow-x:auto"><table class="otable"><thead><tr><th>Агент</th><th>Модель</th><th>Контур</th><th>Вызовы</th><th>Отказы</th></tr></thead><tbody>'+
+        models.map(m=>'<tr><td>'+esc(m.agent_id||"—")+'</td><td>'+esc(m.model||"—")+'</td><td>'+esc(m.egress||"—")+'</td><td>'+esc(String(m.calls||0))+'</td><td>'+esc(String(m.denied||0))+'</td></tr>').join("")+
+        '</tbody></table></div>';
+    }catch(err){ grid.innerHTML='<div class="stub"><span class="tag">Ошибка</span><p>'+esc((err&&err.message)||"Не удалось загрузить метрики")+'</p></div>'; }
+  }
+
   const SCREENS = {
     "Публичная часть / Главная": screenLanding,
     "Публичная часть / Каталог решений": screenCatalog,
@@ -926,13 +997,25 @@
     "Юридические документы / Данные несовершеннолетних": screenLegalCenter,
     "Юридические документы / Правила публикации паков": screenLegalCenter,
     "Юридические документы / Условия для разработчиков": screenLegalCenter,
-    "Юридические документы / Политика удаления данных": screenLegalCenter
+    "Юридические документы / Политика удаления данных": screenLegalCenter,
+    "Для работы · Разработка / Паки": screenDevPacks,
+    "Для работы · Разработка / Агенты": screenDevAgents,
+    "Для работы · Разработка / Тестирование": screenDevTesting,
+    "Для работы · Разработка / Публикации": screenDevPublications,
+    "Для работы · Разработка / Аналитика паков": screenDevAnalytics
   };
   const pathKey = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
 
   function bindScreen(){
     initHolographicShell();
     initHolographicHome(vwrap);
+    // --- Загрузка реальных данных для экранов «Разработка» ---
+    const packsGrid=vwrap.querySelector('#dev-packs-grid');
+    if(packsGrid) loadDevPacks(packsGrid);
+    const packsHome=vwrap.querySelector('#dev-packs-home');
+    if(packsHome) loadDevPacks(packsHome);
+    const testsGrid=vwrap.querySelector('#dev-tests-grid');
+    if(testsGrid) loadDevTests(testsGrid);
     const appearancePanel=vwrap.querySelector('.appearance');
     if(appearancePanel){
       const sync=(value)=>{

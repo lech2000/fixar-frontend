@@ -140,6 +140,23 @@
     состояние.ticket = "";
   }
 
+  function закрытьПриУходе() {
+    var билет = состояние.ticket;
+    if (!билет) { return; }
+    остановить();
+    /* Лучшее усилие при закрытии или перезагрузке вкладки. Даже если сеть не
+       успеет, сервер сам погасит окно после четырёх минут без действий. */
+    fetch(API + "/browser/login-window/close", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + состояние.token
+      },
+      body: JSON.stringify({ ticket: билет }),
+      keepalive: true
+    }).catch(function () {});
+  }
+
   function ход(тело) {
     тело.ticket = состояние.ticket;
     состояние.очередь = состояние.очередь.then(function () {
@@ -266,6 +283,7 @@
   });
 
   window.addEventListener("resize", размерБраузера);
+  window.addEventListener("pagehide", закрытьПриУходе);
 
   состояние.token = токен();
   if (состояние.token) {
