@@ -547,7 +547,15 @@
     if(realTab==="План"){
       const actions=activeReal.nextActions||[];
       const suggestions=actions.length?[]:suggestedPlanActions();
-      const actionRows=actions.map(action=>'<div class="task"><span class="tstat '+(action.done?'done':'todo')+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(action.what||"Шаг")+'</b><span>'+esc(nextActionOwnerName(action.owner))+(action.due?' · до '+esc(fmtWhen(action.due)):'')+(action.waiting_for?' · ждём: '+esc(action.waiting_for):'')+'</span></div>'+(canDecide&&!action.done?'<button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button>':(action.done?'<span class="done-mark">выполнено</span>':''))+'</div>').join("");
+      const skipKey=caseId=>{ try{ return JSON.parse(localStorage.getItem("fixar-v2-plan-skipped:"+(authState.principal||"guest")+":"+caseId)||"{}"); }catch(_){ return {}; } };
+      const skipped=activeReal.c?skipKey(activeReal.c.id):{};
+      const actionRows=actions.map(action=>{
+        const isSkip=!!skipped[action.id];
+        const dot=isSkip?"skip":(action.done?"done":"todo");
+        const stateNote=isSkip?'<div class="tstate"><b>Пропущено.</b> '+esc(skipped[action.id]||"Без пояснения.")+'</div>':"";
+        const buttons=(canDecide&&!action.done&&!isSkip)?'<span class="task-actions"><button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button><button class="btn small" type="button" data-act="skip-action" data-id="'+attr(action.id)+'">Пропустить</button></span>':(action.done?'<span class="done-mark">выполнено</span>':(isSkip?'<span class="done-mark">пропущено</span>':''));
+        return '<div class="task'+(isSkip?' task-skipped':'')+'"><span class="tstat '+dot+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(action.what||"Шаг")+'</b><span>'+esc(nextActionOwnerName(action.owner))+(action.due?' · до '+esc(fmtWhen(action.due)):'')+(action.waiting_for?' · ждём: '+esc(action.waiting_for):'')+'</span>'+stateNote+'</div>'+buttons+'</div>';
+      }).join("");
       const ownerOptions='<option value="">Пока не назначен</option>'+(c.participants||[]).map(participant=>'<option value="'+attr(participant.principal_id)+'">'+esc(participant.display_name||(participant.principal_id===authState.principal?'Вы':'Участник'))+'</option>').join("")+(c.selected_agent_id?'<option value="'+attr(c.selected_agent_id)+'">'+esc(assistantName(c))+'</option>':'');
       const importOffer=suggestions.length?'<div class="case-form-note"><span>✦</span><p><b>Фиксар уже выделил '+suggestions.length+' модуля.</b><br>Проверьте сроки и перенесите их в настоящий план дела.</p></div><button class="btn primary case-form-submit" type="button" data-act="plan-from-dialog">Собрать план из ответа</button>':'';
       const actionForm=canDecide?'<aside class="case-form-card tone-blue"><p class="eyebrow">'+(suggestions.length?'ГОТОВАЯ СТРУКТУРА':'НОВЫЙ ПУНКТ ПЛАНА')+'</p><h2>'+(suggestions.length?'Перенести модули в план?':'Что нужно сделать?')+'</h2><p>'+(suggestions.length?'Ничего не нужно описывать повторно: модули взяты из последнего ответа Фиксара.':'Пункт сохранится в деле и будет виден участникам. Срок и ответственного можно оставить пустыми.')+'</p>'+importOffer+'<details'+(suggestions.length?'':' open')+' class="case-more-fields"><summary>Добавить один пункт вручную</summary><form class="pform case-modern-form" data-act="next-action"><label><span>Действие</span><textarea name="what" rows="3" maxlength="1000" required placeholder="Например, реализовать загрузку банковских выписок PDF и Excel"></textarea></label><div class="case-field-grid"><label><span>Ответственный</span><select name="owner">'+ownerOptions+'</select></label><label><span>Срок</span><input name="due" type="datetime-local"></label></div><label><span>Что ждём</span><input name="waiting_for" maxlength="255" placeholder="Например, тестовые выписки за квартал"></label><button class="btn primary case-form-submit" type="submit">Добавить пункт плана</button></form></details></aside>':'<aside class="case-form-card tone-muted"><p class="eyebrow">ПЛАН</p><h2>Изменения защищены</h2><p>Добавлять и завершать пункты может участник с правом «решения».</p></aside>';
@@ -766,6 +774,12 @@
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/actions/"+encodeURIComponent(b.dataset.id)+"/complete",{}); realTab="План"; await renderRealCase(c.id); }
         catch(err){ b.disabled=false; b.textContent="Готово"; toast((err&&err.message)||"Не удалось завершить пункт плана."); }
         return;
+      }
+      if(act==="skip-action"){
+        const reason=window.prompt("Почему пропускаем этот шаг? (видно только вам, в этом браузере)","Не хочу делать запросы");
+        if(reason===null) return;
+        try{ const key="fixar-v2-plan-skipped:"+(authState.principal||"guest")+":"+c.id; const map=JSON.parse(localStorage.getItem(key)||"{}"); map[b.dataset.id]=(reason||"").trim()||"Без пояснения."; localStorage.setItem(key,JSON.stringify(map)); }catch(_){ toast("Не удалось сохранить пропуск."); return; }
+        realTab="План"; await renderRealCase(c.id); return;
       }
       if(act==="state"){ const st=b.dataset.state; const nm={closed:"завершить",archived:"архивировать",active:"возобновить"}; if(!window.confirm("Точно "+(nm[st]||st)+" это дело?")) return; b.disabled=true;
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/state",{target_state:st,reason:"смена статуса из предпросмотра v2"}); REAL.loaded=false; await loadRealCases(true); toast(st==="closed"?"Дело завершено и осталось в фильтре «Завершённые».":(st==="archived"?"Дело перенесено в архив.":"Дело снова активно.")); await renderRealCase(c.id); }
