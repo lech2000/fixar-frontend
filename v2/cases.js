@@ -192,7 +192,7 @@
     REAL.loading=false;
   }
   const isLegacyHomeworkAnalysisCase = c => /^Разбор домашнего задания$/i.test(String(c&&c.title||"").trim());
-  const SBERINDEX_AGENTS=["sberindex_atlas_researcher","sberindex_radar_researcher","sberindex_graph_steward","sberindex_research_curator"];
+  const SBERINDEX_AGENTS=["sberindex_atlas_researcher","sberindex_radar_researcher","sberindex_graph_steward","sberindex_research_curator","adam_flybrain_researcher"];
   const isResearchCase = c => SBERINDEX_AGENTS.includes(c.selected_agent_id);
   function spaceForRealCase(c){
     if((c.scope||"")==="home")return "Семья";
@@ -474,6 +474,18 @@
     questionnaire.fields.forEach((field,index)=>{ const nodes=[...form.querySelectorAll('[name="answer_'+index+'"]')],values=(field.type==="single_choice"||field.type==="multi_choice")?nodes.filter(node=>node.checked).map(node=>node.value):nodes.map(node=>node.value.trim()).filter(Boolean); if(field.required&&!values.length)missing.push(field.label); if(values.length)lines.push("- "+field.label+": "+values.join(", ")); else lines.push("- "+field.label+": не указано"); });
     return {message:lines.join("\n"),missing};
   }
+  function dialogActionTiles(c){
+    const tiles=[];
+    const offer=commissionedOffer(c);
+    const canCommission=activeReal.isOwner&&!c.active_run_id&&!(activeReal.runs||[]).length&&offer&&!(!c.tariff_id&&caseHasSubstantiveWork());
+    if(canCommission)tiles.push({act:"commission-work",offer:offer.id,icon:"▶",title:c.tariff_id?"Продолжить запуск":"Разобрать задачу и запустить",hint:(offer.title||"")+" · "+String(offer.price).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" "+(offer.currency||"CREDITS")});
+    const canGrant=activeReal.canDecide&&authState.assurance>=2&&c.selected_agent_id&&c.template_version&&!c.active_run_id;
+    if(canGrant)tiles.push({act:"grant-agent",icon:"✦",title:"Дать поручение агенту",hint:"По закреплённому плану этого дела"});
+    if((activeReal.patches||[]).length)tiles.push({act:"goto-patches",icon:"☑",title:"Ждут решения: "+activeReal.patches.length,hint:"Подтвердить или отклонить"});
+    if(canCommission)tiles.push({act:"match-specialists-direct",icon:"◎",title:"Подобрать специалистов",hint:"Бесплатно, без запуска модели"});
+    if(!tiles.length)return "";
+    return '<div class="dialog-tiles" role="toolbar" aria-label="Действия по делу">'+tiles.map(t=>'<button class="dialog-tile" type="button" data-act="'+t.act+'"'+(t.offer?' data-offer="'+attr(t.offer)+'"':'')+'><span class="dialog-tile-icon" aria-hidden="true">'+t.icon+'</span><span><b>'+esc(t.title)+'</b><small>'+esc(t.hint)+'</small></span></button>').join("")+'</div>';
+  }
   function realDialogPanel(){
     const c=activeReal.c, assistant=assistantName(c);
     const allMessages=activeReal.events.filter(e=>e.kind==="dialog"&&evText(e)),shown=Math.max(50,Number(activeReal.dialogHistoryShown)||50),hidden=Math.max(0,allMessages.length-shown);
@@ -484,7 +496,7 @@
     const empty=messages||reply?"":'<div class="bubble"><small>'+esc(assistant)+'</small>Я в контексте этого дела. Можно написать, сказать голосом или приложить снимок.</div>';
     const prompts=smartCasePrompts(c).map(text=>'<button class="smart-prompt" type="button" data-chat-suggestion="'+attr(text)+'">'+esc(text)+'</button>').join("");
     const promptTray=(onMobile()&&(messages||reply))?'<details class="smart-prompts-fold"><summary>Быстрые подсказки</summary><div class="smart-prompts" aria-label="Умные подсказки">'+prompts+'</div></details>':'<div class="smart-prompts" aria-label="Умные подсказки">'+prompts+'</div>';
-    return '<section class="case-dialog" aria-label="Диалог по делу"><div class="case-dialog-head"><div><h2>'+esc(assistant)+'</h2><p>Знает текущее дело, его инструменты и разрешённые материалы</p></div><span class="chip info">в контексте</span></div>'+questionnairePrompt(activeReal.questionnaire,assistant)+promptTray+'<div class="case-thread" id="caseThread" aria-live="polite">'+older+messages+reply+empty+'</div><form class="chat-composer" data-act="ask-agent"><div class="chat-file-state" data-chat-file-state hidden></div><textarea name="message" rows="1" maxlength="8000" placeholder="Напишите или скажите, что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="chat-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><label class="chat-tool" aria-label="Сфотографировать"><input name="camera" type="file" accept="image/*" capture="environment"><span class="tool-icon" aria-hidden="true">📷</span><span>Камера</span></label><label class="chat-tool" aria-label="Приложить PDF, Excel, CSV или ZIP"><input name="attachment" type="file" accept="'+attr(STATEMENT_ACCEPT)+'"><span class="tool-icon" aria-hidden="true">📎</span><span>Файл</span></label><button class="btn primary chat-send" type="submit">Отправить</button></div><div class="chat-status" data-chat-status role="status" aria-live="polite"></div></form></section>';
+    return '<section class="case-dialog" aria-label="Диалог по делу"><div class="case-dialog-head"><div><h2>'+esc(assistant)+'</h2><p>Знает текущее дело, его инструменты и разрешённые материалы</p></div><span class="chip info">в контексте</span></div>'+questionnairePrompt(activeReal.questionnaire,assistant)+promptTray+dialogActionTiles(c)+'<div class="case-thread" id="caseThread" aria-live="polite">'+older+messages+reply+empty+'</div><form class="chat-composer" data-act="ask-agent"><div class="chat-file-state" data-chat-file-state hidden></div><textarea name="message" rows="1" maxlength="8000" placeholder="Напишите или скажите, что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="chat-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><label class="chat-tool" aria-label="Сфотографировать"><input name="camera" type="file" accept="image/*" capture="environment"><span class="tool-icon" aria-hidden="true">📷</span><span>Камера</span></label><label class="chat-tool" aria-label="Приложить PDF, Excel, CSV или ZIP"><input name="attachment" type="file" accept="'+attr(STATEMENT_ACCEPT)+'"><span class="tool-icon" aria-hidden="true">📎</span><span>Файл</span></label><button class="btn primary chat-send" type="submit">Отправить</button></div><div class="chat-status" data-chat-status role="status" aria-live="polite"></div></form></section>';
   }
   function realCaseNextStep(c){
     if(c.state==="closed"||c.state==="archived")return {title:"Дело завершено",note:"Результаты и материалы остаются под рукой.",tab:"Документы",action:"Открыть материалы"};
@@ -767,6 +779,7 @@
         openDirectProviderMatch(); return;
       }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
+      if(act==="goto-patches"){ realTab="План"; drawRealCase(); setTimeout(()=>{ const el=vwrap.querySelector(".case-plan-layout .section-t"); if(el)el.scrollIntoView({block:"nearest"}); },60); return; }
       if(act==="plan-from-dialog"){ openPlanImport(c.id,suggestedPlanActions()); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
       if(act==="complete-action"){

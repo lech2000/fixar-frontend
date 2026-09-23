@@ -72,11 +72,15 @@
   window.go = go;
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
-    if (h.indexOf("specialist=")===0){ handleSpecialistInviteLink(); return; }
+    if (h.indexOf("teaminvite=")===0){ handleTeamInviteLink(); return; }
     if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
     if (h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; }
-    const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; listFilter = t>=0 ? decodeURIComponent(h.slice(t+1)) : "Все";
+    // Страница пака живёт с query в хэше: #id?pack=auto. Режем по «?» раньше,
+    // чем по «~»: иначе id с хвостом не находится в byId и клик по карточке
+    // молча ничего не делает — та самая «кнопка не открывает».
+    const q=h.indexOf("?"); const base=q>=0?h.slice(0,q):h;
+    const t=base.indexOf("~"); const id=t>=0?base.slice(0,t):base; listFilter = t>=0 ? decodeURIComponent(base.slice(t+1)) : "Все";
     if (byId[id]) go(id);
   });
 
@@ -155,7 +159,7 @@
   document.getElementById("desktopacct").addEventListener("click", openAccount);
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
-  document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const invite=e.target.closest('[data-act="practice-specialist-invite"]'); if(invite){ e.preventDefault(); openSpecialistInvite(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const section=e.target.closest('[data-practice-section]'); if(section){ practiceSection=section.dataset.practiceSection||"needed"; refreshCurrentView(); return; } const practiceNode=e.target.closest('[data-practice-node]'); if(practiceNode){ go(practiceNode.dataset.practiceNode); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; practiceSection="needed"; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab=defaultRealTab(); location.hash="#case/"+rr.dataset.id; } });
+  document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const section=e.target.closest('[data-practice-section]'); if(section){ practiceSection=section.dataset.practiceSection||"needed"; refreshCurrentView(); return; } const practiceNode=e.target.closest('[data-practice-node]'); if(practiceNode){ go(practiceNode.dataset.practiceNode); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; practiceSection="needed"; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab=defaultRealTab(); location.hash="#case/"+rr.dataset.id; } });
   document.getElementById("view").addEventListener("click",event=>{
     const caseButton=event.target.closest("[data-my-day-case]"); if(caseButton){ realTab=defaultRealTab(); location.hash="#case/"+caseButton.dataset.myDayCase; return; }
     if(event.target.closest("[data-my-day-work]")){ HOME_WORK_MODE[currentSpace]=true; refreshCurrentView(); return; }
@@ -188,14 +192,21 @@
     document.getElementById("storageNoticeManage").addEventListener("click",()=>{markStorageNoticeRead();notice.hidden=true;const legal=findNode("Юридические документы");if(legal)go(legal.id);});
   }
   initStorageNotice();
+  const DOMASHKIN_STRIP_KEY="fixar.notice.domashkin-strip.v1";
+  (function initDomashkinStrip(){
+    const strip=document.getElementById("domashkinStrip"); if(!strip)return;
+    let seen=""; try{seen=localStorage.getItem(DOMASHKIN_STRIP_KEY)||"";}catch(_){}
+    if(seen!=="1") strip.hidden=false;
+    document.getElementById("domashkinStripHide").addEventListener("click",()=>{ try{localStorage.setItem(DOMASHKIN_STRIP_KEY,"1");}catch(_){} strip.hidden=true; });
+  })();
   if(window.FixarCommunity) window.FixarCommunity.init();
   // Сохраняем код до первого go(): он заменяет hash адресом экрана.
-  if(location.hash.indexOf("#specialist=")===0) specialistInviteCode();
-  bootIdentity().then(handleSpecialistInviteLink);
+  if(location.hash.indexOf("#teaminvite=")===0) teamInviteCode();
+  bootIdentity().then(handleTeamInviteLink);
 
   // старт
   (function(){ const h=location.hash.slice(1);
-    if (h.indexOf("specialist=")===0){ go(kidOf(SPACE_NODES["Практика"],"Главная")); return; }
+    if (h.indexOf("teaminvite=")===0){ go(kidOf(SPACE_NODES["Практика"],"Главная")); return; }
     if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
     if (h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; }

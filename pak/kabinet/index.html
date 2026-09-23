@@ -478,9 +478,12 @@
     if (!я.токен) {
       var m = $("msg"); m.className = "verdict no msg"; m.textContent = "";
       m.appendChild(узел("h4", null, "Войдите в ФиксАР"));
-      var p = узел("p", null, "Кабинет автора открывается вошедшему: паки подаются от вашего имени. ");
-      var a = узел("a", null, "Войти"); a.href = "/vhod/";
-      p.appendChild(a); m.appendChild(p);
+      var p = узел("p", null, "Кабинет автора открывается вошедшему: паки подаются от вашего имени. Войдите в оболочке ");
+      var a = узел("a", null, "v2 → аккаунт"); a.href = "/v2/";
+      p.appendChild(a);
+      p.appendChild(document.createTextNode(" (кнопка аккаунта вверху), затем вернитесь сюда и обновите страницу. "));
+      var b = узел("a", null, "Прежняя оболочка"); b.href = "/classic/";
+      p.appendChild(b); m.appendChild(p);
       return;
     }
     try {

@@ -797,6 +797,8 @@ body:not(.guest-shell) .acct-btn { border-color: rgba(255,255,255,.085); backgro
 .specialist-invite-card h3 { margin: 2px 0 7px; font-size: clamp(20px,2.6vw,28px); }
 .specialist-invite-card p:not(.eyebrow) { max-width: 68ch; margin: 0; color: var(--muted); line-height: 1.55; }
 .specialist-invite-form fieldset { margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 13px; }
+.specialist-invite-form textarea[name="services"] { min-height: 92px; resize: vertical; }
+.specialist-invite-form .field-hint { display: block; margin-top: -2px; color: var(--muted); font-size: 11px; line-height: 1.4; }
 .specialist-invite-form legend { padding: 0 5px; color: var(--muted); font-size: 12.5px; }
 .check-line { display: flex!important; flex-direction: row!important; align-items: flex-start; gap: 9px!important; }
 .check-line input { width: auto; margin-top: 3px; }

@@ -7087,7 +7087,7 @@ var state = { token: "", principal: "", assurance: 0, свой: false,
           practice_id: к.id, monthly_credits: n, note: (заметка.value || "").trim(),
           may: библиотека.getAttribute("aria-pressed") === "true" ? ["library_write"] : []
         });
-        ссылка.value = location.origin + "/#komanda=" + encodeURIComponent(от.code);
+        ссылка.value = location.origin + (от.link || ("/v2/#teaminvite=" + encodeURIComponent(от.code)));
         ссылка.hidden = false;
         слово.textContent = T("Ссылка одноразовая, живёт") + " " + (от.expires_in_hours || "") +
           " " + T("ч. Позванный прочтёт: ") + (от.what_they_will_see || []).join("; ") + ".";
