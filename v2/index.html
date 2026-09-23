@@ -17,15 +17,18 @@
         document.documentElement.dataset.theme=dark?"dark":"light";
         document.documentElement.dataset.themeMode=mode;
         var hue=Number(saved.hue);
-        if(!Number.isFinite(hue))hue=155;
+        if(!Number.isFinite(hue))hue=275;
+        if((saved.preset||"fixar")==="fixar"&&hue===155)hue=275;
         document.documentElement.style.setProperty("--accent-h",String(((Math.round(hue)%360)+360)%360));
         var backgroundHue=Number(saved.backgroundHue);
-        if(!Number.isFinite(backgroundHue))backgroundHue=145;
+        if(!Number.isFinite(backgroundHue))backgroundHue=270;
+        if((saved.preset||"fixar")==="fixar"&&backgroundHue===145)backgroundHue=270;
         backgroundHue=((Math.round(backgroundHue)%360)+360)%360;
         document.documentElement.style.setProperty("--background-h",String(backgroundHue));
         var background=Number(saved.background);
         if(!Number.isFinite(background))background=62;
         background=Math.max(0,Math.min(100,Math.round(background)));
+        document.documentElement.style.setProperty("--holo-lift",(background/200).toFixed(3));
         var lightness=dark?8.5+(background-50)*.08:96.5+(background-50)*.05;
         var backgroundColor=dark?"hsl("+backgroundHue+" 18% "+lightness+"%)":"hsl("+backgroundHue+" 22% "+lightness+"%)";
         document.documentElement.style.setProperty("--body-art",backgroundColor);
@@ -37,8 +40,9 @@
     @font-face{font-family:Inter;src:url('/v2/fonts/InterVariable.woff2?v=693b77d4f32e') format('woff2-variations');font-style:normal;font-weight:100 900;font-display:swap}
     :root{
       color-scheme:dark;
-      --accent-h:155;
-      --background-h:145;
+      --accent-h:275;
+      --background-h:270;
+      --holo-lift:.31;
       --bg:#101713;--panel:#18221d;--panel-2:#18221d;--field:#131c17;--sidebar:#131c17;--hover:#202d26;--field-line:#43564b;
       --line:#34443c;--line-soft:color-mix(in srgb,var(--line) 55%,transparent);
       --text:#edf3ee;--muted:#a6b2aa;--dim:#7e8e84;
@@ -249,6 +253,7 @@
     .task{ display:grid;grid-template-columns:14px 1fr auto;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line-soft) } .task:last-child{ border-bottom:0 }
     .tstat{ width:11px;height:11px;border-radius:50% } .tstat.done{ background:var(--green) } .tstat.waiting{ background:var(--amber) } .tstat.todo{ background:rgba(156,222,229,.35) }
     .tmain b{ font-size:14px } .tmain span{ display:block;color:var(--muted);font-size:12px }
+    .tstate{ margin-top:7px;padding:7px 10px;border:1px dashed var(--line);border-radius:9px;background:var(--field);color:var(--muted);font-size:12px;line-height:1.5 } .tstate b{ color:var(--text);font-weight:700 } .tstat.skip{ background:var(--dim) } .task-skipped{ opacity:.72 } .task-actions{ display:flex;gap:8px }
     .btn.small{ padding:7px 12px;font-size:12.5px }
     .prow{ display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid var(--line-soft) } .prow:last-child{ border-bottom:0 } .prow b{ font-size:14px }
     .perm-tags{ display:flex;flex-wrap:wrap;gap:6px;margin-top:6px } .ptag{ padding:3px 8px;border-radius:999px;background:var(--accent-soft);color:var(--cyan);font-size:11px }
@@ -412,8 +417,13 @@
     .case-dialog{ display:flex;flex-direction:column;gap:12px;width:100%;max-width:820px;height:min(720px,calc(100dvh - 170px));min-height:min(520px,calc(100dvh - 170px));overflow:hidden;padding:14px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(165deg,var(--panel),var(--panel-2));box-shadow:var(--shadow) }
     .case-dialog-head{ display:flex;align-items:flex-start;justify-content:space-between;gap:12px }.case-dialog-head h2{ margin:0;font-size:18px }.case-dialog-head p{ margin:3px 0 0;color:var(--muted);font-size:12.5px }
     .smart-prompts{ display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:1px 1px 4px;-webkit-overflow-scrolling:touch }.smart-prompts::-webkit-scrollbar{ display:none }.smart-prompt{ flex:0 0 auto;max-width:280px;padding:9px 12px;border:1px solid var(--accent-border);border-radius:999px;background:var(--accent-soft);color:var(--text);cursor:pointer;font-size:12.5px;white-space:nowrap }.smart-prompt:hover{ border-color:var(--cyan) }
+    .dialog-tiles{ display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px }.dialog-tile{ display:flex;gap:10px;align-items:center;text-align:left;padding:10px 12px;border:1px solid var(--cyan);border-radius:14px;background:linear-gradient(110deg,var(--accent-soft),var(--panel));color:var(--text);cursor:pointer;font:inherit;box-shadow:0 8px 22px rgba(2,13,18,.14) }.dialog-tile:hover{ border-color:var(--cyan);box-shadow:0 10px 26px rgba(2,13,18,.2) }.dialog-tile-icon{ display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:var(--cyan);color:var(--on-accent);font-weight:900 }.dialog-tile b{ display:block;font-size:13px }.dialog-tile small{ display:block;color:var(--muted);font-size:11.5px;margin-top:2px }
     .smart-prompts-fold>summary{display:none}
     .case-thread{ display:flex;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;flex-direction:column;gap:10px;padding:8px 4px;scrollbar-width:thin }.case-thread .bubble{ width:fit-content;max-width:min(88%,680px);margin:0;padding:12px 14px;font-size:14.5px;line-height:1.48 }.case-thread .bubble.user{ align-self:flex-end;background:rgba(98,230,242,.15) }.case-thread .bubble small{ display:block;margin-bottom:3px;color:var(--muted) }
+    .dialog-questionnaire{align-self:stretch;display:grid;gap:14px;padding:16px;border:1px solid var(--accent-border);border-radius:18px;background:linear-gradient(150deg,var(--accent-soft),var(--panel));box-shadow:0 16px 34px rgba(2,13,18,.16)}
+    .dialog-questionnaire-prompt{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--cyan);border-radius:15px;background:linear-gradient(110deg,var(--accent-soft),var(--panel));box-shadow:0 10px 26px rgba(2,13,18,.16)}.dialog-questionnaire-prompt-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:var(--cyan);color:var(--on-accent);font-weight:900}.dialog-questionnaire-prompt b{font-size:13px}.dialog-questionnaire-prompt p{margin:3px 0 0;color:var(--muted);font-size:12px;line-height:1.35}.dialog-questionnaire-prompt .btn{white-space:nowrap}
+    .dialog-questionnaire-head{display:flex;gap:12px;align-items:flex-start}.dialog-questionnaire-head>span{display:grid;place-items:center;flex:0 0 36px;height:36px;border-radius:12px;background:var(--cyan);color:var(--on-accent);font-weight:900}.dialog-questionnaire-head small{color:var(--cyan);font-size:10px;font-weight:850;letter-spacing:.13em}.dialog-questionnaire-head h3{margin:2px 0 0;font-size:18px;line-height:1.2}.dialog-questionnaire-head p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.45}
+    .dialog-question-field{display:grid;gap:7px;margin:0;padding:0;border:0;color:var(--text);font-size:13px;font-weight:720}.dialog-question-field em{color:var(--muted);font-size:10px;font-style:normal;font-weight:600}.dialog-question-field textarea,.dialog-question-field input[type="text"]{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:var(--field);color:var(--text);font:inherit;font-weight:500;resize:vertical}.dialog-question-options{display:flex;flex-wrap:wrap;gap:7px}.dialog-question-options label{position:relative;cursor:pointer}.dialog-question-options input{position:absolute;opacity:0;pointer-events:none}.dialog-question-options span{display:block;padding:8px 11px;border:1px solid var(--line);border-radius:11px;background:var(--field);color:var(--muted);font-size:12px;font-weight:650}.dialog-question-options input:checked+span{border-color:var(--cyan);background:var(--accent-soft);color:var(--text);box-shadow:inset 0 0 0 1px var(--cyan)}.dialog-question-options input:focus-visible+span{outline:2px solid var(--focus);outline-offset:2px}.dialog-questionnaire-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}.dialog-questionnaire-foot>span{color:var(--muted);font-size:12px}.dialog-questionnaire-foot .btn{margin-left:auto}
     .chat-history-more{ align-self:center;flex:none;padding:8px 13px;border:1px solid var(--line);border-radius:999px;background:var(--field);color:var(--muted);cursor:pointer;font-size:12px;font-weight:700 }.chat-history-more:hover{ border-color:var(--cyan);color:var(--text) }
     .chat-composer{ position:relative;display:flex;flex-direction:column;gap:9px;margin-top:auto;padding:11px;border:1px solid var(--line);border-radius:17px;background:var(--field) }.chat-composer textarea{ width:100%;min-height:58px;max-height:180px;padding:11px 12px;border:0;background:transparent;color:var(--text);font:inherit;font-size:16px;line-height:1.42;resize:none;outline:none }.chat-actions{ display:flex;align-items:center;gap:7px;flex-wrap:wrap }.chat-tool{ display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;font-size:13px;font-weight:650 }.chat-tool:hover{ border-color:var(--cyan) }.chat-tool input{ position:absolute;width:1px;height:1px;opacity:0;pointer-events:none }.chat-tool.listening{ border-color:var(--cyan);background:linear-gradient(110deg,var(--accent-soft),rgba(255,255,255,.22),var(--accent-soft));background-size:220% 100%;animation:shimmer 1.15s linear infinite }.chat-send{ margin-left:auto;min-height:42px }.chat-file-state{ padding:7px 10px;border-radius:10px;background:rgba(108,228,151,.09);color:var(--green);font-size:12px }.chat-status{ min-height:18px;color:var(--muted);font-size:12px }
     @media (max-width:760px){ .friendly-home .quick-jumps{ grid-template-columns:1fr } .quick-jump{ min-height:62px } }
@@ -424,6 +434,7 @@
       .vwrap.dialog-view .case-tabs{ margin:8px 0 8px }
       .case-dialog{ height:calc(100dvh - 142px);min-height:0;max-height:calc(100dvh - 142px);padding:10px;border-radius:17px;border-left:0;border-right:0 }
       .case-dialog-head{ padding:0 2px }.case-dialog-head h2{ font-size:16px }.case-dialog-head p{ display:none }
+      .dialog-questionnaire-prompt{grid-template-columns:32px minmax(0,1fr);padding:9px}.dialog-questionnaire-prompt-icon{width:32px;height:32px}.dialog-questionnaire-prompt .btn{grid-column:1/-1;width:100%}
       .case-thread{ min-height:0;max-height:none;padding:5px 2px 10px }.case-thread .bubble{ max-width:92%;font-size:15px }.case-thread .bubble.readable-answer{width:100%;max-width:100%}
       .smart-prompts{ margin-inline:-2px }.smart-prompt{ max-width:82vw;padding:10px 13px }
       .smart-prompts-fold{flex:none;margin:-2px 0 0}.smart-prompts-fold>summary{display:flex;align-items:center;justify-content:space-between;min-height:34px;padding:6px 10px;border:1px solid var(--line);border-radius:11px;background:var(--field);color:var(--muted);cursor:pointer;font-size:12px;font-weight:700;list-style:none}.smart-prompts-fold>summary::-webkit-details-marker{display:none}.smart-prompts-fold>summary::after{content:"Показать";color:var(--cyan);font-size:11px}.smart-prompts-fold[open]>summary::after{content:"Скрыть"}.smart-prompts-fold[open]>.smart-prompts{margin-top:7px}
@@ -432,7 +443,9 @@
       .sheet.reader-sheet{padding:0;align-items:stretch}.sheet.reader-sheet .sheet-card{width:100%;max-height:100dvh;border-radius:0;padding:18px 14px calc(14px + env(safe-area-inset-bottom))}.sheet.reader-sheet .sheet-card h2{padding-right:42px}.answer-reader{max-height:calc(100dvh - 118px);padding:15px 13px;border-radius:14px;font-size:16px;line-height:1.62}
     }
   </style>
-  <link rel="stylesheet" href="/v2/my-day.css?v=cdf5d7769e50">
+  <link rel="stylesheet" href="/v2/my-day.css?v=a56dd6c22919">
+  <link rel="stylesheet" href="/v2/community.css?v=fd0935f2fc48">
+  <link rel="stylesheet" href="/v2/holographic-shell.css?v=ed1be5afa80a">
 </head>
 <body class="guest-shell">
   <div class="app">
@@ -445,6 +458,21 @@
     </aside>
 
     <div class="view" id="view">
+      <div class="shell-holo-scene" data-holographic-shell aria-hidden="true">
+        <div class="shell-holo-grid"></div>
+        <div class="shell-holo-panels">
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-a is-flicker" style="--hx:72%;--hy:8%;--hw:18%;--hh:84px;--base:calc(.35 + var(--holo-lift));--duration:23100ms;--delay:-12700ms"><canvas data-holo-seed="2101" data-holo-variant="1"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-b" style="--hx:88%;--hy:29%;--hw:12%;--hh:106px;--base:calc(.3 + var(--holo-lift));--duration:19800ms;--delay:-4300ms"><canvas data-holo-seed="2279" data-holo-variant="0"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-c is-flicker" style="--hx:61%;--hy:61%;--hw:22%;--hh:92px;--base:calc(.33 + var(--holo-lift));--duration:31700ms;--delay:-23800ms"><canvas data-holo-seed="2467" data-holo-variant="2"></canvas><i></i></span>
+          <span class="fixar-holo-panel shell-holo-panel shell-panel-d" style="--hx:84%;--hy:84%;--hw:14%;--hh:78px;--base:calc(.28 + var(--holo-lift));--duration:26700ms;--delay:-19400ms"><canvas data-holo-seed="2659" data-holo-variant="1"></canvas><i></i></span>
+        </div>
+        <div class="shell-holo-veil"></div>
+      </div>
+      <button class="desktop-account" id="desktopacct" type="button" aria-label="Личный профиль и настройки" aria-haspopup="dialog">
+        <span class="av" id="desktopacctav" aria-hidden="true">Г</span>
+        <span class="desktop-account-copy"><b id="desktopacctnm">Гость</b><small id="desktopacctmeta">Личные настройки</small></span>
+        <span class="desktop-account-arrow" aria-hidden="true">⌄</span>
+      </button>
       <div class="topm">
         <button class="menu-btn" id="menu" aria-label="Меню" aria-controls="side" aria-expanded="false">☰</button>
         <span class="brand-mark" aria-hidden="true" style="width:32px;height:32px;border-radius:11px;font-size:24px">✳</span>
@@ -465,6 +493,16 @@
     <form id="agentdockform"><textarea name="message" rows="1" aria-label="Сообщение агенту" placeholder="Спросите о текущей странице или деле"></textarea><div class="agent-dock-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><button class="btn primary" type="submit">Отправить</button></div><div class="chat-status" data-voice-status role="status" aria-live="polite"></div></form>
     <div class="agent-answer" id="agentdockanswer">Я вижу текущий раздел и доступные здесь действия. Переходы сохраняются в вашей личной памяти на 90 дней.</div>
   </section>
+  <aside class="storage-notice domashkin-strip" id="domashkinStrip" hidden role="region" aria-label="Домашкин — помощник для школьников">
+    <div class="storage-notice-copy">
+      <b>⌂ Домашкин — школа без вечерней суеты</b>
+      <span>Объясняет задания, проверяет работу, подхватывает домашку из дневника.</span>
+    </div>
+    <div class="storage-notice-actions">
+      <a class="domashkin-strip-cta" href="/fixclo/?preset=education.domashkin&amp;pilot=domashkin">Подключить</a>
+      <button type="button" id="domashkinStripHide">Скрыть</button>
+    </div>
+  </aside>
   <aside class="storage-notice" id="storageNotice" hidden role="region" aria-label="Данные браузера">
     <div class="storage-notice-copy">
       <b>Cookie и внешних счётчиков нет.</b>
@@ -542,7 +580,8 @@
 │  │  ├─ Личное
 │  │  ├─ Семья
 │  │  ├─ Практика
-│  │  └─ Разработка
+│  │  ├─ Разработка
+│  │  └─ Исследования
 │  ├─ Создание профиля
 │  ├─ Настройка первого пространства
 │  ├─ Выбор стартового пака
@@ -796,6 +835,19 @@
 │     ├─ Безопасность
 │     ├─ Примеры
 │     └─ Журнал изменений
+├─ Для работы · Исследования
+│  ├─ Главная
+│  │  ├─ Диалог с исследователем
+│  │  ├─ Активные исследования
+│  │  └─ Сводка прогресса
+│  ├─ Проекты
+│  │  ├─ Все исследования
+│  │  ├─ Сбериндекс
+│  │  │  ├─ Атлас
+│  │  │  ├─ Радар
+│  │  │  └─ Инфраструктура
+│  │  ├─ Архив
+│  │  └─ Создать исследование
 ├─ Внутренняя структура любого дела
 │  ├─ Обзор
 │  │  ├─ Состояние
@@ -946,11 +998,12 @@
   <script src="/document-export.js?v=c1c487e682a1"></script>
   <script src="/core/config.js?v=bb43a234e799"></script>
   <script src="/core/http.js?v=ec111efbef20"></script>
-  <!-- Порядок — контракт исполнения: foundation публикует общие границы,
-       shell строит экраны, cases добавляет дела, bootstrap запускает UI. -->
-  <script src="/v2/foundation.js?v=28024323fd1e"></script>
-  <script src="/v2/shell.js?v=287d8cae852f"></script>
-  <script src="/v2/cases.js?v=547faaaca7e4"></script>
-  <script src="/v2/bootstrap.js?v=3b2c73726181"></script>
+  <!-- Контракт порядка: foundation → shell → cases → case-actions → community → bootstrap. -->
+  <script src="/v2/foundation.js?v=b535f170ba62"></script>
+  <script src="/v2/shell.js?v=9f824f47fbc2"></script>
+  <script src="/v2/cases.js?v=444080ed1ecf"></script>
+  <script src="/v2/case-actions.js?v=613de9ae72f2"></script>
+  <script src="/v2/community.js?v=d343a377279f"></script>
+  <script src="/v2/bootstrap.js?v=ac95350835e5"></script>
 </body>
 </html>

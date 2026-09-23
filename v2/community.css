@@ -1,0 +1,40 @@
+.community-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(18px);
+}
+.community-gate[hidden] { display: none; }
+.community-gate-card {
+  width: min(620px, 100%);
+  max-height: min(820px, calc(100vh - 36px));
+  overflow: auto;
+  padding: clamp(22px, 5vw, 38px);
+  border: 1px solid color-mix(in srgb, var(--cyan) 48%, var(--line));
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: 0 28px 90px rgba(0,0,0,.38);
+}
+.community-gate-card h1 { margin: 8px 0 12px; font-size: clamp(25px, 6vw, 38px); line-height: 1.08; }
+.community-gate-card p { color: var(--muted); line-height: 1.55; }
+.community-gate-card .community-eyebrow { color: var(--cyan); font-size: 12px; font-weight: 780; letter-spacing: .13em; text-transform: uppercase; }
+.community-facts { display: grid; gap: 10px; margin: 22px 0; }
+.community-fact { padding: 13px 15px; border: 1px solid var(--line); border-radius: 15px; background: var(--field); }
+.community-fact small { display: block; color: var(--dim); margin-bottom: 4px; }
+.community-consent { padding: 17px; border-left: 3px solid var(--cyan); border-radius: 0 15px 15px 0; background: color-mix(in srgb, var(--cyan) 9%, var(--field)); }
+.community-gate-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.community-gate-actions .btn { justify-content: center; min-height: 46px; }
+.community-gate-status { min-height: 22px; margin: 13px 0 0; color: var(--muted); font-size: 13px; }
+.community-plan { display: grid; gap: 10px; margin: 16px 0; padding: 0; list-style: none; }
+.community-plan li { padding: 13px 15px; border: 1px solid var(--line); border-radius: 14px; background: var(--field); }
+.community-plan li b { display: block; margin-bottom: 4px; }
+.community-plan li span { color: var(--muted); font-size: 13px; }
+@media (max-width: 520px) {
+  .community-gate { padding-inline: 10px; }
+  .community-gate-card { border-radius: 22px; padding: 22px 18px; }
+  .community-gate-actions { display: grid; }
+}

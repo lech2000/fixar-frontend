@@ -167,8 +167,8 @@
   const ENG_RU={owner:"владелец",paid:"платно",volunteer:"добровольно",partner:"партнёр"};
   const RUN_STATUS={queued:"в очереди",running:"выполняется",waiting_approval:"ждёт подтверждения",succeeded:"завершён",failed:"не удался",cancelled:"отменён",pending:"ожидает",claimed:"взят",skipped:"пропущен"};
   const INVITE_ROLES=["colleague","spouse","observer","lawyer","client","doctor","agronomist"];
-  const SPACE_SCOPE={"Личное":"personal","Семья":"home","Практика":"pro"};
-  const KIND_RU={"case.created":"дело создано","case.updated":"дело обновлено","case.state_changed":"статус изменён","routing.set":"назначен агент","brief.updated":"бриф обновлён","workflow.transitioned":"этап изменён","participant.added":"участник добавлен","participant.removed":"участник удалён","participant.may_see_changed":"доступ участника изменён","subject.added":"объект добавлен","client.set":"клиент задан","scope_set":"область задана","decision.made":"решение принято","action.added":"добавлено действие","action.completed":"действие выполнено","material.added":"добавлен материал","material.extracted":"материал разобран","source.read":"источник прочитан","deal.stage_set":"стадия сделки","option.added":"вариант добавлен","calendar.event.added":"событие в календаре","draft.added":"черновик добавлен","dialog":"сообщение","thread_started":"начато обсуждение","handoff":"передача","owner_transferred":"передано владение","permit.granted":"разрешение выдано","permit.revoked":"разрешение отозвано","patch.proposed":"агент предлагает изменение","patch.applied":"изменение применено","patch.denied":"изменение отклонено","run.created":"запущен агент","run.step.claimed":"шаг взят","run.step.waiting_approval":"шаг ждёт подтверждения","run.step.succeeded":"шаг выполнен","run.step.skipped":"шаг пропущен","run.step.failed":"шаг не удался","run.succeeded":"агент завершил","run.failed":"агент не смог"};
+  const SPACE_SCOPE={"Личное":"personal","Семья":"home","Практика":"pro","Исследования":"research"};
+  const KIND_RU={"case.created":"дело создано","case.updated":"дело обновлено","work.commissioned":"работа заказана","case.state_changed":"статус изменён","routing.set":"назначен агент","brief.updated":"бриф обновлён","workflow.transitioned":"этап изменён","participant.added":"участник добавлен","participant.removed":"участник удалён","participant.may_see_changed":"доступ участника изменён","subject.added":"объект добавлен","client.set":"клиент задан","scope_set":"область задана","decision.made":"решение принято","action.added":"добавлено действие","action.completed":"действие выполнено","material.added":"добавлен материал","material.extracted":"материал разобран","source.read":"источник прочитан","deal.stage_set":"стадия сделки","option.added":"добавлен вариант","calendar.event.added":"событие в календаре","draft.added":"черновик добавлен","dialog":"сообщение","thread_started":"начато обсуждение","handoff":"передача","owner_transferred":"передано владение","permit.granted":"разрешение выдано","permit.revoked":"разрешение отозвано","patch.proposed":"агент предлагает изменение","patch.applied":"изменение применено","patch.denied":"изменение отклонено","run.created":"запущен агент","run.step.claimed":"шаг взят","run.step.waiting_approval":"шаг ждёт подтверждения","run.step.succeeded":"шаг выполнен","run.step.skipped":"шаг пропущен","run.step.failed":"шаг не удался","run.succeeded":"агент завершил","run.failed":"агент не смог"};
 
   let REAL={loaded:false,loading:false,cases:[],error:null};
   let activeReal=null, realTab="Обзор";
@@ -192,18 +192,43 @@
     REAL.loading=false;
   }
   const isLegacyHomeworkAnalysisCase = c => /^Разбор домашнего задания$/i.test(String(c&&c.title||"").trim());
+  const SBERINDEX_AGENTS=["sberindex_atlas_researcher","sberindex_radar_researcher","sberindex_graph_steward","sberindex_research_curator","adam_flybrain_researcher"];
+  const isResearchCase = c => SBERINDEX_AGENTS.includes(c.selected_agent_id);
   function spaceForRealCase(c){
     if((c.scope||"")==="home")return "Семья";
+    if(isResearchCase(c))return "Исследования";
     if((c.scope||"")==="pro")return c.domain==="software"?"Разработка":"Практика";
     return "Личное";
   }
+  function caseSpaceName(c){ return spaceForRealCase(c); }
   function realCasesForSpace(space){
     const cases=REAL.cases.filter(c=>c.state!=="archived"&&!isLegacyHomeworkAnalysisCase(c));
     if(space==="Личное") return cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
     if(space==="Семья")  return cases.filter(c=>(c.scope||"")==="home");
     if(space==="Практика")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain!=="software");
-    if(space==="Разработка")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain==="software");
+    if(space==="Разработка")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain==="software"&&!isResearchCase(c));
+    if(space==="Исследования")return cases.filter(isResearchCase);
     return [];
+  }
+  const LAST_ACTIVE_CASE_KEY="fixar-v2-last-active-case:";
+  function rememberLastActiveCase(c){
+    if(!c||!authState.principal||c.state==="closed"||c.state==="archived")return;
+    put(LAST_ACTIVE_CASE_KEY+authState.principal,c.id);
+  }
+  function restoreLastActiveCase(){
+    if(!authState.signed_in||!authState.principal||!REAL.loaded||REAL.error)return false;
+    const raw=location.hash.slice(1),familyHome=kidOf(SPACE_NODES["Семья"],"Главная");
+    // Прямая ссылка и осознанно открытый раздел старше автоматического возврата.
+    // На старте оболочка сама ставит семейную главную — это и есть landing,
+    // который после входа заменяем последним живым делом.
+    if(raw&&raw!==familyHome)return false;
+    const active=REAL.cases.filter(c=>c.state!=="closed"&&c.state!=="archived"&&!isLegacyHomeworkAnalysisCase(c));
+    if(!active.length)return false;
+    const remembered=store(LAST_ACTIVE_CASE_KEY+authState.principal),chosen=active.find(c=>c.id===remembered)||active.slice().sort((left,right)=>String(right.updated_at||"").localeCompare(String(left.updated_at||"")))[0];
+    if(!chosen)return false;
+    currentSpace=spaceForRealCase(chosen);rebuildNav();realTab=defaultRealTab();
+    if(location.hash!=="#case/"+chosen.id)location.hash="#case/"+chosen.id;else routeCase(chosen.id);
+    return true;
   }
   async function openFamilyDialog(message){
     if(!authState.token){ openAccount(); return; }
@@ -257,38 +282,47 @@
 
   async function loadAllEvents(id){ let out=[],since=0; for(let i=0;i<20;i++){ const page=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/events?since_seq="+since); if(!Array.isArray(page)||!page.length) break; out=out.concat(page); const mx=page.reduce((m,e)=>Math.max(m,e.seq||0),since); since=mx+1; if(page.length<200) break; } return out; }
   const evText = ev => { const p=ev.payload||{}; return p.title||p.message||p.text||p.note||p.name||p.step||p.reason||p.summary||""; };
-  function evActor(ev){ if(ev.actor_kind==="agent")return assistantName(activeReal&&activeReal.c); if(ev.actor_kind==="system")return "Система"; if(ev.actor_kind==="worker")return "Служба"; if(ev.actor_kind==="principal"){ const p=(activeReal&&(activeReal.c.participants||[]).find(x=>x.principal_id===ev.actor_id)); return (p&&p.display_name)||(ev.actor_id===authState.principal?"Вы":"Человек"); } return ev.actor_kind||"—"; }
+  function evActor(ev){ if(ev.actor_kind==="principal"&&ev.actor_id===authState.principal)return "Вы"; if(ev.actor_kind==="agent")return assistantName(activeReal&&activeReal.c); if(ev.actor_kind==="system")return "Система"; if(ev.actor_kind==="worker")return "Служба"; if(ev.actor_kind==="principal"){ const p=(activeReal&&(activeReal.c.participants||[]).find(x=>x.principal_id===ev.actor_id)); return (p&&p.display_name)||"Человек"; } return ev.actor_kind||"—"; }
   function eventLine(ev){ const k=KIND_RU[ev.kind]||ev.kind; const t=evText(ev); const ag=ev.actor_kind==="agent"; return '<div class="ev '+esc(ev.actor_kind||"")+'"><div class="eh"><b>'+esc(evActor(ev))+'</b> · '+esc(k)+(ag?'<span class="badge">агент</span>':'')+' · '+esc(fmtWhen(ev.created_at))+'</div>'+(t?'<div class="et">'+esc(t)+'</div>':'')+'</div>'; }
   function ownerName(){ const c=activeReal.c; const o=(c.participants||[]).find(p=>p.role==="owner"); if(o&&o.display_name)return o.display_name; return c.owner_id===authState.principal?"Вы":"—"; }
 
   function routeCase(id){
+    syncHomeChrome(null);
     if(!authState.ready){ window.setTimeout(()=>{ if(location.hash==="#case/"+id) routeCase(id); },80); return; }
     if (CASE_SEEDS[id] || CASES[id] || /^gen-/.test(id)){ if(!CASES[id]&&CASE_SEEDS[id])CASES[id]=cloneCase(CASE_SEEDS[id]); if(CASES[id]){ activeReal=null; activeCaseId=id; caseTab="Обзор"; renderCase(); } return; }
     if (hasSession()){ activeCaseId=null; realTab=defaultRealTab(); renderRealCase(id); return; }
     go(kidOf(SPACE_NODES[currentSpace],"Главная"));
   }
+  async function optionalCaseLoad(loader,fallback){ try{return {value:await loader(),error:""};}catch(error){return {value:fallback,error};} }
   async function renderRealCase(id){
     vwrap.innerHTML=skeletonCase(); vwrap.parentElement.scrollTop=0;
     try{
       const c=await authFetch("GET","/cases/"+encodeURIComponent(id));
       const caseSpace=spaceForRealCase(c); if(currentSpace!==caseSpace){currentSpace=caseSpace;rebuildNav();}
-      const events=await loadAllEvents(id);
-      let runs=[],patches=[],drafts=[],nextActions=[],children=[],childrenError="",personalAgents=[],familyThread=null,materials=[],hiddenMaterials=0,calendarEvents=[],calendarError="";
-      try{ const rr=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/runs?limit=10"); runs=Array.isArray(rr)?rr:[]; }catch(_){}
-      try{ const pp=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/patches?status=pending_approval"); patches=Array.isArray(pp&&pp.patches)?pp.patches:[]; }catch(_){}
-      try{ const dd=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/drafts"); drafts=Array.isArray(dd&&dd.drafts)?dd.drafts:[]; }catch(_){}
-      try{ const aa=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/actions"); nextActions=Array.isArray(aa)?aa:[]; }catch(_){}
-      try{ const mm=await authFetch("GET","/cases/"+encodeURIComponent(id)+"/materials"); materials=Array.isArray(mm&&mm.materials)?mm.materials:[]; hiddenMaterials=Number(mm&&mm.hidden)||0; }catch(_){}
-      if(c.owner_id===authState.principal){ try{ const ce=await authFetch("GET","/calendar?case_id="+encodeURIComponent(id)+"&days=730&past=365"); calendarEvents=Array.isArray(ce&&ce.events)?ce.events:[]; }catch(error){ calendarError=(error&&error.message)||"Календарь временно недоступен."; } }
-      if(isDomashkinCase(c)&&c.owner_id===authState.principal){
-        try{ const cc=await authFetch("GET","/homework/children"); children=Array.isArray(cc)?cc:[]; }catch(error){ childrenError=(error&&error.message)||"Не удалось проверить профили детей."; }
-        try{ const aa=await authFetch("GET","/personal-agents"); personalAgents=Array.isArray(aa&&aa.agents)?aa.agents:[]; }catch(_){}
-      }
-      if(isDomashkinCase(c)){
-        try{ const list=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/threads?limit=100"); const ref=(list.threads||[]).find(thread=>thread.case_id===id); if(ref){ familyThread=await authFetch("GET","/threads/"+encodeURIComponent(ref.thread_id)); const messages=familyThread.messages||[]; if(messages.length)try{ await authFetch("POST","/threads/"+encodeURIComponent(ref.thread_id)+"/read",{seq:messages[messages.length-1].seq}); }catch(_){} } }catch(_){}
-      }
+      const encoded=encodeURIComponent(id),isOwner=c.owner_id===authState.principal,domashkin=isDomashkinCase(c),ownerDomashkin=isDomashkinCase(c)&&c.owner_id===authState.principal,loadOffers=isOwner&&c.template_id&&(!c.selected_agent_id||c.tariff_id);
+      const [events,runsLoad,patchesLoad,draftsLoad,actionsLoad,materialsLoad,offersLoad,calendarLoad,childrenLoad,agentsLoad,threadLoad]=await Promise.all([
+        loadAllEvents(id),
+        optionalCaseLoad(()=>authFetch("GET","/cases/"+encoded+"/runs?limit=10"),[]),
+        optionalCaseLoad(()=>authFetch("GET","/cases/"+encoded+"/patches?status=pending_approval"),{patches:[]}),
+        optionalCaseLoad(()=>authFetch("GET","/cases/"+encoded+"/drafts"),{drafts:[]}),
+        optionalCaseLoad(()=>authFetch("GET","/cases/"+encoded+"/actions"),[]),
+        optionalCaseLoad(()=>authFetch("GET","/cases/"+encodeURIComponent(id)+"/materials"),{materials:[],hidden:0}),
+        loadOffers?optionalCaseLoad(()=>authFetch("GET","/offers?q="+encodeURIComponent(c.goal||c.title||"")),{offers:[]}):Promise.resolve({value:{offers:[]},error:""}),
+        isOwner?optionalCaseLoad(()=>authFetch("GET","/calendar?case_id="+encodeURIComponent(id)+"&days=730&past=365"),{events:[]}):Promise.resolve({value:{events:[]},error:""}),
+        ownerDomashkin?optionalCaseLoad(()=>authFetch("GET","/homework/children"),[]):Promise.resolve({value:[],error:""}),
+        ownerDomashkin?optionalCaseLoad(()=>authFetch("GET","/personal-agents"),{agents:[]}):Promise.resolve({value:{agents:[]},error:""}),
+        domashkin?optionalCaseLoad(async()=>{ const list=await authFetch("GET","/principals/"+encodeURIComponent(authState.principal)+"/threads?limit=100"),ref=(list.threads||[]).find(thread=>thread.case_id===id); if(!ref)return null; const value=await authFetch("GET","/threads/"+encodeURIComponent(ref.thread_id)),messages=value.messages||[]; if(messages.length)try{await authFetch("POST","/threads/"+encodeURIComponent(ref.thread_id)+"/read",{seq:messages[messages.length-1].seq});}catch(_){} return value; },null):Promise.resolve({value:null,error:""})
+      ]);
+      const runs=Array.isArray(runsLoad.value)?runsLoad.value:[],patches=Array.isArray(patchesLoad.value&&patchesLoad.value.patches)?patchesLoad.value.patches:[],drafts=Array.isArray(draftsLoad.value&&draftsLoad.value.drafts)?draftsLoad.value.drafts:[],nextActions=Array.isArray(actionsLoad.value)?actionsLoad.value:[];
+      const mm=materialsLoad.value,materialsDoc=mm||{},materials=Array.isArray(materialsDoc.materials)?materialsDoc.materials:[],hiddenMaterials=Number(mm&&mm.hidden)||0,domain=String(c.template_id||"").split(".")[0],workOffers=((offersLoad.value&&offersLoad.value.offers)||[]).filter(offer=>offer.domain===domain);
+      const calendarEvents=Array.isArray(calendarLoad.value&&calendarLoad.value.events)?calendarLoad.value.events:[],calendarError=calendarLoad.error?((calendarLoad.error&&calendarLoad.error.message)||"Календарь временно недоступен."):"";
+      const children=Array.isArray(childrenLoad.value)?childrenLoad.value:[],childrenError=childrenLoad.error?((childrenLoad.error&&childrenLoad.error.message)||"Не удалось проверить профили детей."):"",personalAgents=Array.isArray(agentsLoad.value&&agentsLoad.value.agents)?agentsLoad.value.agents:[],familyThread=threadLoad.value||null;
       const me=(c.participants||[]).find(p=>p.principal_id===authState.principal)||{};
-      activeReal={ c, events, runs, patches, drafts, nextActions, materials, hiddenMaterials, calendarEvents, calendarError, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      const eventQuestionnaire=questionnaireFromEvents(events);
+      const pendingQuestionnaire=eventQuestionnaire===undefined?readQuestionnaire(id):eventQuestionnaire;
+      rememberQuestionnaire(id,pendingQuestionnaire);
+      activeReal={ c, events, runs, patches, drafts, nextActions, materials, hiddenMaterials, calendarEvents, calendarError, workOffers, children, childrenError, personalAgents, familyThread, school:null, textbookStatus:"", reply:"", questionnaire:pendingQuestionnaire, questionnaireAutoOpen:!!pendingQuestionnaire, dialogHistoryShown:50, myRights:(me.rights||[]), canDecide:((me.rights||[]).indexOf("decide")>=0)||(c.owner_id===authState.principal), canComment:((me.rights||[]).indexOf("comment")>=0)||(c.owner_id===authState.principal), isOwner:c.owner_id===authState.principal };
+      rememberLastActiveCase(c);
       if(isDomashkinCase(c)&&activeReal.isOwner&&children.length) await loadSchoolDay(children[0].id,dateInputValue(new Date(Date.now()+24*60*60*1000)),false);
       if(location.hash!=="#case/"+id) location.hash="#case/"+id;
       drawRealCase();
@@ -364,8 +398,17 @@
     return controls+'<div class="section-t">Уроки и задания</div><div class="lst">'+lessons+extra+'</div>'+empty+(!domashkinHomeworkAgent()?'<div class="rc-note">Для автоматического разбора включите личного Домашкина с модулем домашних заданий.</div>':'');
   }
   function domashkinHomeworkAgent(){ return (activeReal.personalAgents||[]).find(agent=>agent.state==="active"&&(agent.modules||[]).indexOf("homework")>=0); }
+  function caseHasSubstantiveWork(){ return !!((activeReal.nextActions||[]).length||(activeReal.materials||[]).length||(activeReal.drafts||[]).length||(activeReal.runs||[]).length); }
   function smartCasePrompts(c){
     const prompts=[];
+    // В кабинете разработки подсказки — это две ступени настоящего F7a,
+    // а не общие вопросы по делу. Первая просит агента свести разговор в
+    // ратифицируемое ТЗ, вторая является отдельным словом человека, которое
+    // только и вправе поставить headless-сборку в очередь.
+    if(c.domain==="software"||c.selected_agent_id==="cabinet"){
+      if(!caseHasSubstantiveWork())return ["Собрать окончательное ТЗ","Запускай сборку"];
+      return ["Покажи ближайший незавершённый шаг","Что сейчас блокирует работу?","Сверь материалы с планом","Подготовь статус по срокам"];
+    }
     if(c.needs_word)prompts.push("Что сейчас требует моего подтверждения?");
     if(isDomashkinCase(c)){
       const school=activeReal.school, assignments=school&&school.assignments||[];
@@ -377,6 +420,72 @@
     }
     return [...new Set(prompts)].slice(0,4);
   }
+  function questionnaireKey(caseId){ return "fixar-v2-questionnaire:"+caseId; }
+  function normalizeQuestionnaire(action){
+    if(!action||action.type!=="questionnaire"||!Array.isArray(action.fields))return null;
+    const actionId=String(action.id||"questionnaire").replace(/[^A-Za-z0-9_-]/g,"").slice(0,80);
+    if(actionId==="pack_requirements_v1"||actionId==="accounting_usn_requirements_v1")return null;
+    const allowed=["text","textarea","single_choice","multi_choice"],fields=action.fields.slice(0,8).map((raw,index)=>{
+      if(!raw||allowed.indexOf(raw.type)<0)return null;
+      const name=String(raw.name||("field_"+index)).replace(/[^A-Za-z0-9_-]/g,"").slice(0,50),label=String(raw.label||"").trim().slice(0,180),options=Array.isArray(raw.options)?raw.options.map(value=>String(value).trim().slice(0,140)).filter(Boolean).slice(0,12):[];
+      if(!name||!label||((raw.type==="single_choice"||raw.type==="multi_choice")&&!options.length))return null;
+      return {name,label,type:raw.type,required:raw.required===true,options,placeholder:String(raw.placeholder||"").slice(0,220)};
+    }).filter(Boolean);
+    if(!fields.length)return null;
+    return {type:"questionnaire",id:actionId,title:String(action.title||"Уточняющие вопросы").trim().slice(0,180),intro:String(action.intro||"").trim().slice(0,500),submit_label:String(action.submit_label||"Отправить ответы").trim().slice(0,80),fields};
+  }
+  function readQuestionnaire(caseId){
+    try{ const questionnaire=normalizeQuestionnaire(JSON.parse(store(questionnaireKey(caseId))||"null"));if(!questionnaire)drop(questionnaireKey(caseId));return questionnaire; }catch(_){drop(questionnaireKey(caseId));return null;}
+  }
+  function rememberQuestionnaire(caseId,questionnaire){
+    if(questionnaire)put(questionnaireKey(caseId),JSON.stringify(questionnaire));else drop(questionnaireKey(caseId));
+  }
+  function questionnaireFromEvents(events){
+    let seen=false,pending=null;
+    (events||[]).forEach(event=>{
+      if(event.kind!=="dialog")return;
+      const payload=event.payload||{};
+      if(payload.role==="assistant"){
+        const action=normalizeQuestionnaire(payload.ui_action);
+        if(action){seen=true;pending=action;}
+        return;
+      }
+      if(payload.role==="user"&&pending&&/^\s*ответы на анкету\s+«/i.test(evText(event)||""))pending=null;
+    });
+    return seen?pending:undefined;
+  }
+  function questionnaireField(field,index){
+    const name="answer_"+index,required=field.required?' required':'';
+    if(field.type==="textarea")return '<label class="dialog-question-field"><span>'+esc(field.label)+(field.required?' <em>обязательно</em>':'')+'</span><textarea name="'+name+'" rows="3"'+required+' placeholder="'+attr(field.placeholder)+'"></textarea></label>';
+    if(field.type==="text")return '<label class="dialog-question-field"><span>'+esc(field.label)+(field.required?' <em>обязательно</em>':'')+'</span><input name="'+name+'" type="text"'+required+' placeholder="'+attr(field.placeholder)+'"></label>';
+    const inputType=field.type==="single_choice"?"radio":"checkbox";
+    return '<fieldset class="dialog-question-field" data-question-options="'+index+'"><legend>'+esc(field.label)+(field.required?' <em>обязательно</em>':'')+'</legend><div class="dialog-question-options">'+field.options.map(value=>'<label><input type="'+inputType+'" name="'+name+'" value="'+attr(value)+'"'+(field.required&&inputType==="radio"?' required':'')+'><span>'+esc(value)+'</span></label>').join("")+'</div></fieldset>';
+  }
+  function questionnaireCard(questionnaire){
+    if(!questionnaire)return "";
+    return '<form class="dialog-questionnaire" data-act="answer-questionnaire"><div class="dialog-questionnaire-head"><span aria-hidden="true">✦</span><div><small>ФИКСАР УТОЧНЯЕТ</small><h3>'+esc(questionnaire.title)+'</h3>'+(questionnaire.intro?'<p>'+esc(questionnaire.intro)+'</p>':'')+'</div></div>'+questionnaire.fields.map(questionnaireField).join("")+'<div class="dialog-questionnaire-foot"><span data-questionnaire-status role="status"></span><button class="btn primary" type="submit">'+esc(questionnaire.submit_label)+'</button></div></form>';
+  }
+  function questionnairePrompt(questionnaire,assistant){
+    if(!questionnaire)return "";
+    return '<aside class="dialog-questionnaire-prompt" role="status"><span class="dialog-questionnaire-prompt-icon" aria-hidden="true">✦</span><div><b>'+esc(assistant)+' ждёт ваши ответы</b><p>Чтобы продолжить, заполните анкету «'+esc(questionnaire.title)+'».</p></div><button class="btn primary" type="button" data-act="open-questionnaire">Заполнить анкету</button></aside>';
+  }
+  function questionnaireAnswer(questionnaire,form){
+    const lines=["Ответы на анкету «"+questionnaire.title+"»:"],missing=[];
+    questionnaire.fields.forEach((field,index)=>{ const nodes=[...form.querySelectorAll('[name="answer_'+index+'"]')],values=(field.type==="single_choice"||field.type==="multi_choice")?nodes.filter(node=>node.checked).map(node=>node.value):nodes.map(node=>node.value.trim()).filter(Boolean); if(field.required&&!values.length)missing.push(field.label); if(values.length)lines.push("- "+field.label+": "+values.join(", ")); else lines.push("- "+field.label+": не указано"); });
+    return {message:lines.join("\n"),missing};
+  }
+  function dialogActionTiles(c){
+    const tiles=[];
+    const offer=commissionedOffer(c);
+    const canCommission=activeReal.isOwner&&!c.active_run_id&&!(activeReal.runs||[]).length&&offer&&!(!c.tariff_id&&caseHasSubstantiveWork());
+    if(canCommission)tiles.push({act:"commission-work",offer:offer.id,icon:"▶",title:c.tariff_id?"Продолжить запуск":"Разобрать задачу и запустить",hint:(offer.title||"")+" · "+String(offer.price).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" "+(offer.currency||"CREDITS")});
+    const canGrant=activeReal.canDecide&&authState.assurance>=2&&c.selected_agent_id&&c.template_version&&!c.active_run_id;
+    if(canGrant)tiles.push({act:"grant-agent",icon:"✦",title:"Дать поручение агенту",hint:"По закреплённому плану этого дела"});
+    if((activeReal.patches||[]).length)tiles.push({act:"goto-patches",icon:"☑",title:"Ждут решения: "+activeReal.patches.length,hint:"Подтвердить или отклонить"});
+    if(canCommission)tiles.push({act:"match-specialists-direct",icon:"◎",title:"Подобрать специалистов",hint:"Бесплатно, без запуска модели"});
+    if(!tiles.length)return "";
+    return '<div class="dialog-tiles" role="toolbar" aria-label="Действия по делу">'+tiles.map(t=>'<button class="dialog-tile" type="button" data-act="'+t.act+'"'+(t.offer?' data-offer="'+attr(t.offer)+'"':'')+'><span class="dialog-tile-icon" aria-hidden="true">'+t.icon+'</span><span><b>'+esc(t.title)+'</b><small>'+esc(t.hint)+'</small></span></button>').join("")+'</div>';
+  }
   function realDialogPanel(){
     const c=activeReal.c, assistant=assistantName(c);
     const allMessages=activeReal.events.filter(e=>e.kind==="dialog"&&evText(e)),shown=Math.max(50,Number(activeReal.dialogHistoryShown)||50),hidden=Math.max(0,allMessages.length-shown);
@@ -387,7 +496,7 @@
     const empty=messages||reply?"":'<div class="bubble"><small>'+esc(assistant)+'</small>Я в контексте этого дела. Можно написать, сказать голосом или приложить снимок.</div>';
     const prompts=smartCasePrompts(c).map(text=>'<button class="smart-prompt" type="button" data-chat-suggestion="'+attr(text)+'">'+esc(text)+'</button>').join("");
     const promptTray=(onMobile()&&(messages||reply))?'<details class="smart-prompts-fold"><summary>Быстрые подсказки</summary><div class="smart-prompts" aria-label="Умные подсказки">'+prompts+'</div></details>':'<div class="smart-prompts" aria-label="Умные подсказки">'+prompts+'</div>';
-    return '<section class="case-dialog" aria-label="Диалог по делу"><div class="case-dialog-head"><div><h2>'+esc(assistant)+'</h2><p>Знает текущее дело, его инструменты и разрешённые материалы</p></div><span class="chip info">в контексте</span></div>'+promptTray+'<div class="case-thread" id="caseThread" aria-live="polite">'+older+messages+reply+empty+'</div><form class="chat-composer" data-act="ask-agent"><div class="chat-file-state" data-chat-file-state hidden></div><textarea name="message" rows="1" maxlength="8000" placeholder="Напишите или скажите, что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="chat-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><label class="chat-tool" aria-label="Сфотографировать"><input name="camera" type="file" accept="image/*" capture="environment"><span class="tool-icon" aria-hidden="true">📷</span><span>Камера</span></label><label class="chat-tool" aria-label="Приложить PDF, Excel, CSV или ZIP"><input name="attachment" type="file" accept="'+attr(STATEMENT_ACCEPT)+'"><span class="tool-icon" aria-hidden="true">📎</span><span>Файл</span></label><button class="btn primary chat-send" type="submit">Отправить</button></div><div class="chat-status" data-chat-status role="status" aria-live="polite"></div></form></section>';
+    return '<section class="case-dialog" aria-label="Диалог по делу"><div class="case-dialog-head"><div><h2>'+esc(assistant)+'</h2><p>Знает текущее дело, его инструменты и разрешённые материалы</p></div><span class="chip info">в контексте</span></div>'+questionnairePrompt(activeReal.questionnaire,assistant)+promptTray+dialogActionTiles(c)+'<div class="case-thread" id="caseThread" aria-live="polite">'+older+messages+reply+empty+'</div><form class="chat-composer" data-act="ask-agent"><div class="chat-file-state" data-chat-file-state hidden></div><textarea name="message" rows="1" maxlength="8000" placeholder="Напишите или скажите, что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="chat-actions"><button class="chat-tool" type="button" data-act="voice-input" aria-label="Сказать голосом" aria-pressed="false"><span class="tool-icon" aria-hidden="true">🎙</span><span>Голос</span></button><label class="chat-tool" aria-label="Сфотографировать"><input name="camera" type="file" accept="image/*" capture="environment"><span class="tool-icon" aria-hidden="true">📷</span><span>Камера</span></label><label class="chat-tool" aria-label="Приложить PDF, Excel, CSV или ZIP"><input name="attachment" type="file" accept="'+attr(STATEMENT_ACCEPT)+'"><span class="tool-icon" aria-hidden="true">📎</span><span>Файл</span></label><button class="btn primary chat-send" type="submit">Отправить</button></div><div class="chat-status" data-chat-status role="status" aria-live="polite"></div></form></section>';
   }
   function realCaseNextStep(c){
     if(c.state==="closed"||c.state==="archived")return {title:"Дело завершено",note:"Результаты и материалы остаются под рукой.",tab:"Документы",action:"Открыть материалы"};
@@ -395,12 +504,24 @@
     if(c.active_run_id)return {title:"Помощник работает",note:"Можно посмотреть ход работы, не прерывая выполнение.",tab:"План",action:"Открыть ход работы"};
     return {title:"Продолжить разговор",note:"Опишите изменение или спросите, какой шаг сейчас самый полезный.",tab:"Диалог",action:"Написать помощнику"};
   }
+  function commissionedOffer(c){
+    const offers=activeReal.workOffers||[];
+    if(c.tariff_id)return offers.find(offer=>offer.id===c.tariff_id)||null;
+    return offers[0]||null;
+  }
+  function workCommissionPanel(c){
+    if(!activeReal.isOwner||c.active_run_id||(activeReal.runs||[]).length)return "";
+    if(!c.tariff_id&&caseHasSubstantiveWork())return "";
+    const offer=commissionedOffer(c);if(!offer)return "";
+    const price=String(offer.price).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" "+(offer.currency||"CREDITS"),selected=!!c.tariff_id;
+    return '<section class="case-form-card tone-blue"><p class="eyebrow">'+(selected?'РАБОТА ОПЛАЧЕНА':'ДВА ПУТИ')+'</p><h2>'+esc(offer.title)+' — '+esc(price)+'</h2><p>'+esc(offer.deliverable)+'</p><div class="case-form-note"><span>◎</span><p><b>Не входит:</b> '+esc((offer.excludes||[]).join("; "))+'.</p></div><button class="btn primary case-form-submit" type="button" data-act="commission-work" data-offer="'+attr(offer.id)+'">'+(selected?'Продолжить запуск':'Разобрать задачу и запустить')+'</button><button class="btn case-form-submit" type="button" data-act="match-specialists-direct">Сразу подобрать специалистов</button><p class="rc-hint">Прямой подбор не запускает модель, не создаёт AI-работу и не списывает кредиты.</p></section>';
+  }
   function realOverviewPanel(){
     const c=activeReal.c,next=realCaseNextStep(c),assistant=assistantName(c),goal=c.goal||"Сформулируйте желаемый результат вместе с помощником.";
     const related=realLinksPanel(),needs=c.needs_word?'<div class="case-attention">По делу ждут вашего решения. Внешнее действие не выполнено без подтверждения.</div>':"";
-    const primary='<article class="case-result-card"><div class="case-result-head"><div><p class="eyebrow">ГЛАВНОЕ В ДЕЛЕ</p><h2>'+esc(goal)+'</h2></div><span class="my-day-status '+(c.needs_word?'attention':'')+'">'+esc(caseListStatusLabel(caseListStatus(c)))+'</span></div><div class="case-facts">'+kvRow("Помощник",assistant)+kvRow("Пространство",RU_SCOPE[c.scope||""]||"—")+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+'</div>'+needs+related+'<div class="case-question"><p class="eyebrow">С ЧЕГО ПРОДОЛЖИМ?</p><form class="my-day-composer" data-act="ask-agent"><textarea name="message" required rows="2" placeholder="Напишите, что изменилось или что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="my-day-composer-foot"><small>'+esc(assistant)+' знает контекст этого дела и доступные здесь инструменты.</small><button class="btn primary" type="submit">Отправить</button></div></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble readable-answer" role="button" tabindex="0" data-act="read-agent-answer" data-reader-source="reply">'+agentRichText(activeReal.reply)+'<span class="answer-open-hint">Открыть чистый текст ↗</span></div>':'')+'</div></div></article>';
+    const primary='<article class="case-result-card"><div class="case-result-head"><div><p class="eyebrow">ГЛАВНОЕ В ДЕЛЕ</p><h2>'+esc(goal)+'</h2></div><span class="my-day-status '+(c.needs_word?'attention':'')+'">'+esc(caseListStatusLabel(caseListStatus(c)))+'</span></div><div class="case-facts">'+kvRow("Помощник",assistant)+kvRow("Пространство",caseSpaceName(c))+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+'</div>'+needs+related+'<div class="case-question"><p class="eyebrow">С ЧЕГО ПРОДОЛЖИМ?</p><form class="my-day-composer" data-act="ask-agent"><textarea name="message" required rows="2" placeholder="Напишите, что изменилось или что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="my-day-composer-foot"><small>'+esc(assistant)+' знает контекст этого дела и доступные здесь инструменты.</small><button class="btn primary" type="submit">Отправить</button></div></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble readable-answer" role="button" tabindex="0" data-act="read-agent-answer" data-reader-source="reply">'+agentRichText(activeReal.reply)+'<span class="answer-open-hint">Открыть чистый текст ↗</span></div>':'')+'</div></div></article>';
     const nextRail='<aside class="case-next-rail"><p class="eyebrow">ЧТО ДАЛЬШЕ?</p><button class="case-next-primary" type="button" data-act="rc-goto" data-tab="'+attr(next.tab)+'"><span class="case-next-icon">→</span><span><b>'+esc(next.title)+'</b><small>'+esc(next.note)+'</small><em>'+esc(next.action)+' →</em></span></button><div class="case-next-links"><button type="button" data-act="rc-goto" data-tab="План"><b>План и действия</b><small>Что уже сделано и что впереди</small></button><button type="button" data-act="rc-goto" data-tab="Участники"><b>Люди и доступ</b><small>Кто участвует и что может</small></button><button type="button" data-act="rc-goto" data-tab="Документы"><b>Материалы дела</b><small>Файлы, результаты и общие ссылки</small></button></div><section class="case-gentle-note"><p class="eyebrow">ОДИН НЕБОЛЬШОЙ ШАГ</p><p>Не нужно решать всё сразу. Сохраните полезное и вернитесь, когда удобно.</p></section></aside>';
-    return '<div class="case-overview-layout"><div>'+primary+'</div>'+nextRail+'</div>'+domashkinParentInvitePanel()+domashkinBookPanel()+domashkinFamilyThreadPanel();
+    return '<div class="case-overview-layout"><div>'+primary+workCommissionPanel(c)+'</div>'+nextRail+'</div>'+domashkinParentInvitePanel()+domashkinBookPanel()+domashkinFamilyThreadPanel();
   }
   function nextActionOwnerName(owner){
     if(!owner)return "Ответственный не назначен";
@@ -421,6 +542,11 @@
     }
     return actions.slice(0,8);
   }
+  function caseTimelineItems(){
+    const calendar=(activeReal.calendarEvents||[]).map(event=>({kind:"calendar",id:event.id,title:event.title||"Событие",at:event.at,until:event.until||"",place:event.place||"",note:event.note||"",calendarKind:event.kind||"reminder"}));
+    const plan=(activeReal.nextActions||[]).filter(action=>!action.done&&action.due).map(action=>({kind:"plan",id:action.id,title:action.what||"Шаг плана",at:action.due,until:"",place:"",note:(action.waiting_for?"Ждём: "+action.waiting_for:"")+((action.owner||"")?((action.waiting_for?" · ":"")+"Ответственный: "+nextActionOwnerName(action.owner)):""),calendarKind:"deadline"}));
+    return calendar.concat(plan).sort((left,right)=>{ const a=new Date(left.at).getTime(),b=new Date(right.at).getTime(); return (Number.isFinite(a)?a:Number.MAX_SAFE_INTEGER)-(Number.isFinite(b)?b:Number.MAX_SAFE_INTEGER); });
+  }
   function realTabPanel(){
     const c=activeReal.c, canDecide=activeReal.canDecide, isOwner=activeReal.isOwner;
     if(realTab==="Диалог") return realDialogPanel();
@@ -433,7 +559,15 @@
     if(realTab==="План"){
       const actions=activeReal.nextActions||[];
       const suggestions=actions.length?[]:suggestedPlanActions();
-      const actionRows=actions.map(action=>'<div class="task"><span class="tstat '+(action.done?'done':'todo')+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(action.what||"Шаг")+'</b><span>'+esc(nextActionOwnerName(action.owner))+(action.due?' · до '+esc(fmtWhen(action.due)):'')+(action.waiting_for?' · ждём: '+esc(action.waiting_for):'')+'</span></div>'+(canDecide&&!action.done?'<button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button>':(action.done?'<span class="done-mark">выполнено</span>':''))+'</div>').join("");
+      const skipKey=caseId=>{ try{ return JSON.parse(localStorage.getItem("fixar-v2-plan-skipped:"+(authState.principal||"guest")+":"+caseId)||"{}"); }catch(_){ return {}; } };
+      const skipped=activeReal.c?skipKey(activeReal.c.id):{};
+      const actionRows=actions.map(action=>{
+        const isSkip=!!skipped[action.id];
+        const dot=isSkip?"skip":(action.done?"done":"todo");
+        const stateNote=isSkip?'<div class="tstate"><b>Пропущено.</b> '+esc(skipped[action.id]||"Без пояснения.")+'</div>':"";
+        const buttons=(canDecide&&!action.done&&!isSkip)?'<span class="task-actions"><button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button><button class="btn small" type="button" data-act="skip-action" data-id="'+attr(action.id)+'">Пропустить</button></span>':(action.done?'<span class="done-mark">выполнено</span>':(isSkip?'<span class="task-actions"><span class="done-mark">пропущено</span><button class="btn small" type="button" data-act="unskip-action" data-id="'+attr(action.id)+'">Вернуть</button></span>':''));
+        return '<div class="task'+(isSkip?' task-skipped':'')+'"><span class="tstat '+dot+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(action.what||"Шаг")+'</b><span>'+esc(nextActionOwnerName(action.owner))+(action.due?' · до '+esc(fmtWhen(action.due)):'')+(action.waiting_for?' · ждём: '+esc(action.waiting_for):'')+'</span>'+stateNote+'</div>'+buttons+'</div>';
+      }).join("");
       const ownerOptions='<option value="">Пока не назначен</option>'+(c.participants||[]).map(participant=>'<option value="'+attr(participant.principal_id)+'">'+esc(participant.display_name||(participant.principal_id===authState.principal?'Вы':'Участник'))+'</option>').join("")+(c.selected_agent_id?'<option value="'+attr(c.selected_agent_id)+'">'+esc(assistantName(c))+'</option>':'');
       const importOffer=suggestions.length?'<div class="case-form-note"><span>✦</span><p><b>Фиксар уже выделил '+suggestions.length+' модуля.</b><br>Проверьте сроки и перенесите их в настоящий план дела.</p></div><button class="btn primary case-form-submit" type="button" data-act="plan-from-dialog">Собрать план из ответа</button>':'';
       const actionForm=canDecide?'<aside class="case-form-card tone-blue"><p class="eyebrow">'+(suggestions.length?'ГОТОВАЯ СТРУКТУРА':'НОВЫЙ ПУНКТ ПЛАНА')+'</p><h2>'+(suggestions.length?'Перенести модули в план?':'Что нужно сделать?')+'</h2><p>'+(suggestions.length?'Ничего не нужно описывать повторно: модули взяты из последнего ответа Фиксара.':'Пункт сохранится в деле и будет виден участникам. Срок и ответственного можно оставить пустыми.')+'</p>'+importOffer+'<details'+(suggestions.length?'':' open')+' class="case-more-fields"><summary>Добавить один пункт вручную</summary><form class="pform case-modern-form" data-act="next-action"><label><span>Действие</span><textarea name="what" rows="3" maxlength="1000" required placeholder="Например, реализовать загрузку банковских выписок PDF и Excel"></textarea></label><div class="case-field-grid"><label><span>Ответственный</span><select name="owner">'+ownerOptions+'</select></label><label><span>Срок</span><input name="due" type="datetime-local"></label></div><label><span>Что ждём</span><input name="waiting_for" maxlength="255" placeholder="Например, тестовые выписки за квартал"></label><button class="btn primary case-form-submit" type="submit">Добавить пункт плана</button></form></details></aside>':'<aside class="case-form-card tone-muted"><p class="eyebrow">ПЛАН</p><h2>Изменения защищены</h2><p>Добавлять и завершать пункты может участник с правом «решения».</p></aside>';
@@ -458,10 +592,11 @@
       return '<div class="case-form-layout case-plan-layout"><section class="case-form-main">'+h+(runs?'<div class="section-t">Запуски агента</div>'+runs:'')+(patches?'<div class="section-t">Ждут вашего слова</div>'+patches:'')+command+'</section>'+actionForm+'</div>';
     }
     if(realTab==="Сроки"){
-      if(!isOwner) return '<div class="rc-note">Календарь пока принадлежит владельцу дела. Участникам показываются только сроки, записанные в журнале; общий календарь дела ещё подключается.</div>';
-      if(activeReal.calendarError) return errorBox(activeReal.calendarError,'data-act="calendar-retry"');
-      const rows=(activeReal.calendarEvents||[]).map(event=>'<article class="case-time-item"><span class="case-time-icon" aria-hidden="true">'+(event.kind==="deadline"?'✓':event.kind==="meeting"?'◎':event.kind==="hearing"?'§':'◷')+'</span><div><p class="eyebrow">'+esc(CALENDAR_KIND[event.kind]||event.kind||"Событие")+'</p><h3>'+esc(event.title||"Событие")+'</h3><p>'+esc(fmtWhen(event.at))+(event.until?' — '+esc(fmtWhen(event.until)):'')+(event.place?' · '+esc(event.place):'')+'</p>'+(event.note?'<small>'+esc(event.note)+'</small>':'')+'</div><button class="case-quiet-action" data-act="calendar-cancel" data-id="'+attr(event.id)+'">Отменить</button></article>').join("")||'<div class="case-soft-empty"><span>◷</span><div><h3>Пока свободно</h3><p>Добавьте только ту дату, о которой действительно важно помнить.</p></div></div>';
-      return '<div class="case-form-layout"><section class="case-form-main"><div class="case-section-heading"><div><p class="eyebrow">СРОКИ И ВСТРЕЧИ</p><h2>Всё важное — по времени</h2></div><p>Даты этого дела остаются рядом с контекстом и не теряются в общем календаре.</p></div><div class="case-timeline">'+rows+'</div></section><aside class="case-form-card tone-blue"><p class="eyebrow">НОВАЯ ДАТА</p><h2>Что поставить на контроль?</h2><p>Достаточно названия и времени. Остальное можно уточнить позже.</p><form class="pform case-modern-form" data-act="calendar-create"><div class="case-field-grid"><label><span>Вид</span><select name="kind"><option value="deadline">Срок</option><option value="hearing">Заседание</option><option value="meeting">Встреча</option><option value="reminder">Напоминание</option></select></label><label><span>Когда</span><input name="at" type="datetime-local" required value="'+attr(calendarInputValue())+'"></label></div><label><span>Название</span><input name="title" required maxlength="500" placeholder="Например, подтвердить новое расписание"></label><details class="case-more-fields"><summary>Добавить место, окончание и заметку</summary><div class="case-field-grid"><label><span>Окончание</span><input name="until" type="datetime-local"></label><label><span>Место</span><input name="place" maxlength="500" placeholder="Школа, суд, онлайн"></label></div><label><span>Заметка</span><textarea name="note" rows="3" maxlength="4000" placeholder="Что подготовить или проверить"></textarea></label></details><div class="case-form-note"><span>◷</span><p>Для срока напомним за три дня, для заседания — за сутки.</p></div><button class="btn primary case-form-submit" type="submit">Добавить в календарь</button></form></aside></div>';
+      const timeline=caseTimelineItems(),undated=activeReal.nextActions.filter(action=>!action.done&&!action.due).length;
+      const rows=timeline.map(item=>'<article class="case-time-item"><span class="case-time-icon" aria-hidden="true">'+(item.kind==="plan"?'→':item.calendarKind==="deadline"?'✓':item.calendarKind==="meeting"?'◎':item.calendarKind==="hearing"?'§':'◷')+'</span><div><p class="eyebrow">'+esc(item.kind==="plan"?"ПЛАН ДЕЛА":(CALENDAR_KIND[item.calendarKind]||item.calendarKind||"Событие"))+'</p><h3>'+esc(item.title)+'</h3><p>'+esc(fmtWhen(item.at))+(item.until?' — '+esc(fmtWhen(item.until)):'')+(item.place?' · '+esc(item.place):'')+'</p>'+(item.note?'<small>'+esc(item.note)+'</small>':'')+'</div>'+(item.kind==="plan"?'<button class="case-quiet-action" data-act="rc-goto" data-tab="План">Открыть в плане</button>':(isOwner?'<button class="case-quiet-action" data-act="calendar-cancel" data-id="'+attr(item.id)+'">Отменить</button>':''))+'</article>').join("")||(undated?'<div class="case-soft-empty"><span>→</span><div><h3>План есть, даты ещё не назначены</h3><p>Откройте план и задайте срок для '+undated+' '+plural(undated,["шага","шагов","шагов"])+'.</p></div></div>':'<div class="case-soft-empty"><span>◷</span><div><h3>Пока свободно</h3><p>Добавьте только ту дату, о которой действительно важно помнить.</p></div></div>');
+      const calendarNotice=activeReal.calendarError?'<div class="rc-note">Личный календарь временно недоступен, но сроки из плана показаны ниже. <button class="btn small" data-act="calendar-retry">Повторить</button></div>':(!isOwner?'<p class="rc-note">Календарь пока принадлежит владельцу дела. Сроки плана доступны всем участникам.</p>':'');
+      const dateForm=isOwner?'<aside class="case-form-card tone-blue"><p class="eyebrow">НОВАЯ ДАТА</p><h2>Что поставить на контроль?</h2><p>Достаточно названия и времени. Остальное можно уточнить позже.</p><form class="pform case-modern-form" data-act="calendar-create"><div class="case-field-grid"><label><span>Вид</span><select name="kind"><option value="deadline">Срок</option><option value="hearing">Заседание</option><option value="meeting">Встреча</option><option value="reminder">Напоминание</option></select></label><label><span>Когда</span><input name="at" type="datetime-local" required value="'+attr(calendarInputValue())+'"></label></div><label><span>Название</span><input name="title" required maxlength="500" placeholder="Например, подтвердить новое расписание"></label><details class="case-more-fields"><summary>Добавить место, окончание и заметку</summary><div class="case-field-grid"><label><span>Окончание</span><input name="until" type="datetime-local"></label><label><span>Место</span><input name="place" maxlength="500" placeholder="Школа, суд, онлайн"></label></div><label><span>Заметка</span><textarea name="note" rows="3" maxlength="4000" placeholder="Что подготовить или проверить"></textarea></label></details><div class="case-form-note"><span>◷</span><p>Для срока напомним за три дня, для заседания — за сутки.</p></div><button class="btn primary case-form-submit" type="submit">Добавить в календарь</button></form></aside>':'<aside class="case-form-card tone-muted"><p class="eyebrow">КАЛЕНДАРЬ ВЛАДЕЛЬЦА</p><h2>Сроки плана уже видны</h2><p>Добавлять личные напоминания может владелец дела. Общие даты работы берутся из плана.</p></aside>';
+      return '<div class="case-form-layout"><section class="case-form-main"><div class="case-section-heading"><div><p class="eyebrow">СРОКИ И ВСТРЕЧИ</p><h2>Всё важное — по времени</h2></div><p>Даты календаря и сроки плана собраны в одной хронологии.</p></div>'+calendarNotice+'<div class="case-timeline">'+rows+'</div></section>'+dateForm+'</div>';
     }
     if(realTab==="Документы"){
       const defaultSensitivity=statementMaterialSensitivity(c,"","normal");
@@ -490,9 +625,9 @@
       return '<div class="case-form-layout"><section class="case-form-main"><div class="case-section-heading"><div><p class="eyebrow">ЛЮДИ И ДОСТУП</p><h2>Каждый видит только нужное</h2></div><p>Роль отвечает за место человека в деле, права — за действия, категории — за видимые сведения.</p></div><div class="case-people-grid">'+people+'</div></section>'+invite+'</div>'+domashkinParentInvitePanel();
     }
     if(realTab==="Настройки"){
-      let s="";
+      let s=""; const workSpace=caseSpaceName({scope:"pro",domain:c.domain,selected_agent_id:c.selected_agent_id}),workSpaceNote=workSpace==="Разработка"?"Проекты, паки и автоматизации":workSpace==="Исследования"?"Исследовательские дела и ворота":"Работа с профильным специалистом";
       if(canDecide){ s+='<section class="case-setting-panel tone-purple"><div class="case-setting-copy"><p class="eyebrow">СМЫСЛ ДЕЛА</p><h2>Название и результат</h2><p>Короткое название помогает найти дело, а цель объясняет помощнику, что считать готовым результатом.</p></div><form class="pform case-modern-form" data-act="case-details"><label><span>Название</span><input name="title" required maxlength="500" value="'+attr(c.title||"")+'"></label><label><span>Что должно получиться</span><textarea name="goal" rows="4" maxlength="4000" placeholder="Например, новое расписание согласовано со школой и семьёй">'+esc(c.goal||"")+'</textarea></label><button class="btn primary case-form-submit" type="submit">Сохранить</button></form></section>'; }
-      if(isOwner){ s+='<section class="case-setting-panel tone-blue"><div class="case-setting-copy"><p class="eyebrow">ПРОСТРАНСТВО</p><h2>Где живёт это дело?</h2><p>Пространство меняет окружение и быстрые переходы, но не удаляет историю, людей или материалы.</p></div><form class="pform case-modern-form" data-act="scope"><fieldset class="case-space-choice">'+[["personal","Личное","Только ваши повседневные вопросы","●"],["home","Семья","Общие дела и согласованные решения","⌂"],["pro","Практика","Работа с профильным специалистом","§"]].map(x=>'<label><input type="radio" name="scope" value="'+x[0]+'"'+((c.scope||"")===x[0]?' checked':'')+'><span><i>'+x[3]+'</i><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></span></label>').join("")+'</fieldset><button class="btn case-form-submit" type="submit">Перенести дело</button></form></section>'; }
+      if(isOwner){ s+='<section class="case-setting-panel tone-blue"><div class="case-setting-copy"><p class="eyebrow">ПРОСТРАНСТВО</p><h2>Где живёт это дело?</h2><p>Пространство меняет окружение и быстрые переходы, но не удаляет историю, людей или материалы.</p></div><form class="pform case-modern-form" data-act="scope"><fieldset class="case-space-choice">'+[["personal","Личное","Только ваши повседневные вопросы","●"],["home","Семья","Общие дела и согласованные решения","⌂"],["pro",workSpace,workSpaceNote,"§"]].map(x=>'<label><input type="radio" name="scope" value="'+x[0]+'"'+((c.scope||"")===x[0]?' checked':'')+'><span><i>'+x[3]+'</i><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></span></label>').join("")+'</fieldset><button class="btn case-form-submit" type="submit">Перенести дело</button></form></section>'; }
       if(canDecide){ s+='<section class="case-setting-panel tone-peach"><div class="case-setting-copy"><p class="eyebrow">СОСТОЯНИЕ</p><h2>Что сделать с делом?</h2><p>Завершённое дело остаётся в истории. Архив убирает его из активной работы. Любое из них можно возобновить.</p></div><div class="case-state-actions">'+
         (c.state!=="closed"?'<button class="btn" data-act="state" data-state="closed">Завершить</button>':'')+
         (c.state!=="archived"?'<button class="btn" data-act="state" data-state="archived">Архивировать</button>':'')+
@@ -517,6 +652,7 @@
   }
   function installVoiceControls(root){
     (root||document).querySelectorAll("form.my-day-composer").forEach(form=>{
+      if(form.classList.contains("my-day-guest-composer"))return;
       if(form.querySelector('[data-act="voice-input"]'))return;
       const foot=form.querySelector(".my-day-composer-foot"),field=form.elements.message;
       if(!foot||!field)return;
@@ -595,6 +731,7 @@
         const dialogs=activeReal.events.filter(event=>event.kind==="dialog"&&evText(event)),fromReply=b.dataset.readerSource==="reply",event=fromReply?null:dialogs[Number(b.dataset.readerIndex)];
         openAgentAnswer(fromReply?activeReal.reply:evText(event),fromReply?assistantName(c):evActor(event)); return;
       }
+      if(act==="open-questionnaire"){ openQuestionnaireDialog(); return; }
       if(act==="dialog-older"){ const before=thread?thread.scrollHeight:0,previousTop=thread?thread.scrollTop:0; activeReal.dialogHistoryShown=(Number(activeReal.dialogHistoryShown)||50)+100; panel.innerHTML=realTabPanel(); bindRealPanel(false); const expanded=panel.querySelector("#caseThread"); if(expanded)expanded.scrollTop=Math.max(0,expanded.scrollHeight-before+previousTop); return; }
       if(act==="rc-goto"){ realTab=b.dataset.tab; drawRealCase(); return; }
       if(act==="open-real-linked"){ realTab=defaultRealTab(); location.hash="#case/"+b.dataset.id; return; }
@@ -633,7 +770,16 @@
       }
       if(act==="calendar-cancel"){ if(!window.confirm("Отменить это событие? Запись останется в истории календаря."))return; b.disabled=true; try{ await authFetch("POST","/calendar/"+encodeURIComponent(b.dataset.id)+"/cancel",{}); realTab="Сроки"; renderRealCase(c.id); }catch(err){ b.disabled=false; toast((err&&err.message)||"Не удалось отменить событие."); } return; }
       if(act==="edit-see"){ openMaySee(c.id,b.dataset.pid); return; }
+      if(act==="commission-work"){
+        const offer=(activeReal.workOffers||[]).find(item=>item.id===b.dataset.offer);
+        if(!offer){ toast("Условия работы не загрузились — обновите дело."); return; }
+        openWorkCommission(offer); return;
+      }
+      if(act==="match-specialists-direct"){
+        openDirectProviderMatch(); return;
+      }
       if(act==="grant-agent"){ openRunConsent(c.id); return; }
+      if(act==="goto-patches"){ realTab="План"; drawRealCase(); setTimeout(()=>{ const el=vwrap.querySelector(".case-plan-layout .section-t"); if(el)el.scrollIntoView({block:"nearest"}); },60); return; }
       if(act==="plan-from-dialog"){ openPlanImport(c.id,suggestedPlanActions()); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
       if(act==="complete-action"){
@@ -641,6 +787,16 @@
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/actions/"+encodeURIComponent(b.dataset.id)+"/complete",{}); realTab="План"; await renderRealCase(c.id); }
         catch(err){ b.disabled=false; b.textContent="Готово"; toast((err&&err.message)||"Не удалось завершить пункт плана."); }
         return;
+      }
+      if(act==="skip-action"){
+        const reason=window.prompt("Почему пропускаем этот шаг? (видно только вам, в этом браузере)","Не хочу делать запросы");
+        if(reason===null) return;
+        try{ const key="fixar-v2-plan-skipped:"+(authState.principal||"guest")+":"+c.id; const map=JSON.parse(localStorage.getItem(key)||"{}"); map[b.dataset.id]=(reason||"").trim()||"Без пояснения."; localStorage.setItem(key,JSON.stringify(map)); }catch(_){ toast("Не удалось сохранить пропуск."); return; }
+        realTab="План"; await renderRealCase(c.id); return;
+      }
+      if(act==="unskip-action"){
+        try{ const key="fixar-v2-plan-skipped:"+(authState.principal||"guest")+":"+c.id; const map=JSON.parse(localStorage.getItem(key)||"{}"); delete map[b.dataset.id]; localStorage.setItem(key,JSON.stringify(map)); }catch(_){ toast("Не удалось вернуть шаг."); return; }
+        realTab="План"; await renderRealCase(c.id); return;
       }
       if(act==="state"){ const st=b.dataset.state; const nm={closed:"завершить",archived:"архивировать",active:"возобновить"}; if(!window.confirm("Точно "+(nm[st]||st)+" это дело?")) return; b.disabled=true;
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/state",{target_state:st,reason:"смена статуса из предпросмотра v2"}); REAL.loaded=false; await loadRealCases(true); toast(st==="closed"?"Дело завершено и осталось в фильтре «Завершённые».":(st==="archived"?"Дело перенесено в архив.":"Дело снова активно.")); await renderRealCase(c.id); }
@@ -726,6 +882,7 @@
         catch(err){ toast((err&&err.message)||"Агент пока не ответил. Повторите позже."); btn.disabled=false; btn.classList.remove("thinking"); btn.removeAttribute("aria-busy"); } return;
       }
     };
+    if(activeReal.questionnaire&&activeReal.questionnaireAutoOpen)openQuestionnaireDialog();
   }
   function openMaterialSensitivity(caseId,materialId,current){
     modalOpen("Доступ к материалу",'<p class="lead">Выберите категорию сведений. Материал увидят только участники, которым разрешена эта категория.</p><form id="material-sensitivity" class="pform"><label>Категория<select name="sensitivity" style="width:100%">'+SEE_ALL.map(s=>'<option value="'+s+'"'+(s===current?' selected':'')+'>'+esc(SEE_RU[s])+'</option>').join("")+'</select></label><label style="display:block;margin-top:10px">Причина изменения<input name="reason" maxlength="300" placeholder="Например, документ содержит персональные данные" style="width:100%"></label><div class="cta-row"><button class="btn primary" type="submit">Сохранить</button></div></form>',body=>{ const form=body.querySelector("#material-sensitivity"); form.onsubmit=async event=>{ event.preventDefault(); const button=form.querySelector("button"); button.disabled=true; button.textContent="Сохраняю…"; try{ await authFetch("PUT","/cases/"+encodeURIComponent(caseId)+"/materials/"+encodeURIComponent(materialId)+"/sensitivity",{sensitivity:form.sensitivity.value,reason:(form.reason.value||"").trim()}); modalClose(); realTab="Документы"; renderRealCase(caseId); }catch(error){ button.disabled=false; button.textContent="Сохранить"; toast((error&&error.message)||"Не удалось изменить доступ."); } }; });
@@ -752,19 +909,15 @@
         try{ await authFetch("POST","/cases/"+encodeURIComponent(caseId)+"/runs",{idempotency_key:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),kind:"case.execute",input:{query:(f.query.value||"").trim()}}); modalClose(); renderRealCase(caseId); }
         catch(err){ btn.disabled=false; btn.textContent="Поручить"; toast((err&&err.message)||"Не удалось поручить работу агенту."); } }; });
   }
-  function openPatchDecision(patchId,approve){
-    const action=approve?"подтвердить":"отклонить";
-    modalOpen((approve?"Подтвердить":"Отклонить")+" изменение",
-      '<p class="lead">Вы собираетесь '+action+' предложение агента. Это решение будет записано в журнал дела; после подтверждения связанный шаг продолжится или завершится.</p><div class="cta-row"><button class="btn '+(approve?"primary":"")+'" id="patchdecision">'+(approve?"Подтвердить изменение":"Отклонить изменение")+'</button></div>',
-      body=>{ const btn=body.querySelector("#patchdecision"); btn.focus(); btn.onclick=async()=>{ btn.disabled=true; btn.textContent="Сохраняю…";
-        try{ await authFetch("POST","/patches/"+encodeURIComponent(patchId)+(approve?"/approve":"/reject"),{}); const caseId=activeReal.c.id; modalClose(); renderRealCase(caseId); }
-        catch(err){ btn.disabled=false; btn.textContent=approve?"Подтвердить изменение":"Отклонить изменение"; toast((err&&err.message)||"Не удалось сохранить решение."); } }; });
-  }
   function applyAgentAction(action){
     if(!action||typeof action!=="object") return false;
     if(action.type==="switch_space" && SPACE_NODES[action.space]){ switchSpace(action.space); return true; }
     if(action.type==="open_create_case"){ openCreateCase(); return true; }
     if(!activeReal) return false;
+    if(action.type==="questionnaire"){
+      const questionnaire=normalizeQuestionnaire(action); if(!questionnaire)return false;
+      activeReal.questionnaire=questionnaire;activeReal.questionnaireAutoOpen=true;rememberQuestionnaire(activeReal.c.id,questionnaire);realTab="Диалог";return true;
+    }
     const allowed={open_plan:"План",open_participants:"Участники",open_journal:"Журнал",open_overview:"Обзор",open_deadlines:"Сроки",open_documents:"Документы",open_settings:"Настройки"};
     if(allowed[action.type]){ realTab=allowed[action.type]; rememberInteraction("open_tab",realTab); drawRealCase(); return true; }
     if(action.type==="open_case" && typeof action.case_id==="string" && action.case_id===activeReal.c.id){ location.hash="#case/"+action.case_id; return true; }
@@ -773,8 +926,8 @@
   async function askCaseAgent(message){
     await ensureSession(); rememberInteraction("agent_ask",activeReal?"case":"page"); await flushInteractions();
     const page_context=currentPageContext();
-    if(!activeReal){ let talk=store("fixar-v2-page-talk"); if(!talk){ talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10); put("fixar-v2-page-talk",talk); } const generalBody={message,talk_id:talk,page_context}; if(currentSpace==="Разработка"&&authState.assurance>=2){ generalBody.domain="software"; generalBody.agent_id="cabinet"; } const general=await authFetch("POST","/dialog/general",generalBody); applyAgentAction(general.ui_action); loadCredits(true); return general.reply||"Фиксарик принял сообщение."; }
-    const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),page_context};
+    if(!activeReal){ if(window.FixarCommunity&&window.FixarCommunity.handlesGeneral()){ const communityReply=await window.FixarCommunity.handleGeneralMessage(message); if(communityReply!==null){ loadCredits(true); return communityReply; } } let talk=store("fixar-v2-page-talk"); if(!talk){ talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10); put("fixar-v2-page-talk",talk); } const generalBody={message,talk_id:talk,page_context}; if(currentSpace==="Разработка"&&authState.assurance>=2){ generalBody.domain="software"; generalBody.agent_id="cabinet"; } const general=await authFetch("POST","/dialog/general",generalBody); applyAgentAction(general.ui_action); loadCredits(true); return general.reply||"Фиксарик принял сообщение."; }
+    const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,case_title:activeReal.c.title||"",message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),page_context};
     if(binding){ body.domain=binding.domain; body.agent=binding.agent; }
     const r=await authFetch("POST","/dialog",body);
     if(binding){ activeReal.c.domain=binding.domain; activeReal.c.selected_agent_id=binding.agent; try{localStorage.removeItem(practiceCaseStorageKey(activeReal.c.id));}catch(_){} }
@@ -833,6 +986,19 @@
     if(onMount) onMount(_m.querySelector("#mbody"));
   }
   function modalClose(){ if(_m){ _m.classList.remove("open"); document.body.style.overflow=""; } if(_mReturn&&_mReturn.focus) _mReturn.focus(); }
+
+  async function submitQuestionnaire(form){
+    const questionnaire=activeReal&&activeReal.questionnaire,button=form.querySelector('button[type="submit"]'),status=form.querySelector("[data-questionnaire-status]"); if(!questionnaire)return;
+    const answer=questionnaireAnswer(questionnaire,form); if(answer.missing.length){ status.textContent="Заполните: "+answer.missing.join(", "); return; }
+    button.disabled=true;button.classList.add("thinking");button.textContent="Передаю…";status.textContent="ФиксАР собирает требования из ответов…";
+    try{ const caseId=activeReal.c.id;activeReal.questionnaire=null;activeReal.questionnaireAutoOpen=false;rememberQuestionnaire(caseId,null);await askCaseAgent(answer.message);modalClose();drawRealCase(); }
+    catch(err){ activeReal.questionnaire=questionnaire;rememberQuestionnaire(activeReal.c.id,questionnaire);button.disabled=false;button.classList.remove("thinking");button.textContent=questionnaire.submit_label;status.textContent=(err&&err.message)||"Ответы не отправлены. Попробуйте ещё раз."; }
+  }
+  function openQuestionnaireDialog(){
+    const questionnaire=activeReal&&activeReal.questionnaire; if(!questionnaire)return;
+    activeReal.questionnaireAutoOpen=false;
+    modalOpen("Анкета ФиксАР",questionnaireCard(questionnaire),body=>{ const form=body.querySelector('form[data-act="answer-questionnaire"]');if(form)form.onsubmit=event=>{event.preventDefault();submitQuestionnaire(form);}; },true);
+  }
 
   function maybeOpenFixarikFunnel(){
     if(fixarikFunnelOpened||!authState.ready)return;

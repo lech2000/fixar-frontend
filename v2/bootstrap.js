@@ -15,6 +15,7 @@
   function emptyState(emoji,title,text,ctaLabel,ctaAttr){ return '<div class="empty"><div class="emoji" aria-hidden="true">'+emoji+'</div><h3>'+esc(title)+'</h3><p>'+esc(text)+'</p>'+(ctaLabel?'<button class="btn primary" '+(ctaAttr||"")+'>'+esc(ctaLabel)+'</button>':'')+'</div>'; }
   function errorBox(msg,retryAttr){ return '<div class="errbox"><span class="ic" aria-hidden="true">!</span><div><b>Не удалось загрузить</b><p>'+esc(msg)+'</p><button class="btn" '+(retryAttr||"")+'>Повторить</button></div></div>'; }
   function renderStatesDemo(){
+    syncHomeChrome(null);
     const homeId = kidOf(SPACE_NODES[currentSpace],"Главная");
     vwrap.innerHTML = '<div class="crumbs"><span>Прототип</span><span class="sep">›</span><span>Состояния экранов</span></div>'+
       '<div class="vhead"><p class="eyebrow">Прототип</p><h1>Состояния экранов</h1><p>Как выглядят загрузка, пустой экран и ошибка.</p></div>'+
@@ -32,11 +33,12 @@
   }
 
   function render(node){
+    syncHomeChrome(node);
     const custom = SCREENS[pathKey(node)];
     if (custom){ vwrap.innerHTML = custom(node); vwrap.parentElement.scrollTop = 0; bindScreen(); return; }
     const isMain = node.name==="Главная";
     if(isMain){
-      loadCasesThen(()=>dashboard(node), '<div class="my-day-home">'+skelCard(2)+skelCard(5)+'</div>', ()=>{ bindScreen(); setAgentDockCompact(true); if(currentSpace==="Практика"&&hasSession()&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(refreshCurrentView); });
+      loadCasesThen(()=>dashboard(node), '<div class="my-day-home">'+skelCard(2)+skelCard(5)+'</div>', ()=>{ bindScreen(); setAgentDockCompact(true); if(currentSpace==="Практика"&&hasSession()&&!PRACTICE.loading&&(!PRACTICE.loaded||PRACTICE.principal!==authState.principal)) loadPracticeCabinets().then(()=>{ if(currentSpace==="Практика")refreshCurrentView(); }); });
       return;
     }
     if(isListNode(node)){
@@ -70,10 +72,15 @@
   window.go = go;
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
+    if (h.indexOf("teaminvite=")===0){ handleTeamInviteLink(); return; }
     if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
     if (h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; }
-    const t=h.indexOf("~"); const id=t>=0?h.slice(0,t):h; listFilter = t>=0 ? decodeURIComponent(h.slice(t+1)) : "Все";
+    // Страница пака живёт с query в хэше: #id?pack=auto. Режем по «?» раньше,
+    // чем по «~»: иначе id с хвостом не находится в byId и клик по карточке
+    // молча ничего не делает — та самая «кнопка не открывает».
+    const q=h.indexOf("?"); const base=q>=0?h.slice(0,q):h;
+    const t=base.indexOf("~"); const id=t>=0?base.slice(0,t):base; listFilter = t>=0 ? decodeURIComponent(base.slice(t+1)) : "Все";
     if (byId[id]) go(id);
   });
 
@@ -149,38 +156,25 @@
 
   // Аккаунт: триггеры (мобильная шапка + подвал навигации) и загрузка личности
   document.getElementById("acct").addEventListener("click", openAccount);
+  document.getElementById("desktopacct").addEventListener("click", openAccount);
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
-  let moodControlTimeout=null,moodControlInterval=null;
-  function stopMoodControlWindow(){ if(moodControlTimeout)clearTimeout(moodControlTimeout); if(moodControlInterval)clearInterval(moodControlInterval); moodControlTimeout=null; moodControlInterval=null; }
-  function closeMoodControls(mood){ stopMoodControlWindow(); if(!mood||!mood.isConnected)return; const controls=mood.querySelector("[data-my-day-mood-controls]"),manual=mood.querySelector("[data-my-day-mood-manual]"); if(controls)controls.hidden=true; if(manual)manual.setAttribute("aria-expanded","false"); }
-  function startMoodControlWindow(mood){
-    stopMoodControlWindow(); let remaining=10; const output=mood.querySelector("[data-my-day-mood-time]");
-    const paint=()=>{if(output)output.textContent=remaining+" "+uiText(remaining===1?"секунда":(remaining>=2&&remaining<=4?"секунды":"секунд"),remaining===1?"second":"seconds");}; paint();
-    moodControlInterval=setInterval(()=>{remaining=Math.max(0,remaining-1);paint();},1000);
-    moodControlTimeout=setTimeout(()=>closeMoodControls(mood),10000);
-  }
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
-  document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab=defaultRealTab(); location.hash="#case/"+rr.dataset.id; } });
+  document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const section=e.target.closest('[data-practice-section]'); if(section){ practiceSection=section.dataset.practiceSection||"needed"; refreshCurrentView(); return; } const practiceNode=e.target.closest('[data-practice-node]'); if(practiceNode){ go(practiceNode.dataset.practiceNode); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; practiceSection="needed"; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab=defaultRealTab(); location.hash="#case/"+rr.dataset.id; } });
   document.getElementById("view").addEventListener("click",event=>{
     const caseButton=event.target.closest("[data-my-day-case]"); if(caseButton){ realTab=defaultRealTab(); location.hash="#case/"+caseButton.dataset.myDayCase; return; }
+    if(event.target.closest("[data-my-day-work]")){ HOME_WORK_MODE[currentSpace]=true; refreshCurrentView(); return; }
+    if(event.target.closest("[data-my-day-chat]")){ HOME_WORK_MODE[currentSpace]=false; refreshCurrentView(); return; }
     if(event.target.closest("[data-my-day-account]")){ openAccount(); return; }
     if(event.target.closest("[data-my-day-domashkin]")){ location.href="/fixclo/?preset=education.domashkin&channel=max&pilot=domashkin"; return; }
     if(event.target.closest("[data-my-day-fixarik]")){ const settings=findNode("Фиксарик"); if(settings)go(settings.id); return; }
-    const globe=event.target.closest("[data-my-day-globe]"); if(globe){ toggleMoodCrossBorder(globe); return; }
-    const catcher=event.target.closest("[data-my-day-mood-catch]"); if(catcher){ const mood=catcher.closest("[data-my-day-mood]"),controls=mood.querySelector("[data-my-day-mood-controls]"),hue=Math.floor(Math.random()*360),backgroundHue=(hue+24)%360; applyAppearance({preset:"mood",hue,backgroundHue,moodCaught:true},true); mood.style.setProperty("--caught-h",hue); const slider=controls.querySelector("[data-my-day-hue]"),output=controls.querySelector("[data-my-day-hue-output]"),backgroundSlider=controls.querySelector("[data-my-day-background-hue]"),backgroundOutput=controls.querySelector("[data-my-day-background-hue-output]"); slider.value=hue; output.value=hue+"°"; backgroundSlider.value=backgroundHue; backgroundOutput.value=backgroundHue+"°"; closeMoodControls(mood); toast(uiText("Настроение поймано. Можно поймать ещё.","Mood caught. Try another anytime.")); return; }
-    const manual=event.target.closest("[data-my-day-mood-manual]"); if(manual){ const mood=manual.closest("[data-my-day-mood]"),controls=mood.querySelector("[data-my-day-mood-controls]"),open=controls.hidden; controls.hidden=!open; manual.setAttribute("aria-expanded",String(open)); if(open){ controls.querySelector("input").focus(); startMoodControlWindow(mood); }else stopMoodControlWindow(); return; }
-    const theme=event.target.closest("[data-my-day-theme]"); if(theme){ const mood=theme.closest("[data-my-day-mood]"); applyAppearance({mode:theme.dataset.myDayTheme,moodCaught:true},true); mood.querySelectorAll("[data-my-day-theme]").forEach(button=>button.setAttribute("aria-pressed",String(button===theme))); return; }
-    const language=event.target.closest("[data-my-day-language]"); if(language&&window.FixarV2I18n){ window.FixarV2I18n.choose(language.dataset.myDayLanguage); return; }
     const prompt=event.target.closest("[data-my-day-prompt]"); if(prompt){ const form=event.target.closest(".my-day-main").querySelector('.my-day-composer'),field=form&&form.elements.message; if(field){ field.value=prompt.dataset.myDayPrompt; field.dispatchEvent(new Event("input",{bubbles:true})); field.focus(); } }
   });
-  document.getElementById("view").addEventListener("input",event=>{ const hue=event.target.closest("[data-my-day-hue]"),backgroundHue=event.target.closest("[data-my-day-background-hue]"),background=event.target.closest("[data-my-day-background]"); if(!hue&&!backgroundHue&&!background)return; const mood=event.target.closest("[data-my-day-mood]"); if(hue){ const value=Number(hue.value),output=mood&&mood.querySelector("[data-my-day-hue-output]"); applyAppearance({preset:"custom",hue:value,moodCaught:true},true); if(mood)mood.style.setProperty("--caught-h",value); if(output)output.value=value+"°"; return; } if(backgroundHue){ const value=Number(backgroundHue.value),output=mood&&mood.querySelector("[data-my-day-background-hue-output]"); applyAppearance({preset:"custom",backgroundHue:value,moodCaught:true},true); if(output)output.value=value+"°"; return; } const value=Number(background.value),output=mood&&mood.querySelector("[data-my-day-background-output]"); applyAppearance({background:value},true); if(output)output.value=value+"%"; });
   document.getElementById("view").addEventListener("submit",async event=>{
     const form=event.target.closest('form[data-act="my-day-ask"]'); if(!form)return;
-    event.preventDefault(); const field=form.elements.message,button=form.querySelector('button[type="submit"]'),answer=form.querySelector("[data-my-day-answer]"),tower=form.closest(".my-day-home").querySelector("[data-fixar-tower]"),message=(field.value||"").trim(); if(!message)return;
+    event.preventDefault(); const field=form.elements.message,button=form.querySelector('button[type="submit"]'),answer=form.querySelector("[data-my-day-answer]"),message=(field.value||"").trim(); if(!message)return;
     button.disabled=true; button.classList.add("thinking"); button.setAttribute("aria-busy","true"); answer.hidden=false; answer.textContent=uiText("Фиксарик думает…","Fixarik is thinking…");
-    if(tower){ tower.dataset.state="thinking"; const status=tower.querySelector("[data-fixar-tower-status]"); if(status)status.textContent=uiText("Фиксарик собирает маршрут","Fixarik is building your route"); }
-    try{ answer.innerHTML=agentRichText(await askCaseAgent(message)); field.value=""; field.style.height=""; if(tower){ tower.dataset.state="ready"; const status=tower.querySelector("[data-fixar-tower-status]"); if(status)status.textContent=uiText("Маршрут собран — можно двигаться дальше","Your route is ready to move forward"); } }
-    catch(error){ answer.textContent=(error&&error.message)||uiText("Фиксарик пока не ответил. Попробуйте ещё раз.","Fixarik has not answered yet. Please try again."); if(tower){ tower.dataset.state="idle"; const status=tower.querySelector("[data-fixar-tower-status]"); if(status)status.textContent=uiText("Башня ждёт следующего шага","The tower is waiting for your next step"); } }
+    try{ answer.innerHTML=agentRichText(await askCaseAgent(message)); field.value=""; field.style.height=""; }
+    catch(error){ answer.textContent=(error&&error.message)||uiText("Фиксарик пока не ответил. Попробуйте ещё раз.","Fixarik has not answered yet. Please try again."); }
     finally{ button.disabled=false; button.classList.remove("thinking"); button.removeAttribute("aria-busy"); }
   });
   const agentDock=document.getElementById("agentdock"), agentDockToggle=document.getElementById("agentdocktoggle");
@@ -198,10 +192,21 @@
     document.getElementById("storageNoticeManage").addEventListener("click",()=>{markStorageNoticeRead();notice.hidden=true;const legal=findNode("Юридические документы");if(legal)go(legal.id);});
   }
   initStorageNotice();
-  bootIdentity();
+  const DOMASHKIN_STRIP_KEY="fixar.notice.domashkin-strip.v1";
+  (function initDomashkinStrip(){
+    const strip=document.getElementById("domashkinStrip"); if(!strip)return;
+    let seen=""; try{seen=localStorage.getItem(DOMASHKIN_STRIP_KEY)||"";}catch(_){}
+    if(seen!=="1") strip.hidden=false;
+    document.getElementById("domashkinStripHide").addEventListener("click",()=>{ try{localStorage.setItem(DOMASHKIN_STRIP_KEY,"1");}catch(_){} strip.hidden=true; });
+  })();
+  if(window.FixarCommunity) window.FixarCommunity.init();
+  // Сохраняем код до первого go(): он заменяет hash адресом экрана.
+  if(location.hash.indexOf("#teaminvite=")===0) teamInviteCode();
+  bootIdentity().then(handleTeamInviteLink);
 
   // старт
   (function(){ const h=location.hash.slice(1);
+    if (h.indexOf("teaminvite=")===0){ go(kidOf(SPACE_NODES["Практика"],"Главная")); return; }
     if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
     if (h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; }

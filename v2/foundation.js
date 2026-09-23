@@ -90,14 +90,17 @@
   const put   = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
   const drop  = k => { try { localStorage.removeItem(k); } catch(e){} };
   const APPEARANCE_KEY = "fixar-v2-appearance";
-  function safeHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:155; }
-  function safeBackgroundHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:145; }
+  function safeHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:275; }
+  function safeBackgroundHue(value){ const hue=Number(value); return Number.isFinite(hue)?((Math.round(hue)%360)+360)%360:270; }
   function safeBackground(value){ const background=Number(value); return Number.isFinite(background)?Math.max(0,Math.min(100,Math.round(background))):62; }
+  function holographicGlow(background){ return background<=62?.1+(background/62)*.77:.87+((background-62)/38)*.13; }
+  function holographicVeilOpacity(background){ return .78-(background/100)*.68; }
   function readAppearance(){
     try{
       const value=JSON.parse(store(APPEARANCE_KEY)||"{}");
-      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:safeHue(value.hue),backgroundHue:safeBackgroundHue(value.backgroundHue),background:safeBackground(value.background),preset:value.preset||"fixar",moodCaught:value.moodCaught===true};
-    }catch(_){ return {mode:"system",hue:155,backgroundHue:145,background:62,preset:"fixar",moodCaught:false}; }
+      const preset=value.preset||"fixar",legacyFixar=preset==="fixar"&&Number(value.hue)===155&&Number(value.backgroundHue)===145;
+      return {mode:["system","light","dark"].includes(value.mode)?value.mode:"system",hue:legacyFixar?275:safeHue(value.hue),backgroundHue:legacyFixar?270:safeBackgroundHue(value.backgroundHue),background:safeBackground(value.background),preset,moodCaught:value.moodCaught===true};
+    }catch(_){ return {mode:"system",hue:275,backgroundHue:270,background:62,preset:"fixar",moodCaught:false}; }
   }
   function applyAppearance(next,persist){
     const current=readAppearance(),value=Object.assign({},current,next||{});
@@ -111,6 +114,8 @@
     document.documentElement.dataset.themeMode=value.mode;
     document.documentElement.style.setProperty("--accent-h",String(value.hue));
     document.documentElement.style.setProperty("--background-h",String(value.backgroundHue));
+    document.documentElement.style.setProperty("--holo-glow",holographicGlow(value.background).toFixed(3));
+    document.documentElement.style.setProperty("--holo-veil-opacity",holographicVeilOpacity(value.background).toFixed(3));
     document.documentElement.style.setProperty("--body-art",backgroundColor);
     const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.content=backgroundColor;
     if(persist!==false)put(APPEARANCE_KEY,JSON.stringify(value));
@@ -206,6 +211,7 @@
   }
   /* Лениво: анонимный вход под общим ключом — точь-в-точь как оболочка (шаг 3). */
   async function ensureSession(){
+    if(window.FixarCommunity) await window.FixarCommunity.beforeSession();
     if(authState.token) return authState.token;
     const saved=store(AUTH_KEY);
     if(saved){ try{ const who=await readSession(saved); if(who&&who.principal_id){ authState.token=who.session_token||saved; adopt(who); return authState.token; } }catch(e){} }
@@ -235,13 +241,21 @@
   }
 
   function applyIdentity(){
-    const av=document.getElementById("acctav"), nm=document.getElementById("acctnm");
-    paintUserAvatar(av); if(nm) nm.textContent=meName();
+    [["acctav","acctnm"],["desktopacctav","desktopacctnm"]].forEach(ids=>{
+      const av=document.getElementById(ids[0]),nm=document.getElementById(ids[1]);
+      paintUserAvatar(av); if(nm)nm.textContent=meName();
+    });
+    const desktopMeta=document.getElementById("desktopacctmeta");
+    if(desktopMeta)desktopMeta.textContent=authState.signed_in?"Личные настройки · уровень "+(authState.assurance||0):"Войти и сохранить дела";
     document.body.classList.toggle("guest-shell",!authState.signed_in);
+    if(typeof syncHomeChrome==="function"){
+      const raw=location.hash.slice(1),cut=raw.indexOf("~"),id=cut>=0?raw.slice(0,cut):raw;
+      syncHomeChrome(typeof byId==="object"?(byId[id]||null):null);
+    }
     if(!authState.signed_in&&typeof closeNav==="function")closeNav();
     if(typeof renderSwitch==="function") renderSwitch();
     if(typeof renderFoot==="function") renderFoot();
-    if(typeof loadRealCases==="function" && hasSession()){ loadRealCases(true).then(()=>{ if(typeof refreshCurrentView==="function") refreshCurrentView(); }); }
+    if(typeof loadRealCases==="function" && hasSession()){ loadRealCases(true).then(()=>{ if(typeof restoreLastActiveCase==="function"&&restoreLastActiveCase())return; if(typeof refreshCurrentView==="function") refreshCurrentView(); }); }
     loadCredits();
     maybeOpenFixarikFunnel();
     probeOwnerTools().then(()=>{ if(currentSpace==="Разработка" && typeof refreshCurrentView==="function") refreshCurrentView(); });
@@ -331,8 +345,11 @@
       body.innerHTML='<h2>'+esc(meName())+'</h2><p class="lead">Вы вошли — это тот же аккаунт и те же дела во всех версиях ФиксАР.</p>'+
         (via?'<div class="prov-chips">'+via+'</div>':'')+
         '<span class="assure">Уровень подтверждения: '+(authState.assurance||0)+'</span>'+
+        '<button class="account-personal-link" id="doAppearance" type="button" data-open-appearance><span class="account-appearance-orb" aria-hidden="true"><i></i></span><span><b>Оформление и настроение</b><small>Цвет, фон и личные настройки</small></span><span aria-hidden="true">›</span></button>'+
         '<button class="btn-out" id="doLogout">Выйти из аккаунта</button>';
-      const lo=body.querySelector("#doLogout"); lo.focus();
+      const appearance=body.querySelector("#doAppearance"),lo=body.querySelector("#doLogout");
+      appearance.onclick=()=>{ closeAccount(); if(typeof window.go==="function"&&window.FixarV2AppearanceRoute)window.go(window.FixarV2AppearanceRoute); };
+      appearance.focus();
       lo.onclick=()=>{ lo.disabled=true; lo.textContent="Выхожу…"; logout(); };
       return;
     }
