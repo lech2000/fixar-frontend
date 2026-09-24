@@ -2160,6 +2160,12 @@
         // тому же субъекту, и разговор не переносится, потому что был его.
         anon_token: state.token || ""
       });
+      try {
+        if (sessionStorage.getItem("fixar.v2.login.return") === "1") {
+          localStorage.setItem("fixar.login.state", r.state);
+          localStorage.setItem("fixar.login.back", "/v2/");
+        }
+      } catch (e) { /* возврат в v2 необязателен для самого входа */ }
       location.href = r.authorize_url || r.url;
     } catch (e) {
       сорвалось(T("Вход через ") + ((BRAND[provider] || {}).title || provider) +
@@ -6519,6 +6525,14 @@
      остаётся своим — перенос отдал его тому же человеку, и обнулять его
      значило бы выкинуть разговор, который прямо сейчас на экране. */
   async function afterSignin() {
+    // Пришедший из v2 вернётся к сохранённой анкете приглашения.
+    try {
+      if (sessionStorage.getItem("fixar.v2.login.return") === "1") {
+        sessionStorage.removeItem("fixar.v2.login.return");
+        location.replace("/v2/");
+        return;
+      }
+    } catch (e) { /* продолжаем обычный вход */ }
     state.cases = [];
     await renderScopes();
     await restoreCase();
@@ -18782,6 +18796,15 @@
       // узнать: список дел уже прочитан, и он видит его рядом с вопросом.
       restorePendingConfirm();
       await setupSignin(me);
+      if (me && me.signed_in) {
+        try {
+          if (sessionStorage.getItem("fixar.v2.login.return") === "1") {
+            sessionStorage.removeItem("fixar.v2.login.return");
+            location.replace("/v2/");
+            return;
+          }
+        } catch (e) { /* продолжаем обычный экран */ }
+      }
       await maybeInvite();
     } catch (e) {
       stateEl.textContent = T("сервис недоступен");

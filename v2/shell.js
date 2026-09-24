@@ -78,7 +78,7 @@
     "Семья": findNode("Для жизни · Семья"),
     "Практика": findNode("Для работы · Практика"),
     "Разработка": findNode("Для работы · Разработка"),
-    "Исследования": findNode("Для работы · Исследования")
+    "Проекты и исследования": findNode("Для работы · Проекты и исследования")
   };
   const ACCOUNT_SETTINGS_NODE = ROOT.children.find(node=>node.name==="Настройки");
   window.FixarV2AppearanceRoute=ACCOUNT_SETTINGS_NODE?ACCOUNT_SETTINGS_NODE.id:"";
@@ -190,19 +190,37 @@
   ];
   function practiceSectionNode(name){return SPACE_NODES["Практика"].children.find(node=>node.name===name)||null;}
   function practiceCases(practice){return ((typeof REAL!=="undefined"&&REAL.cases)||[]).filter(item=>item.domain===practice.domain);}
+  function practiceReferralCard(practice){
+    return '<div class="practice-invite-card"><p class="eyebrow">ПРИГЛАШЕНИЕ В КОМАНДУ</p><h4>Пригласить помощника в этот кабинет</h4><p>Это отдельное приглашение в вашу команду, не приглашение на платформу. Приглашённый увидит права и условия до вступления.</p><form class="pform" data-act="practice-referral" data-practice-id="'+attr(practice.id)+'"><label>Лимит на ходы помощника, кредитов в месяц<input name="monthly_credits" type="number" min="1" max="1000000" required placeholder="Например, 1000"></label><label>Источник ссылки<input name="referral_source" maxlength="32" pattern="[a-z0-9][a-z0-9_-]{0,31}" value="direct" required placeholder="telegram, max, case_ivanov"><small>Короткий тег латиницей: direct, telegram, max или название вашего дела. По нему можно различать источники.</small></label><label>Сообщение приглашённому<input name="note" maxlength="300" placeholder="Например, для работы с заявками по ремонту"></label><label class="check-line"><input name="library_write" type="checkbox"> <span>Разрешить класть материалы в библиотеку кабинета</span></label><button class="btn primary" type="submit">Создать ссылку в команду</button><div data-practice-referral-result role="status" aria-live="polite"></div></form></div>';
+  }
+  function screenPracticeInvite(node){
+    const head='<main class="research-projects">'+crumbsBlock(node)+'<header class="research-projects-heading"><p class="eyebrow">ПРАКТИКА · КОМАНДА</p><h1>Пригласить в команду</h1><p>Это доступ к выбранному кабинету на оговорённых условиях. Чтобы просто позвать человека на платформу, используйте ссылку «Пригласить в FixAR» на главной.</p></header>';
+    if(!hasSession())return head+'<section class="practice-invite-card"><p>Войдите, чтобы создать приглашение от своего кабинета.</p><button class="btn primary" type="button" data-my-day-account>Войти</button></section></main>';
+    if(!PRACTICE.loaded||PRACTICE.principal!==authState.principal){
+      loadPracticeCabinets().then(()=>{if(currentSpace==="Практика"&&location.hash==="#"+node.id)refreshCurrentView();});
+      return head+'<section class="practice-invite-card"><p>Загружаю кабинеты…</p></section></main>';
+    }
+    if(PRACTICE.error)return head+'<section class="practice-invite-card"><p>'+esc(PRACTICE.error)+'</p><button class="btn" type="button" data-act="practice-reload">Повторить</button></section></main>';
+    const practice=selectedPractice();
+    if(!practice)return head+'<section class="practice-invite-card"><p>Сначала создайте кабинет практики.</p><button class="btn primary" type="button" data-act="practice-add">Добавить кабинет</button></section></main>';
+    const choices=PRACTICE.items.length>1?'<div class="cta-row">'+PRACTICE.items.map(item=>'<button class="btn'+(item.id===practice.id?' primary':'')+'" type="button" data-act="practice-select" data-id="'+attr(item.id)+'">'+esc(practiceTitle(item))+'</button>').join('')+'</div>':'';
+    return head+'<p class="rc-hint">Кабинет: '+esc(practiceTitle(practice))+'</p>'+choices+practiceReferralCard(practice)+'</main>';
+  }
   function practiceCabinetSection(practice){
     const section=PRACTICE_SECTIONS.find(item=>item[0]===practiceSection)||PRACTICE_SECTIONS[0],cases=practiceCases(practice),target=section[2]&&practiceSectionNode(section[2]);
     let body="";
     if(section[0]==="needed"||section[0]==="cases"){
       const shown=section[0]==="needed"?cases.filter(item=>item.needs_word):cases;
       body=shown.length?'<div class="lst">'+shown.slice(0,8).map(item=>'<button class="lrow" type="button" data-my-day-case="'+attr(item.id)+'"><span><h4>'+esc(item.title||item.goal||"Дело без названия")+'</h4><p>'+esc(item.state||"")+'</p></span><span class="when">открыть →</span></button>').join("")+'</div>':'<p class="rc-hint">'+(cases.length?"Сейчас ни одно дело кабинета не ждёт вашего слова.":"В кабинете пока нет дел.")+'</p>';
-    }else if(section[0]==="face")body='<p class="rc-hint">Публичная страница, подписка и витрина сохраняются в старом кабинете; перенос этого экрана в v2 ещё не завершён.</p>';
+      if(section[0]==="needed")body+='<button class="btn" type="button" data-practice-section="team">Пригласить в команду →</button>';
+    }else if(section[0]==="team")body=practiceReferralCard(practice);
+    else if(section[0]==="face")body='<p class="rc-hint">Публичная страница, подписка и витрина сохраняются в старом кабинете; перенос этого экрана в v2 ещё не завершён.</p>';
     else if(section[0]==="watch")body='<p class="rc-hint">Наблюдения кабинета ещё не построены. Здесь появятся сигналы агентов без доступа к чужим делам.</p>';
     else if(section[0]==="links")body='<p class="rc-hint">Подключения мессенджеров и источников пока настраиваются в общих настройках аккаунта.</p>';
     else if(section[0]==="bounds")body='<p class="rc-hint">Границы действий агентов будут показаны здесь до выдачи разрешений.</p>';
     else if(section[0]==="archive")body='<p class="rc-hint">Закрытие кабинета остаётся защищённым действием и будет перенесено отдельным подтверждаемым экраном.</p>';
     else body='<p class="rc-hint">Откройте полноценный раздел выбранного кабинета.</p>';
-    return '<section class="practice-cabinet"><header><p class="eyebrow">КАБИНЕТ · '+esc(practiceTitle(practice))+'</p><h3>'+esc(section[1])+'</h3></header><div class="practice-tabs" role="tablist" aria-label="Разделы кабинета">'+PRACTICE_SECTIONS.map(item=>'<button type="button" role="tab" aria-selected="'+String(item[0]===practiceSection)+'" data-practice-section="'+item[0]+'">'+esc(item[1])+'</button>').join("")+'</div><div class="practice-section-body">'+body+(target&&section[0]!=="needed"?'<button class="btn" type="button" data-practice-node="'+attr(target.id)+'">Открыть раздел →</button>':'')+'</div></section>';
+    return '<section class="practice-cabinet"><header><p class="eyebrow">КАБИНЕТ · '+esc(practiceTitle(practice))+'</p><h3>'+esc(section[1])+'</h3></header><div class="practice-tabs" role="tablist" aria-label="Разделы кабинета">'+PRACTICE_SECTIONS.map(item=>'<button type="button" role="tab" aria-selected="'+String(item[0]===practiceSection)+'" data-practice-section="'+item[0]+'">'+esc(item[1])+'</button>').join("")+'</div><div class="practice-section-body">'+body+(target&&section[0]!=="needed"&&section[0]!=="team"?'<button class="btn" type="button" data-practice-node="'+attr(target.id)+'">Открыть раздел →</button>':'')+'</div></section>';
   }
   function practicePanel(){
     if(!authState.token) return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Войдите, чтобы увидеть только открытые вами кабинеты практики.</p><button class="btn primary" data-acct="open">Войти</button></div>';
@@ -212,6 +230,18 @@
     const add=authState.assurance>=2?'<button class="btn primary" data-act="practice-add">Добавить кабинет</button>':'<p class="rc-note">Чтобы добавить кабинет, подтвердите вход до уровня 2.</p>';
     const practice=selectedPractice();
     return (practice?practiceCabinetSection(practice):"")+'<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Выберите кабинет, в котором сейчас работаете. В списке только ваши кабинеты.</p><div class="lst">'+rows+'</div><div class="cta-row" style="margin-top:12px">'+add+'</div></div>';
+  }
+  async function submitPracticeReferral(form){
+    const button=form.querySelector('button[type="submit"]'),out=form.querySelector('[data-practice-referral-result]');
+    const source=form.elements.referral_source.value.trim().toLowerCase();
+    if(!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(source)){out.textContent="Тег источника: до 32 знаков, латинские буквы, цифры, _ или -.";return;}
+    button.disabled=true;out.textContent="Создаю ссылку…";
+    try{
+      const data=await authFetch("POST","/practice/team/invites",{practice_id:form.dataset.practiceId,monthly_credits:Number(form.elements.monthly_credits.value),note:form.elements.note.value.trim(),may:form.elements.library_write.checked?["library_write"]:[],specialist_referral:true,referral_source:source});
+      const link=new URL(data.link||("/v2/#teaminvite="+encodeURIComponent(data.code)),location.origin).href;
+      out.innerHTML='<div class="practice-referral-result"><label>Ссылка в команду<input type="url" readonly value="'+attr(link)+'"></label><div class="cta-row"><button class="btn" type="button" data-copy-practice-referral="'+attr(link)+'">Копировать ссылку</button></div><p>Ссылка одноразовая, действует '+esc(String(data.expires_in_hours||""))+' ч. Анкету заполняет приглашённый.</p>'+acquisitionTerms(data)+'</div>';
+    }catch(error){out.textContent=(error&&error.message)||"Не удалось создать ссылку.";}
+    finally{button.disabled=false;}
   }
   async function openPracticeAdd(){
     if(!authState.token){ openAccount(); return; }
@@ -229,19 +259,21 @@
   }
   function specialistTerms(data){
     const s=data&&data.specialist;if(!s)return "";
-    const narrow=(s.narrow_specializations||[]).join(", "),services=(s.service_types||[]).join(", "),territory=s.territory||{},radius=territory.radius_km?" · до "+territory.radius_km+" км":"",messenger=s.messenger_preference==="tg"?"только Telegram":s.messenger_preference==="max"?"только MAX":"Telegram или MAX — доступный канал автоматически";
-    return '<div class="specialist-terms"><div class="prow"><span>Специализация</span><b>'+esc(s.specialty||"")+'</b></div>'+(services?'<div class="prow"><span>Виды услуг</span><b>'+esc(services)+'</b></div>':'')+(narrow?'<div class="prow"><span>'+(s.strict_specialization?'Только':'В том числе')+'</span><b>'+esc(narrow)+'</b></div>':'')+'<div class="prow"><span>Территория</span><b>'+esc((territory.name||"")+radius)+'</b></div><div class="prow"><span>Календарь</span><b>'+esc(specialistDays(s.weekdays)+' · '+String(s.start_local||"").slice(0,5)+'–'+String(s.end_local||"").slice(0,5)+' · '+(s.timezone||""))+'</b></div><div class="prow"><span>Мессенджер</span><b>'+esc(messenger)+'</b></div><div class="prow"><span>Публикация окон</span><b>'+(s.publish_availability?'да, для подбора':'нет, только личный календарь')+'</b></div></div>';
+    const narrow=(s.narrow_specializations||[]).join(", "),territory=s.territory||{},radius=territory.radius_km?" · до "+territory.radius_km+" км":"",messenger=s.messenger_preference==="tg"?"только Telegram":s.messenger_preference==="max"?"только MAX":"Telegram или MAX — доступный канал автоматически";
+    return '<div class="specialist-terms"><div class="prow"><span>Специализация</span><b>'+esc(s.specialty||"")+'</b></div>'+(narrow?'<div class="prow"><span>'+(s.strict_specialization?'Только':'В том числе')+'</span><b>'+esc(narrow)+'</b></div>':'')+'<div class="prow"><span>Территория</span><b>'+esc((territory.name||"")+radius)+'</b></div><div class="prow"><span>Календарь</span><b>'+esc(specialistDays(s.weekdays)+' · '+String(s.start_local||"").slice(0,5)+'–'+String(s.end_local||"").slice(0,5)+' · '+(s.timezone||""))+'</b></div><div class="prow"><span>Мессенджер</span><b>'+esc(messenger)+'</b></div><div class="prow"><span>Публикация окон</span><b>'+(s.publish_availability?'да, для подбора':'нет, только личный календарь')+'</b></div></div>';
   }
   function acquisitionTerms(data){const a=data&&data.acquisition;return a&&a.disclosure?'<p class="rc-note referral-disclosure">'+esc(a.disclosure)+'</p>':"";}
   var TEAM_INVITE_KEY="fixar-v2-team-invite";
+  var LEGACY_SPECIALIST_INVITE_KEY="fixar-v2-specialist-invite";
+  function teamInviteHash(){return /^#(?:teaminvite|specialist)=tm_[A-Za-z0-9_-]{8,64}$/.test(location.hash);}
   function teamInviteCode(){
-    var raw=location.hash.match(/^#teaminvite=(tm_[A-Za-z0-9_-]{8,64})$/);if(raw){var code=raw[1];try{localStorage.setItem(TEAM_INVITE_KEY,code);}catch(_){}return code;}
-    try{var code=localStorage.getItem(TEAM_INVITE_KEY)||"";return /^tm_[A-Za-z0-9_-]{8,64}$/.test(code)?code:"";}catch(_){return "";}
+    var raw=location.hash.match(/^#(?:teaminvite|specialist)=(tm_[A-Za-z0-9_-]{8,64})$/);if(raw){var code=raw[1];try{localStorage.setItem(TEAM_INVITE_KEY,code);}catch(_){}return code;}
+    try{var code=localStorage.getItem(TEAM_INVITE_KEY)||localStorage.getItem(LEGACY_SPECIALIST_INVITE_KEY)||"";if(/^tm_[A-Za-z0-9_-]{8,64}$/.test(code)){localStorage.setItem(TEAM_INVITE_KEY,code);return code;}return "";}catch(_){return "";}
   }
   function teamInviteDraftKey(code){return "fixar.team.questionnaire."+code;}
   async function handleTeamInviteLink(){
     var code=teamInviteCode();if(!code)return false;
-    var data;try{data=await authFetch("GET","/team-invites/"+encodeURIComponent(code));}catch(error){try{localStorage.removeItem(TEAM_INVITE_KEY);}catch(_){}toast((error&&error.message)||"Приглашение недоступно.");return true;}
+    var data;try{data=await authFetch("GET","/team-invites/"+encodeURIComponent(code));}catch(error){try{localStorage.removeItem(TEAM_INVITE_KEY);localStorage.removeItem(LEGACY_SPECIALIST_INVITE_KEY);}catch(_){}toast((error&&error.message)||"Приглашение недоступно.");return true;}
     if(!data.needs_questionnaire){
       modalOpen("Приглашение в практику",'<p class="lead">'+esc(data.what_it_is||"Вас приглашают в команду практики.")+'</p><p class="rc-note">'+esc(data.who_pays||"")+'</p><div class="cta-row"><button class="btn primary" type="button" data-accept-team>Принять приглашение</button></div><p data-team-status aria-live="polite"></p>',function(body){
         var button=body.querySelector("[data-accept-team]"),status=body.querySelector("[data-team-status]");
@@ -250,31 +282,33 @@
           if(Number(authState.assurance||0)<2){status.textContent="Для рабочего кабинета нужен подтверждённый вход уровня 2 — войдите почтой или телефоном с кодом.";openAccount();return;}
           button.disabled=true;
           authFetch("POST","/team-invites/"+encodeURIComponent(code)+"/accept",{principal_id:authState.principal,phone:"",code:""}).then(function(){
-            try{localStorage.removeItem(TEAM_INVITE_KEY);}catch(_){}modalClose();currentSpace="Практика";rebuildNav();go(kidOf(SPACE_NODES[currentSpace],"Главная"));
+            try{localStorage.removeItem(TEAM_INVITE_KEY);localStorage.removeItem(LEGACY_SPECIALIST_INVITE_KEY);}catch(_){}modalClose();currentSpace="Практика";rebuildNav();go(kidOf(SPACE_NODES[currentSpace],"Главная"));
           }).catch(function(error){button.disabled=false;status.textContent=(error&&error.message)||"Приглашение не принято.";});
         };
       });return true;
     }
     var draft=null;try{draft=JSON.parse(localStorage.getItem(teamInviteDraftKey(code))||"null");}catch(_){}
-    modalOpen("Анкета нового практика",'<p class="lead">Вас приглашают в направление «'+esc(data.domain_title||data.kind_title||"практика")+'». Заполните сведения о своей работе — пригласивший их за вас не задавал.</p><div class="prow"><span>Работу агента оплачивает кабинет</span><b>до '+esc(data.monthly_credits)+' кредитов/мес.</b></div>'+acquisitionTerms(data)+(data.note?'<p class="rc-note">'+esc(data.note)+'</p>':'')+teamQuestionnaireHtml()+'<p class="rc-note">Членство не открывает дела клиентов автоматически: каждое назначение требует отдельного основания и согласия клиента.</p>',function(body){
+    var questions;try{questions=await authFetch("GET","/cross-border/question");}catch(error){toast((error&&error.message)||"Не удалось загрузить условия обработки данных. Повторите позже.");return true;}
+    var crossBorderQuestion=questions&&questions.ru;
+    if(!crossBorderQuestion||!crossBorderQuestion.digest||!crossBorderQuestion.text){toast("Не удалось загрузить условия обработки данных. Повторите позже.");return true;}
+    modalOpen("Анкета нового практика",'<p class="lead">Здравствуйте! Вас приглашают в направление «'+esc(data.domain_title||data.kind_title||"практика")+'» на платформе ФиксАР.</p><div class="rc-note">Что вас ждёт: вы заполняете анкету о своей работе (специализация, территория, график) — это 2 минуты. Дальше хозяин кабинета будет назначать вас в дела клиентов, а агент кабинета оплатит ваши ходы — до '+esc(data.monthly_credits)+' кредитов/мес. Членство не открывает дела клиентов автоматически: каждое назначение требует отдельного основания и согласия клиента. Отдельно входить никуда не нужно: код из сообщения подтвердит ваш телефон и сразу откроет пространство «Практика», готовое к работе.</div><div class="prow"><span>Работу агента оплачивает кабинет</span><b>до '+esc(data.monthly_credits)+' кредитов/мес.</b></div>'+acquisitionTerms(data)+(data.note?'<p class="rc-note">'+esc(data.note)+'</p>':'')+teamQuestionnaireHtml(crossBorderQuestion)+'<p class="rc-note">Членство не открывает дела клиентов автоматически: каждое назначение требует отдельного основания и согласия клиента.</p>',function(body){
       var form=body.querySelector("#teamQuestionnaire"),status=body.querySelector("[data-team-status]"),button=form.querySelector('button[type="submit"]'),phoneWrap=body.querySelector("[data-team-phone]"),codeWrap=body.querySelector("[data-team-code]");
       fillTeamQuestionnaire(form,draft);
-      // Вошедший L2 код не вводит: личность уже подтверждена, шлём пустые.
-      var skipCode=authState.signed_in&&Number(authState.assurance||0)>=2;
-      if(skipCode){phoneWrap.hidden=true;codeWrap.hidden=true;button.textContent="Подключить практику";}
-      else{button.textContent="Выслать код";}
+      // Приём реферального приглашения подтверждается кодом на телефон
+      // даже после входа через OAuth: так устроена серверная ручка accept.
+      phoneWrap.hidden=false;codeWrap.hidden=true;button.textContent="Выслать код";
       form.specialty.focus();
       var sentPhone="";
       form.onsubmit=function(event){
         event.preventDefault();
         var specialist=readTeamQuestionnaire(form,status);if(!specialist)return;
-        try{localStorage.setItem(teamInviteDraftKey(code),JSON.stringify(specialist));}catch(_){}
-        if(skipCode){submitTeamAccept(specialist,"","",button,status,code,body);return;}
+        var crossBorder=readTeamCrossBorder(form,status,crossBorderQuestion);if(!crossBorder)return;
+        try{localStorage.setItem(teamInviteDraftKey(code),JSON.stringify(Object.assign({},specialist,{cross_border:crossBorder})));}catch(_){}
         var phone=(form.phone.value||"").trim();
         if(!phone){status.textContent="Укажите номер телефона — на него придёт код подтверждения.";form.phone.focus();return;}
         if(!codeWrap.hidden&&sentPhone===phone&&form.code.value.trim()){
           specialist.phone=phone;
-          submitTeamAccept(specialist,phone,form.code.value.trim(),button,status,code,body);return;
+          submitTeamAccept(specialist,phone,form.code.value.trim(),button,status,code,body,crossBorder);return;
         }
         button.disabled=true;button.textContent="Высылаю код…";status.textContent="";
         authFetch("POST","/team-invites/"+encodeURIComponent(code)+"/invite-code/request",{phone:phone}).then(function(resp){
@@ -285,12 +319,12 @@
     });
     return true;
   }
-  function submitTeamAccept(specialist,phone,code,button,status,inviteCode,body){
+  function submitTeamAccept(specialist,phone,code,button,status,inviteCode,body,crossBorder){
     button.disabled=true;button.textContent="Подключаю…";status.textContent="";
     var payload={specialist:specialist,phone:phone,code:code};
     if(authState.signed_in&&authState.principal)payload.principal_id=authState.principal;
-    authFetch("POST","/team-invites/"+encodeURIComponent(inviteCode)+"/accept",payload).then(function(result){
-      try{localStorage.removeItem(TEAM_INVITE_KEY);localStorage.removeItem(teamInviteDraftKey(inviteCode));}catch(_){}
+    authFetch("POST","/team-invites/"+encodeURIComponent(inviteCode)+"/accept",payload).then(async function(result){
+      try{localStorage.removeItem(TEAM_INVITE_KEY);localStorage.removeItem(LEGACY_SPECIALIST_INVITE_KEY);localStorage.removeItem(teamInviteDraftKey(inviteCode));}catch(_){}
       if(result&&result.session&&result.session.token){
         try{
           localStorage.setItem("fixar.token",result.session.token);
@@ -298,28 +332,38 @@
         }catch(_){}
         authState.token=result.session.token;authState.principal=result.session.principal_id||authState.principal;
         authState.assurance=result.session.assurance||2;authState.signed_in=true;
-        if(typeof bootIdentity==="function")bootIdentity();
+        if(typeof bootIdentity==="function")try{await bootIdentity();}catch(_){}
       }
-      if(location.hash.indexOf("#teaminvite=")===0)history.replaceState(null,"",location.pathname+location.search);
-      toast("Практика подключена. Открываю пространство.");
+      var consentError=null;
+      if(crossBorder){
+        try{await authFetch("PUT","/principals/"+encodeURIComponent(authState.principal)+"/cross-border",{max_jurisdiction:crossBorder.max_jurisdiction,text_digest:crossBorder.text_digest,context:"onboarding"});}
+        catch(error){consentError=error;}
+      }
+      if(teamInviteHash())history.replaceState(null,"",location.pathname+location.search);
+      try{await loadPracticeCabinets(true);}catch(_){}
       modalClose();currentSpace="Практика";rebuildNav();go(kidOf(SPACE_NODES[currentSpace],"Главная"));
+      if(consentError){toast("Профиль практика создан, но решение о передаче данных не записано. До повторного ответа обработка ограничена Россией. Откройте Юридические документы.");}
+      else toast("Профиль практика и календарь готовы. Здесь можно открыть свой кабинет и завести дело.");
     }).catch(function(error){button.disabled=false;button.textContent="Подключить практику";status.textContent=(error&&error.message)||"Не удалось принять приглашение.";});
   }
-  function teamQuestionnaireHtml(){
+  function teamQuestionnaireHtml(question){
     var dayNames=[[1,"Пн"],[2,"Вт"],[3,"Ср"],[4,"Чт"],[5,"Пт"],[6,"Сб"],[7,"Вс"]];
-    return '<div class="rc-note">Анкета и код — один шаг: заполните поля, укажите телефон, получите код в Telegram и введите его здесь же. После подтверждения сразу откроется пространство «Практика».</div><form id="teamQuestionnaire" class="pform specialist-invite-form"><label>Ваша основная специализация<input name="specialty" maxlength="200" required placeholder="Ремонт и обслуживание котлов"></label><label>Какие услуги вы выполняете?<textarea name="services" rows="4" maxlength="2400" required placeholder="Например: диагностика, ремонт, настройка, профилактика"></textarea><small class="field-hint">Перечислите все виды услуг через запятую или с новой строки — они попадут в карточку практика и подбор.</small></label><label>Узкая специализация, марки через запятую<input name="narrow" maxlength="500" placeholder="Buderus"></label><label class="check-line"><input name="strict" type="checkbox"> <span><b>Работать только в указанной специализации</b><small>Например, только котлы Buderus — без заявок по другим маркам.</small></span></label><div class="pf-row"><label>Где вы работаете<input name="territory" maxlength="200" required placeholder="Приветнинское и окрестности"></label><label>Радиус выезда, км<input name="radius" type="number" min="1" max="500" inputmode="numeric" placeholder="30"></label></div><fieldset><legend>Ваши обычные рабочие дни</legend><div class="weekday-pills">'+dayNames.map(function(item){return '<label><input type="checkbox" name="weekday" value="'+item[0]+'" '+(item[0]<=5?'checked':'')+'><span>'+item[1]+'</span></label>';}).join("")+'</div></fieldset><div class="pf-row"><label>С<input name="start" type="time" value="09:00" required></label><label>До<input name="end" type="time" value="18:00" required></label><label>Часовой пояс<input name="timezone" value="Europe/Moscow" maxlength="64" required></label></div><label>Куда присылать рабочие уведомления<select name="messenger"><option value="auto">Telegram или MAX — доступный канал автоматически</option><option value="tg">Только Telegram</option><option value="max">Только MAX</option></select></label><div data-team-phone><div class="pf-row"><label>Телефон для кода в Telegram<input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="32" required placeholder="+7 999 123-45-67"></label></div><p class="rc-note">На этот номер отправим одноразовый код в Telegram. Код подтверждает личность и сразу открывает рабочий вход уровня 2.</p></div><div data-team-code hidden><label>Код из Telegram<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Код"></label></div><label class="check-line"><input name="publish" type="checkbox" checked> <span><b>Показывать свободные окна в подборе</b><small>Личность не раскрывается до согласованного контакта; видны специализация, территория и окно.</small></span></label><div class="rc-note" data-team-status aria-live="polite"></div><div class="cta-row"><button class="btn primary" type="submit">Выслать код в Telegram</button></div></form>';
+    return '<div class="rc-note">Анкета и код — один шаг: заполните поля, укажите телефон, получите код и введите его здесь же. Отдельно входить никуда не нужно.</div><form id="teamQuestionnaire" class="pform specialist-invite-form"><label>Ваша основная специализация<input name="specialty" maxlength="200" required placeholder="Ремонт и обслуживание котлов"></label><label>Узкая специализация, марки через запятую<input name="narrow" maxlength="500" placeholder="Buderus"></label><label class="check-line"><input name="strict" type="checkbox"> <span><b>Работать только в указанной специализации</b><small>Например, только котлы Buderus — без заявок по другим маркам.</small></span></label><div class="pf-row"><label>Где вы работаете<input name="territory" maxlength="200" required placeholder="Приветнинское и окрестности"></label><label>Радиус выезда, км<input name="radius" type="number" min="1" max="500" inputmode="numeric" placeholder="30"></label></div><fieldset><legend>Ваши обычные рабочие дни</legend><div class="weekday-pills">'+dayNames.map(function(item){return '<label><input type="checkbox" name="weekday" value="'+item[0]+'" '+(item[0]<=5?'checked':'')+'><span>'+item[1]+'</span></label>';}).join("")+'</div></fieldset><div class="pf-row"><label>С<input name="start" type="time" value="09:00" required></label><label>До<input name="end" type="time" value="18:00" required></label><label>Часовой пояс<input name="timezone" value="Europe/Moscow" maxlength="64" required></label></div><label>Куда присылать рабочие уведомления<select name="messenger"><option value="auto">Telegram или MAX — доступный канал автоматически</option><option value="tg">Только Telegram</option><option value="max">Только MAX</option></select></label><div data-team-phone><div class="pf-row"><label>Телефон для кода подтверждения<input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="32" required placeholder="+7 999 123-45-67"></label></div><p class="rc-note">Код придёт по номеру — Telegram, WhatsApp или СМС, какой дешевле и доступен. Отдельно входить никуда не нужно: верный код и есть вход (уровень 2).</p></div><div data-team-code hidden><label>Код из сообщения<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Код"></label></div><label class="check-line"><input name="publish" type="checkbox" checked> <span><b>Показывать свободные окна в подборе</b><small>Личность не раскрывается до согласованного контакта; видны специализация, территория и окно.</small></span></label><div class="rc-note" data-team-status aria-live="polite"></div><div class="cta-row"><button class="btn primary" type="submit">Выслать код</button></div></form>'.replace('<div data-team-phone>', '<fieldset><legend>Где можно обрабатывать ваши данные</legend><p class="rc-note">'+esc(question.text)+'</p><label class="check-line"><input type="radio" name="cross_border" value="foreign" checked> <span>'+esc(question.answers.foreign)+'</span></label><label class="check-line"><input type="radio" name="cross_border" value="ru"> <span>'+esc(question.answers.ru)+'</span></label><label class="check-line"><input type="checkbox" name="cross_border_confirm" required> <span><b>Я прочитал(а) условия и подтверждаю выбранный ответ</b></span></label></fieldset><label class="check-line"><input type="checkbox" name="gigachat_only"> <span><b>Только GigaChat</b><small>Если GigaChat недоступен, другой моделью не заменять.</small></span></label><div data-team-phone>');
+  }
+  function readTeamCrossBorder(form,status,question){
+    if(!form.cross_border_confirm.checked){status.textContent="Подтвердите ответ об обработке данных.";form.cross_border_confirm.focus();return null;}
+    return {max_jurisdiction:form.querySelector('input[name="cross_border"]:checked').value,text_digest:question.digest};
   }
   function readTeamQuestionnaire(form,status){
-    var serviceTypes=(form.services.value||"").split(/[\n,;]+/).map(function(value){return value.trim();}).filter(Boolean),narrow=(form.narrow.value||"").split(",").map(function(value){return value.trim();}).filter(Boolean),weekdays=Array.from(form.querySelectorAll('input[name="weekday"]:checked')).map(function(input){return Number(input.value);});
-    if(!serviceTypes.length){status.textContent="Укажите хотя бы один вид услуги.";form.services.focus();return null;}
+    var narrow=(form.narrow.value||"").split(",").map(function(value){return value.trim();}).filter(Boolean),weekdays=Array.from(form.querySelectorAll('input[name="weekday"]:checked')).map(function(input){return Number(input.value);});
     if(form.strict.checked&&!narrow.length){status.textContent="Для строгой специализации укажите хотя бы одну марку или вид работ.";form.narrow.focus();return null;}
     if(!weekdays.length){status.textContent="Выберите хотя бы один рабочий день.";return null;}
     if(form.start.value===form.end.value){status.textContent="Начало и конец рабочего окна не могут совпадать.";return null;}
     var territory={name:form.territory.value.trim()};if(form.radius.value)territory.radius_km=Number(form.radius.value);
-    return {specialty:form.specialty.value.trim(),service_types:serviceTypes,narrow_specializations:narrow,strict_specialization:form.strict.checked,territory:territory,timezone:form.timezone.value.trim(),weekdays:weekdays,start_local:form.start.value,end_local:form.end.value,messenger_preference:form.messenger.value,publish_availability:form.publish.checked};
+    return {specialty:form.specialty.value.trim(),narrow_specializations:narrow,strict_specialization:form.strict.checked,territory:territory,timezone:form.timezone.value.trim(),weekdays:weekdays,start_local:form.start.value,end_local:form.end.value,messenger_preference:form.messenger.value,model_preference:form.gigachat_only.checked?"gigachat_only":"auto",publish_availability:form.publish.checked};
   }
   function fillTeamQuestionnaire(form,draft){
-    if(!draft)return;form.specialty.value=draft.specialty||"";form.services.value=(draft.service_types||[]).join(", ");form.narrow.value=(draft.narrow_specializations||[]).join(", ");form.strict.checked=!!draft.strict_specialization;form.territory.value=(draft.territory||{}).name||"";form.radius.value=(draft.territory||{}).radius_km||"";form.timezone.value=draft.timezone||"Europe/Moscow";form.start.value=String(draft.start_local||"09:00").slice(0,5);form.end.value=String(draft.end_local||"18:00").slice(0,5);form.messenger.value=draft.messenger_preference||"auto";form.publish.checked=draft.publish_availability!==false;if(draft.phone&&form.phone)form.phone.value=draft.phone;form.querySelectorAll('input[name="weekday"]').forEach(function(input){input.checked=(draft.weekdays||[1,2,3,4,5]).includes(Number(input.value));});
+    if(!draft)return;form.specialty.value=draft.specialty||"";form.narrow.value=(draft.narrow_specializations||[]).join(", ");form.strict.checked=!!draft.strict_specialization;form.territory.value=(draft.territory||{}).name||"";form.radius.value=(draft.territory||{}).radius_km||"";form.timezone.value=draft.timezone||"Europe/Moscow";form.start.value=String(draft.start_local||"09:00").slice(0,5);form.end.value=String(draft.end_local||"18:00").slice(0,5);form.messenger.value=draft.messenger_preference||"auto";form.gigachat_only.checked=draft.model_preference==="gigachat_only";if(draft.cross_border){var choice=form.querySelector('input[name="cross_border"][value="'+draft.cross_border.max_jurisdiction+'"]');if(choice)choice.checked=true;}form.cross_border_confirm.checked=false;form.publish.checked=draft.publish_availability!==false;if(draft.phone&&form.phone)form.phone.value=draft.phone;form.querySelectorAll('input[name="weekday"]').forEach(function(input){input.checked=(draft.weekdays||[1,2,3,4,5]).includes(Number(input.value));});
   }
 
   function openFixarCase(){
@@ -402,6 +446,9 @@
     document.body.classList.toggle("chat-home-shell",chatHome);
     if(chatHome&&typeof closeNav==="function")closeNav();
   }
+  function inviteColleagueTile(){
+    return '<button class="holo-invite-card" type="button" data-act="invite-to-platform"><span class="holo-invite-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-2.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V20M18 8v8m-4-4h8"/></svg></span><span class="holo-invite-card-copy"><strong>'+uiText("Пригласить в FixAR","Invite to FixAR")+'</strong><small>'+uiText("Личная ссылка · 10% с работы платформы","Personal link · 10% of platform work")+'</small></span><span class="holo-invite-card-arrow" aria-hidden="true">↗</span></button>';
+  }
   function myDayGuestHome(workEntry){
     const prompts=[["Найти квартиру","Find a flat"],["Разобраться с делами","Sort out my tasks"],["Выбрать лучшее","Choose the best option"]];
     const roadmap=[["01",uiText("Расскажите о задаче","Tell us about the task"),uiText("Обычными словами. Можно начать с одной мысли.","Use everyday language. One thought is enough to begin.")],["02",uiText("Найдите свой маршрут","Find your route"),uiText("Варианты, нужные помощники и понятный план.","Options, the right assistants and a clear plan.")],["03",uiText("Переходите к действию","Move to action"),uiText("Дело, люди и документы — вместе. Важные решения — с вами.","The case, people and documents stay together. Important decisions stay with you.")]];
@@ -410,13 +457,13 @@
     const flickerDurations={3:12800,10:11600};
     const entryAction=workEntry?'<button class="my-day-signin" type="button" data-my-day-work>'+uiText("К делам","To cases")+' <b aria-hidden="true">→</b></button>':'<button class="my-day-signin" type="button" data-my-day-account>'+uiText("Войти","Sign in")+' <b aria-hidden="true">↗</b></button>';
     const panels=layout.map((panel,index)=>'<span class="fixar-holo-panel'+([3,10].includes(index)?' is-flicker':'')+'" style="--hx:'+panel[0]+'%;--hy:'+panel[1]+'px;--hw:'+panel[2]+'%;--hh:'+panel[3]+'px;--hi:'+index+';--base:'+(0.55+(index%4)*.12)+';--duration:'+(flickerDurations[index]||14500+(index%5)*2300)+'ms;--delay:'+(-(index*3770+4900))+'ms"><canvas data-holo-seed="'+(312+index*79)+'" data-holo-variant="'+panel[4]+'"></canvas><i aria-hidden="true"></i></span>').join("");
-    return '<main class="my-day-home my-day-guest"><div class="fixar-holo-scene" data-holographic-home aria-hidden="true"><div class="fixar-holo-grid"></div><div class="fixar-holo-panels">'+panels+'</div><div class="fixar-holo-ambient"></div><div class="fixar-holo-veil"></div></div><div class="holo-home-page"><header class="holo-home-header"><a class="holo-home-brand" href="/v2/" aria-label="FixAR"><span class="holo-home-brand-mark" aria-hidden="true">✳</span><strong>FixAR</strong><small>'+esc(currentSpace)+" · "+uiText("пространство","space")+'</small></a><div class="holo-header-actions"><span><i></i>'+uiText("Рядом, когда нужно","Here when you need us")+'</span>'+entryAction+'</div></header><section class="holo-home-stage"><div class="holo-home-content"><div class="holo-home-hero-copy"><p class="eyebrow">'+uiText("НАЧНИТЕ С ОДНОГО СООБЩЕНИЯ","START WITH ONE MESSAGE")+'</p><h1>'+uiText("Что хотите","What would you like")+'<br><span>'+uiText("решить?","to solve?")+'</span></h1><p class="my-day-guest-lede">'+uiText("Из множества возможностей — ваш следующий шаг. Расскажите о задаче. Фиксарик поможет собрать решение.","From many possibilities to your next step. Tell Fixarik about the task and build the solution together.")+'</p><div class="my-day-main"><form class="my-day-composer my-day-guest-composer" data-act="my-day-ask"><label><span aria-hidden="true">✣</span>'+uiText("Фиксарик слушает","Fixarik is listening")+'</label><textarea name="message" rows="3" maxlength="8000" required placeholder="'+uiText("Хочу разобраться с…","I want to figure out…")+'"></textarea><div class="my-day-composer-foot"><small>⌾ '+uiText("Сначала разговор. Решение — за вами.","Conversation first. The decision is yours.")+'</small><button class="btn primary holo-send" type="submit" aria-label="'+uiText("Отправить сообщение","Send message")+'"><span>'+uiText("Отправить","Send")+'</span><b aria-hidden="true">↑</b></button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Попробуйте начать так","Try starting here")+'">'+prompts.map(pair=>'<button class="my-day-prompt" type="button" data-my-day-prompt="'+attr(uiText(pair[0],pair[1]))+'">'+esc(uiText(pair[0],pair[1]))+' ↗</button>').join("")+'</div></div></div><aside class="holo-home-aside"><svg class="holo-orbit-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="m18 2 3.8 12.2L34 18l-12.2 3.8L18 34l-3.8-12.2L2 18l12.2-3.8L18 2Z"/><circle cx="18" cy="18" r="4"/></svg><h2>'+uiText("Всё начинается с ясности.","Everything begins with clarity.")+'</h2><p>'+uiText("Ваши мысли становятся планом. План — действием.","Your thoughts become a plan. The plan becomes action.")+'</p></aside></div></section><section class="my-day-roadmap" aria-labelledby="my-day-roadmap-title"><div class="my-day-roadmap-head"><p id="my-day-roadmap-title">'+uiText("ОТ ВОПРОСА К РЕЗУЛЬТАТУ","FROM QUESTION TO OUTCOME")+'</p><small>'+uiText("ВЫ УПРАВЛЯЕТЕ КАЖДЫМ ШАГОМ","YOU CONTROL EVERY STEP")+'</small></div><div class="my-day-roadmap-grid">'+roadmap.map((item,index)=>'<article><div class="holo-step-top"><span>'+roadmapIcons[index]+'</span><b>'+item[0]+' /</b></div><h3>'+item[1]+'</h3><p>'+item[2]+'</p></article>').join("")+'</div><p class="holo-consent-note">⌾ '+uiText("Помощники действуют с вашего согласия.","Assistants act with your permission.")+'</p></section></div></main>';
+    return '<main class="my-day-home my-day-guest"><div class="fixar-holo-scene" data-holographic-home aria-hidden="true"><div class="fixar-holo-grid"></div><div class="fixar-holo-panels">'+panels+'</div><div class="fixar-holo-ambient"></div><div class="fixar-holo-veil"></div></div><div class="holo-home-page"><header class="holo-home-header"><a class="holo-home-brand" href="/v2/" aria-label="FixAR"><span class="holo-home-brand-mark" aria-hidden="true">✳</span><strong>FixAR</strong><small>'+esc(currentSpace)+" · "+uiText("пространство","space")+'</small></a><div class="holo-header-actions"><span><i></i>'+uiText("Рядом, когда нужно","Here when you need us")+'</span>'+entryAction+'</div></header><section class="holo-home-stage"><div class="holo-home-content"><div class="holo-home-hero-copy"><p class="eyebrow">'+uiText("НАЧНИТЕ С ОДНОГО СООБЩЕНИЯ","START WITH ONE MESSAGE")+'</p><h1>'+uiText("Что хотите","What would you like")+'<br><span>'+uiText("решить?","to solve?")+'</span></h1><p class="my-day-guest-lede">'+uiText("Из множества возможностей — ваш следующий шаг. Расскажите о задаче. Фиксарик поможет собрать решение.","From many possibilities to your next step. Tell Fixarik about the task and build the solution together.")+'</p><div class="my-day-main"><form class="my-day-composer my-day-guest-composer" data-act="my-day-ask"><label><span aria-hidden="true">✣</span>'+uiText("Фиксарик слушает","Fixarik is listening")+'</label><textarea name="message" rows="3" maxlength="8000" required placeholder="'+uiText("Хочу разобраться с…","I want to figure out…")+'"></textarea><div class="my-day-composer-foot"><small>⌾ '+uiText("Сначала разговор. Решение — за вами.","Conversation first. The decision is yours.")+'</small><button class="btn primary holo-send" type="submit" aria-label="'+uiText("Отправить сообщение","Send message")+'"><span>'+uiText("Отправить","Send")+'</span><b aria-hidden="true">↑</b></button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Попробуйте начать так","Try starting here")+'">'+prompts.map(pair=>'<button class="my-day-prompt" type="button" data-my-day-prompt="'+attr(uiText(pair[0],pair[1]))+'">'+esc(uiText(pair[0],pair[1]))+' ↗</button>').join("")+'</div></div></div><aside class="holo-home-aside"><svg class="holo-orbit-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="m18 2 3.8 12.2L34 18l-12.2 3.8L18 34l-3.8-12.2L2 18l12.2-3.8L18 2Z"/><circle cx="18" cy="18" r="4"/></svg><h2>'+uiText("Всё начинается с ясности.","Everything begins with clarity.")+'</h2><p>'+uiText("Ваши мысли становятся планом. План — действием.","Your thoughts become a plan. The plan becomes action.")+'</p></aside></div></section><section class="my-day-roadmap" aria-labelledby="my-day-roadmap-title"><div class="my-day-roadmap-head"><p id="my-day-roadmap-title">'+uiText("ОТ ВОПРОСА К РЕЗУЛЬТАТУ","FROM QUESTION TO OUTCOME")+'</p><small>'+uiText("ВЫ УПРАВЛЯЕТЕ КАЖДЫМ ШАГОМ","YOU CONTROL EVERY STEP")+'</small></div><div class="my-day-roadmap-grid">'+roadmap.map((item,index)=>'<article><div class="holo-step-top"><span>'+roadmapIcons[index]+'</span><b>'+item[0]+' /</b></div><h3>'+item[1]+'</h3><p>'+item[2]+'</p></article>').join("")+'</div>'+inviteColleagueTile()+'</section></div></main>';
   }
   function myDayCopy(){
     if(currentSpace==="Семья")return {highlight:uiText("Вечер можно освободить","Make room for your evening"),body:uiText("Соберите семейные дела в один понятный план. Остальное — время вместе.","Bring family tasks into one simple plan. The rest is time together."),prompts:[["Что важно сделать семье сегодня?","What matters for the family today?"],["Помоги разобраться с ближайшими сроками","Help me review upcoming deadlines"]],symbol:"⌂",banner:"domashkin"};
     if(currentSpace==="Личное")return {highlight:uiText("Оставьте время для себя","Leave some time for yourself"),body:uiText("Важное — на виду. Фиксарик поможет разложить заботы на небольшие шаги.","Keep what matters in sight. Fixarik turns everyday concerns into small steps."),prompts:[["Помоги спланировать день","Help me plan my day"],["Какой следующий шаг по моим делам?","What is the next step in my cases?"]],symbol:"✦",banner:"domashkin"};
     if(currentSpace==="Практика")return {highlight:uiText("Начните с ясного вопроса","Start with a clear question"),body:uiText("Соберите факты и документы. Профильный помощник подскажет, с чего начать подготовку.","Collect the facts and documents. A specialist assistant shows where to start."),prompts:[["Помоги сформулировать задачу","Help me frame the task"],["Какие материалы подготовить?","What materials should I prepare?"]],symbol:"§"};
-    if(currentSpace==="Исследования")return {highlight:uiText("Атлас и Радар — по воротам","Atlas and Radar, gate by gate"),body:uiText("Два исследования и инфраструктура графа: каждый шаг закрывается артефактом и отчётом ворот.","Two studies plus graph infrastructure: every step closes with an artifact and a gate report."),prompts:[["Что на воротах A1?","What is on gate A1?"],["Что на воротах R0?","What is on gate R0?"]],symbol:"◈"};
+    if(currentSpace==="Проекты и исследования")return {highlight:uiText("Проекты — от замысла до проверки","Projects, from idea to evidence"),body:uiText("Разработка ФиксАР и исследовательские дела: каждый шаг ведёт к проверяемому результату.","FixAR development and research cases: every step leads to a verifiable result."),prompts:[["Что на воротах A1?","What is on gate A1?"],["Как движется интеграция HarnessRouter?","How is HarnessRouter integration progressing?"]],symbol:"◈"};
     return {highlight:uiText("От идеи к безопасной публикации","From an idea to a safe release"),body:uiText("Инструменты владельца, паки и проверки собраны вокруг следующего проверяемого шага.","Owner tools, packs, and checks revolve around the next verifiable step."),prompts:[["Что требует проверки?","What needs review?"],["Покажи следующий шаг публикации","Show the next release step"]],symbol:"⌘"};
   }
   function myDayCases(){
@@ -449,8 +496,8 @@
   function myDayRail(){
     const cases=myDayCases();
     if(!hasSession())return '<aside class="my-day-rail"><section class="my-day-rail-card"><h2>'+uiText("Осваивайтесь в своём темпе","Make yourself at home")+'</h2><p>'+uiText("Пара шагов — и здесь станет привычно.","A couple of steps to feel at home.")+'</p><div class="my-day-steps"><button class="my-day-step" type="button" data-my-day-account><span class="my-day-step-icon">1</span><span><strong>'+uiText("Войдите в FixAR","Sign in to FixAR")+'</strong><small>'+uiText("Сохранить свои пространства и дела","Keep your spaces and cases")+'</small></span><span>→</span></button><button class="my-day-step" type="button" data-act="create-case"><span class="my-day-step-icon">2</span><span><strong>'+uiText("Создайте первое дело","Create your first case")+'</strong><small>'+uiText("Начните с реальной задачи","Start with a real task")+'</small></span><span>→</span></button></div></section></aside>';
-    const rows=cases.slice(0,3).map((item,index)=>'<button class="my-day-step" type="button" data-my-day-case="'+attr(item.id)+'"><span class="my-day-step-icon">'+(index+1)+'</span><span><strong>'+esc(item.title||uiText("Без названия","Untitled"))+'</strong><small>'+esc(fmtWhen(item.updated_at)||uiText("Открыть дело","Open case"))+'</small></span><span>→</span></button>').join("");
-    return '<aside class="my-day-rail"><section class="my-day-rail-card"><h2>'+uiText("Следующие шаги","Next steps")+'</h2><p>'+uiText("Продолжите с того места, где нужна ваша мысль.","Continue where your input matters.")+'</p><div class="my-day-steps">'+(rows||'<button class="my-day-step" type="button" data-act="create-case"><span class="my-day-step-icon">+</span><span><strong>'+uiText("Создать первое дело","Create your first case")+'</strong><small>'+uiText("Опишите желаемый результат","Describe the outcome you need")+'</small></span><span>→</span></button>')+'</div></section><section class="my-day-safety"><b>'+uiText("Только подтверждённые данные.","Verified data only.")+'</b> '+uiText("Детские сведения и подключения не подставляются из демонстрации.","Child data and connections are never filled with demo content.")+'</section></aside>';
+    const rows=cases.map((item,index)=>'<button class="my-day-step" type="button" data-my-day-case="'+attr(item.id)+'"><span class="my-day-step-icon">'+(index+1)+'</span><span><strong>'+esc(item.title||uiText("Без названия","Untitled"))+'</strong><small>'+esc(fmtWhen(item.updated_at)||uiText("Открыть дело","Open case"))+'</small></span><span>→</span></button>').join("");
+    return '<aside class="my-day-rail"><section class="my-day-rail-card"><h2>'+uiText("Следующие шаги","Next steps")+'</h2><p>'+uiText("Продолжите с того места, где нужна ваша мысль.","Continue where your input matters.")+'</p><div class="my-day-steps">'+(rows||'<button class="my-day-step" type="button" data-act="create-case"><span class="my-day-step-icon">+</span><span><strong>'+uiText("Создать первое дело","Create your first case")+'</strong><small>'+uiText("Опишите желаемый результат","Describe the outcome you need")+'</small></span><span>→</span></button>')+'</div></section>'+inviteColleagueTile()+'</aside>';
   }
   function myDayHome(node){
     if(!authState.signed_in)return myDayGuestHome();
@@ -462,7 +509,7 @@
     const banner=(copy.banner==="domashkin")?myDayBanner():"";
     const devPacksSection=currentSpace==="Разработка"?'<section class="my-day-highlight" id="dev-packs-preview"><div><span class="eyebrow">ПАКИ РЕЕСТРА</span><h2>Загрузка паков…</h2><div id="dev-packs-home" class="pgrid" style="margin-top:12px"><div class="skel-card" style="height:80px"></div></div></div></section>':'';
     const extras=devPacksSection+(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"");
-    const spaceClass={"Семья":"space-family","Личное":"space-personal","Практика":"space-practice","Разработка":"space-development","Исследования":"space-development"}[currentSpace]||"space-personal";
+    const spaceClass={"Семья":"space-family","Личное":"space-personal","Практика":"space-practice","Разработка":"space-development","Проекты и исследования":"space-development"}[currentSpace]||"space-personal";
     return '<main class="my-day-home '+spaceClass+'"><header class="my-day-heading"><div><p class="eyebrow">'+uiText("ВАШЕ ПРОСТРАНСТВО ДЛЯ ЖИЗНИ","A LITTLE SPACE FOR YOUR LIFE")+'</p><h1>'+uiText("Меньше забот.<br>Больше вашей жизни.","Less to manage.<br>More life to live.")+'</h1><p>'+uiText("Вы решаете, что важно. Мы помогаем с остальным.","You choose what matters. We help with the rest.")+'</p></div><button class="my-day-badge" type="button" data-my-day-chat>'+uiText("К чату","Back to chat")+' ←</button></header><div class="my-day-layout"><div class="my-day-main"><section class="my-day-highlight"><div><span class="eyebrow">'+uiText("ОДНА ХОРОШАЯ МЫСЛЬ НА СЕГОДНЯ","ONE GOOD IDEA FOR TODAY")+'</span><h2>'+copy.highlight+'</h2><p>'+copy.body+'</p><button class="my-day-text-button" type="button" '+(cases[0]?'data-my-day-case="'+attr(cases[0].id)+'"':'data-act="create-case"')+'>'+(cases[0]?uiText("Продолжить главное дело","Continue the main case"):uiText("Начать с одного дела","Start with one case"))+' →</button></div><div class="my-day-orbit" aria-hidden="true"><div class="my-day-orbit-card">'+copy.symbol+'<b>'+esc(currentSpace)+'</b></div></div></section><form class="my-day-composer" data-act="my-day-ask"><label>'+uiText("С чего начнём?","Where shall we start?")+'</label><textarea name="message" rows="2" maxlength="8000" required placeholder="'+uiText("Напишите, что хочется упростить…","What would you like to make easier?")+'"></textarea><div class="my-day-composer-foot"><small>'+uiText("Фиксарик видит текущую страницу и может передать вопрос профильному помощнику.","Fixarik sees this page and can hand the question to a specialist assistant.")+'</small><button class="btn primary" type="submit">'+uiText("Отправить","Send")+'</button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Умные подсказки","Smart suggestions")+'">'+prompts+'</div>'+assistants+banner+'</div>'+myDayRail()+'</div>'+extras+'</main>';
   }
 
@@ -661,6 +708,27 @@
     const create='<button class="btn primary create-btn" data-act="create-case">'+uiText("Создать дело","Create case")+'</button>';
     const view='<div class="case-view-toggle" role="group" aria-label="'+uiText("Вид дел","Case view")+'"><button type="button" data-case-view="list" data-node="'+node.id+'" aria-pressed="'+(caseViewMode==="list")+'"><span aria-hidden="true">≡</span>'+uiText("Список","List")+'</button><button type="button" data-case-view="notes" data-node="'+node.id+'" aria-pressed="'+(caseViewMode==="notes")+'"><span aria-hidden="true">▦</span>'+uiText("Стикеры","Sticky notes")+'</button></div>';
     return '<main class="my-cases"><div class="crumbs">'+crumbHtml(node)+'</div><header class="my-cases-heading"><div><p class="eyebrow">'+esc(currentSpace)+' · '+uiText("ВАШИ ДЕЛА","YOUR CASES")+'</p><h1>'+uiText("Смотрите, что движется дальше.","See what moves forward next.")+'</h1><p>'+uiText("Ваш ответ — первым. Работа помощников — рядом. Завершённое не мешает.","Your input comes first. Assistant work stays visible. Completed cases stay out of the way.")+'</p></div><span class="my-day-badge">'+items.length+' '+uiText("дел","cases")+'</span></header><section class="my-cases-pulse" aria-label="'+uiText("Состояние дел","Case status")+'"><div><b>'+need+'</b><span>'+uiText("требуют вас","need you")+'</span></div><div><b>'+working+'</b><span>'+uiText("помощники работают","assistants working")+'</span></div><div><b>'+done+'</b><span>'+uiText("завершено","completed")+'</span></div></section><div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div><div class="case-list-actions">'+view+create+'</div></div><div class="my-cases-list view-'+caseViewMode+'" id="lst">'+listRowsHtml(node)+'</div></main>';
+  }
+
+  function screenResearchProjects(node){
+    const cases=realCasesForSpace("Проекты и исследования");
+    const parents=cases.filter(isProjectParent),grouped=new Set(parents.map(c=>c.id));
+    const link=(c,label)=>'<a class="research-project-link" href="#case/'+attr(c.id)+'"><span>'+esc(label||c.title)+'</span><span aria-hidden="true">↗</span></a>';
+    const cards=parents.map(parent=>{
+      let children=projectChildren(parent,cases);
+      // Existing projects already have known branches; show them immediately
+      // while the event-backed links are loading from case-service.
+      if(!children.length&&parent.id===FIXAR_PROJECT_CASE_ID)children=[HARNESS_ROUTER_CASE_ID].map(id=>cases.find(c=>c.id===id)).filter(Boolean);
+      if(!children.length&&parent.id===SBERINDEX_PROJECT_CASE_ID)children=SBERINDEX_CHILD_CASE_IDS.map(id=>cases.find(c=>c.id===id)).filter(Boolean);
+      children.forEach(child=>grouped.add(child.id));
+      const research=parent.project_kind==="research"||parent.id===SBERINDEX_PROJECT_CASE_ID;
+      const action=parent.owner_id===authState.principal?'<button class="btn primary" type="button" data-act="new-project-branch" data-project-id="'+attr(parent.id)+'">'+uiText("Новая ветка","New branch")+'</button>':'';
+      return '<article class="research-project-card'+(parent.id===FIXAR_PROJECT_CASE_ID?' research-project-featured':'')+'"><p class="eyebrow">'+(research?uiText("ИССЛЕДОВАНИЕ","RESEARCH"):uiText("ПРОЕКТ","PROJECT"))+'</p><h2>'+esc(parent.title)+'</h2><p>'+esc(parent.goal||uiText("Соберите связанные направления в одном месте.","Keep related streams in one place."))+'</p><div class="research-project-branches">'+children.map(c=>link(c)).join("")+'</div><div class="cta-row">'+link(parent,uiText("Открыть проект","Open project"))+action+'</div></article>';
+    }).join("");
+    const other=cases.filter(c=>!grouped.has(c.id));
+    const research=other.length?'<article class="research-project-card"><p class="eyebrow">'+uiText("ИССЛЕДОВАНИЯ","RESEARCH")+'</p><h2>'+uiText("Активные исследования","Active research")+'</h2><p>'+uiText("Каждое направление открывается как отдельное дело с материалами и ходом работы.","Each area opens as its own case with materials and progress.")+'</p><div class="research-project-branches">'+other.map(c=>link(c)).join("")+'</div></article>':'';
+    const empty=!hasSession()?'<section class="research-project-card research-project-empty"><h2>'+uiText("Ваши проекты ждут входа","Sign in to see your projects")+'</h2><p>'+uiText("Войдите, чтобы увидеть только доступные вам проекты и исследования.","Sign in to see only your projects and research.")+'</p><button class="btn primary" type="button" data-my-day-account>'+uiText("Войти","Sign in")+'</button></section>':(!cases.length?'<section class="research-project-card research-project-empty"><h2>'+uiText("Проектов пока нет","No projects yet")+'</h2><p>'+uiText("Здесь появятся ваши проекты и исследования, когда вы начнёте работу.","Your projects and research will appear here when you start.")+'</p></section>':'');
+    return '<main class="research-projects">'+crumbsBlock(node)+'<header class="research-projects-heading"><p class="eyebrow">'+uiText("РАБОЧЕЕ ПРОСТРАНСТВО","WORKSPACE")+'</p><h1>'+uiText("Проекты и исследования","Projects and research")+'</h1><p>'+uiText("Замысел, шаги, материалы и результат — в одном месте.","Ideas, steps, materials, and outcomes in one place.")+'</p>'+(hasSession()?'<button class="btn primary" type="button" data-act="create-project">'+uiText("Создать проект / исследование","Create project / research")+'</button>':'')+'</header><div class="research-project-grid">'+cards+research+empty+'</div></main>';
   }
 
   // --- Богатые экраны (нативные button/<a>, фокус, без эмодзи-иконок) ---
@@ -1104,11 +1172,13 @@
     "Юридические документы / Правила публикации паков": screenLegalCenter,
     "Юридические документы / Условия для разработчиков": screenLegalCenter,
     "Юридические документы / Политика удаления данных": screenLegalCenter,
+    "Для работы · Практика / Команда / Пригласить в команду": screenPracticeInvite,
     "Для работы · Разработка / Паки": screenDevPacks,
     "Для работы · Разработка / Агенты": screenDevAgents,
     "Для работы · Разработка / Тестирование": screenDevTesting,
     "Для работы · Разработка / Публикации": screenDevPublications,
-    "Для работы · Разработка / Аналитика паков": screenDevAnalytics
+    "Для работы · Разработка / Аналитика паков": screenDevAnalytics,
+    "Для работы · Проекты и исследования / Проекты": screenResearchProjects
   };
   const pathKey = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
 

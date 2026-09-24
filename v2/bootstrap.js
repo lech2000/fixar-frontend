@@ -35,6 +35,10 @@
   function render(node){
     syncHomeChrome(node);
     const custom = SCREENS[pathKey(node)];
+    if (custom===screenResearchProjects){
+      loadCasesThen(()=>custom(node), '<div class="research-projects">'+skelCard(3)+skelCard(4)+'</div>', bindScreen);
+      return;
+    }
     if (custom){ vwrap.innerHTML = custom(node); vwrap.parentElement.scrollTop = 0; bindScreen(); return; }
     const isMain = node.name==="Главная";
     if(isMain){
@@ -72,7 +76,7 @@
   window.go = go;
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
-    if (h.indexOf("teaminvite=")===0){ handleTeamInviteLink(); return; }
+    if (teamInviteHash()){ handleTeamInviteLink(); return; }
     if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
     if (h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; }
@@ -159,7 +163,39 @@
   document.getElementById("desktopacct").addEventListener("click", openAccount);
   document.getElementById("protofoot").addEventListener("click", e=>{ const b=e.target.closest('[data-acct="open"]'); if(b){ e.preventDefault(); openAccount(e); } });
   // Реальные дела: создание и переход из дашборд-полоски (делегируем на #view)
-  document.getElementById("view").addEventListener("click", e=>{ const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const section=e.target.closest('[data-practice-section]'); if(section){ practiceSection=section.dataset.practiceSection||"needed"; refreshCurrentView(); return; } const practiceNode=e.target.closest('[data-practice-node]'); if(practiceNode){ go(practiceNode.dataset.practiceNode); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; practiceSection="needed"; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab=defaultRealTab(); location.hash="#case/"+rr.dataset.id; } });
+  document.getElementById("view").addEventListener("click", async e=>{
+    const invite=e.target.closest('[data-act="invite-to-platform"]');
+    if(!invite)return;
+    e.preventDefault();
+    if(!authState.ready)await bootIdentity();
+    if(!authState.signed_in||authState.assurance<2){
+      toast(uiText("Личная ссылка доступна после подтверждения входа до уровня 2.","Verify your sign-in to level 2 to get a personal link."));
+      openAccount(e);
+      return;
+    }
+    try{
+      const data=await authFetch("POST","/entry/platform-referral-link",{});
+      if(!data.link||!data.acquisition||!data.acquisition.disclosure)throw new Error("Служба не вернула условия реферальной ссылки.");
+      const link=new URL(data.link,location.origin).href;
+      modalOpen(uiText("Личная ссылка в FixAR","Your FixAR referral link"),
+        '<p class="lead">'+uiText("Пригласите человека на платформу по своей ссылке.","Invite someone to the platform with your personal link.")+'</p>'+
+        acquisitionTerms(data)+
+        '<p class="rc-note">'+uiText("Это не приглашение в вашу команду: оно не открывает кабинет, дела и бюджет.","This does not invite anyone into your team or grant access to your workspace, cases, or budget.")+'</p>'+
+        '<div class="practice-referral-result"><label>'+uiText("Моя реферальная ссылка","My referral link")+'<input type="url" readonly value="'+attr(link)+'"></label><div class="cta-row"><button class="btn primary" type="button" data-copy-platform-invite>'+uiText("Копировать ссылку","Copy link")+'</button></div></div>',
+        body=>{const button=body.querySelector('[data-copy-platform-invite]'),field=body.querySelector('input[type="url"]');button.onclick=async()=>{try{await navigator.clipboard.writeText(link);toast(uiText("Личная ссылка скопирована.","Personal link copied."));}catch(_){field.select();toast(uiText("Ссылка выделена — скопируйте её вручную.","Link selected — copy it manually."));}};});
+    }catch(error){toast((error&&error.message)||"Не удалось получить личную ссылку.");}
+  });
+  document.getElementById("view").addEventListener("click", e=>{ const project=e.target.closest('[data-act="create-project"]'); if(project){ e.preventDefault(); openCreateProject(); return; } const branch=e.target.closest('[data-act="new-project-branch"]'); if(branch){ e.preventDefault(); openProjectBranch(branch.dataset.projectId); return; } const fixar=e.target.closest('[data-act="fixar-case"]'); if(fixar){ e.preventDefault(); openFixarCase(); return; } const cc=e.target.closest('[data-act="create-case"]'); if(cc){ e.preventDefault(); openCreateCase(); return; } const add=e.target.closest('[data-act="practice-add"]'); if(add){ e.preventDefault(); openPracticeAdd(); return; } const reload=e.target.closest('[data-act="practice-reload"]'); if(reload){ e.preventDefault(); loadPracticeCabinets(true).then(refreshCurrentView); return; } const section=e.target.closest('[data-practice-section]'); if(section){ practiceSection=section.dataset.practiceSection||"needed"; refreshCurrentView(); return; } const practiceNode=e.target.closest('[data-practice-node]'); if(practiceNode){ go(practiceNode.dataset.practiceNode); return; } const selected=e.target.closest('[data-act="practice-select"]'); if(selected){ PRACTICE.selectedId=selected.dataset.id; practiceSection="needed"; try{localStorage.setItem(practiceStorageKey(),PRACTICE.selectedId);}catch(_){} refreshCurrentView(); return; } const rr=e.target.closest('.rc-strip .rc-row[data-id]'); if(rr){ realTab=defaultRealTab(); location.hash="#case/"+rr.dataset.id; } });
+  document.getElementById("view").addEventListener("click",async event=>{
+    const button=event.target.closest("[data-copy-practice-referral]");if(!button)return;
+    const link=button.dataset.copyPracticeReferral;
+    try{await navigator.clipboard.writeText(link);toast("Ссылка в команду скопирована.");}
+    catch(_){const field=button.closest(".practice-referral-result").querySelector('input[type="url"]');if(field){field.select();toast("Выделили ссылку — скопируйте её вручную.");}}
+  });
+  document.getElementById("view").addEventListener("submit",event=>{
+    const form=event.target.closest('form[data-act="practice-referral"]');if(!form)return;
+    event.preventDefault();submitPracticeReferral(form);
+  });
   document.getElementById("view").addEventListener("click",event=>{
     const caseButton=event.target.closest("[data-my-day-case]"); if(caseButton){ realTab=defaultRealTab(); location.hash="#case/"+caseButton.dataset.myDayCase; return; }
     if(event.target.closest("[data-my-day-work]")){ HOME_WORK_MODE[currentSpace]=true; refreshCurrentView(); return; }
@@ -201,12 +237,12 @@
   })();
   if(window.FixarCommunity) window.FixarCommunity.init();
   // Сохраняем код до первого go(): он заменяет hash адресом экрана.
-  if(location.hash.indexOf("#teaminvite=")===0) teamInviteCode();
+  if(teamInviteHash()) teamInviteCode();
   bootIdentity().then(handleTeamInviteLink);
 
   // старт
   (function(){ const h=location.hash.slice(1);
-    if (h.indexOf("teaminvite=")===0){ go(kidOf(SPACE_NODES["Практика"],"Главная")); return; }
+    if (teamInviteHash()){ go(kidOf(SPACE_NODES["Практика"],"Главная")); return; }
     if (h==="demo/states"){ renderStatesDemo(); return; }
     if (h.indexOf("case/")===0){ routeCase(h.slice(5)); return; }
     if (h.indexOf("owner/")===0){ renderOwnerRoute(h.slice(6)); return; }

@@ -78,9 +78,19 @@
   const OWNER_YANDEX360_STATE = "fixar.owner.yandex360.state";
   const AUTH_REDIRECT = CORE.config.oauthRedirect;
   const AUTH_BACK     = "/v2/";                  // добавлен в белый список /auth/callback
+  // Фрагмент не уходит в журналы CDN. Снимаем код до того, как роутер заменит
+  // hash адресом домашнего экрана; он нужен только при ПЕРВОМ заведении.
+  const REFERRAL_CODE_KEY = "fixar.v2.referral.pending_code";
+  const REFERRAL_ROUTE = location.hash.startsWith("#ref=");
+  const codeFromUrl = (location.hash.match(/^#ref=(rf_[A-Za-z0-9_-]{24,48})$/)||[])[1]||"";
+  if(codeFromUrl){try{sessionStorage.setItem(REFERRAL_CODE_KEY,codeFromUrl);}catch(_){}}
+  const storedReferralCode = (()=>{try{return sessionStorage.getItem(REFERRAL_CODE_KEY)||"";}catch(_){return "";}})();
+  const PLATFORM_REFERRAL_CODE = codeFromUrl||storedReferralCode;
+  const REFERRAL_ANON_KEY = "fixar.v2.referral.anon_principal";
   const BRAND = { google:{cls:"g",t:"Google"}, yandex:{cls:"y",t:"Яндекс"}, vk:{cls:"vk",t:"VK ID"},
                   sber:{cls:"s",t:"Сбер ID"}, tbank:{cls:"t",t:"Т-Банк"}, tg:{cls:"tg",t:"Телеграм"} };
   let authState = { token:null, principal:null, assurance:0, signed_in:false, providers:[], name:null, avatar:null, ready:false };
+  let referralAnonPrincipal = "";
   let ownerTools = { principal:null, checked:false, allowed:false, checking:false };
   let creditState = { principal:null, loading:false, data:null, error:"" };
   let fixarikFunnelOpened = false;
@@ -207,29 +217,47 @@
   async function bootIdentity(){
     const saved = store(AUTH_KEY);
     if(saved){ try{ const who=await readSession(saved); if(who&&who.principal_id){ authState.token=who.session_token||saved; adopt(who); } }catch(e){} }
+    if(authState.signed_in){ try{sessionStorage.removeItem("fixar.v2.login.return");sessionStorage.removeItem(REFERRAL_ANON_KEY);sessionStorage.removeItem(REFERRAL_CODE_KEY);}catch(_){} }
     authState.ready=true; applyIdentity();
   }
   /* Лениво: анонимный вход под общим ключом — точь-в-точь как оболочка (шаг 3). */
   async function ensureSession(){
     if(window.FixarCommunity) await window.FixarCommunity.beforeSession();
+    if(REFERRAL_ROUTE&&!codeFromUrl)throw new Error("Неверная ссылка-приглашение. Попросите новую ссылку.");
     if(authState.token) return authState.token;
     const saved=store(AUTH_KEY);
     if(saved){ try{ const who=await readSession(saved); if(who&&who.principal_id){ authState.token=who.session_token||saved; adopt(who); return authState.token; } }catch(e){} }
-    const me=await authFetch("POST","/entry/anon",{ label:"v2" });
+    const me=await authFetch("POST","/entry/anon",{
+      label:PLATFORM_REFERRAL_CODE?"v2:platform-referral":"v2",
+      ...(PLATFORM_REFERRAL_CODE?{page_key:PLATFORM_REFERRAL_CODE}:{})
+    });
     authState.token=me.token; authState.principal=me.principal_id; authState.assurance=me.assurance||0;
     put(AUTH_KEY, me.token);
+    if(PLATFORM_REFERRAL_CODE){
+      referralAnonPrincipal=me.principal_id;
+      try{sessionStorage.setItem(REFERRAL_ANON_KEY,me.principal_id);sessionStorage.removeItem(REFERRAL_CODE_KEY);}catch(_){}
+    }
     return authState.token;
+  }
+  function referredAnonToken(){
+    let marked=referralAnonPrincipal;
+    try{marked=marked||sessionStorage.getItem(REFERRAL_ANON_KEY)||"";}catch(_){}
+    return !authState.signed_in&&marked&&marked===authState.principal?authState.token||"":"";
   }
   let _providers=null;
   async function authProviders(){ if(_providers) return _providers; _providers=await authFetch("GET","/auth/providers"); return _providers; }
 
   async function startLogin(provider){
-    /* Как в start.js (канонический новый экран): БЕЗ anon_token — это переход
-       в существующую запись, а не неполное слияние. Токен для caller получаем
-       лениво. Метку и адрес возврата кладём ДО ухода: без метки /auth/callback
-       откажет (login CSRF), без адреса — вернёт на «/». */
+    /* Обычно вход не переносит анонима в существующую запись. Исключение —
+       аноним, заведённый только что по личной ссылке: без его токена OAuth
+       создаст ДРУГОГО человека и потеряет immutable first-touch. У уже
+       известной личности её более ранняя запись всё равно побеждает. */
     await ensureSession();
-    const r = await authFetch("POST","/auth/start",{ provider, redirect_uri:AUTH_REDIRECT });
+    const anonToken=referredAnonToken();
+    const r = await authFetch("POST","/auth/start",{
+      provider,redirect_uri:AUTH_REDIRECT,
+      ...(anonToken?{anon_token:anonToken}:{})
+    });
     try{ localStorage.setItem(AUTH_LOGIN_STATE, r.state); localStorage.setItem(AUTH_LOGIN_BACK, AUTH_BACK); }
     catch(e){ throw new Error("Браузер не даёт запомнить начатый вход (приватный режим?). Без этой проверки продолжать небезопасно."); }
     location.href = r.authorize_url || r.url;
@@ -237,6 +265,7 @@
   async function logout(){
     try{ if(authState.token) await authFetch("POST","/entry/logout",{ token:authState.token }); }catch(e){}
     drop(AUTH_KEY); drop("fixar.start.token"); drop(AUTH_ROT);
+    try{sessionStorage.removeItem(REFERRAL_ANON_KEY);sessionStorage.removeItem(REFERRAL_CODE_KEY);}catch(_){}
     location.reload();
   }
 
@@ -340,6 +369,12 @@
     _sheetReturn = (ev&&ev.currentTarget)||document.activeElement;
     const s=sheetEl(); const body=s.querySelector("#sheetbody");
     s.classList.add("open"); document.body.style.overflow="hidden";
+    const pendingTeamInvite=store("fixar-v2-team-invite")||"";
+    if(!authState.signed_in&&/^tm_[A-Za-z0-9_-]{8,64}$/.test(pendingTeamInvite)){
+      body.innerHTML='<h2>Подключиться к практике</h2><p class="lead">Заполните анкету и подтвердите телефон кодом из сообщения. После подключения откроется пространство «Практика», где можно создать свой кабинет и дела. Другие способы входа можно добавить к аккаунту позже.</p><button class="oauth" type="button" id="continueTeamInvite">Продолжить анкету →</button>';
+      body.querySelector("#continueTeamInvite").onclick=()=>{closeAccount();if(typeof handleTeamInviteLink==="function")handleTeamInviteLink();};
+      return;
+    }
     if(authState.signed_in){
       const via=(authState.providers||[]).map(p=>'<span class="prov-chip">'+esc((BRAND[p]||{}).t||p)+'</span>').join("");
       body.innerHTML='<h2>'+esc(meName())+'</h2><p class="lead">Вы вошли — это тот же аккаунт и те же дела во всех версиях ФиксАР.</p>'+
@@ -363,8 +398,18 @@
       b.onclick=async()=>{ Array.from(wrap.querySelectorAll("button")).forEach(x=>x.disabled=true); b.querySelector("span").textContent="минуту…";
         try{ await startLogin(k); }catch(e){ Array.from(wrap.querySelectorAll("button")).forEach(x=>x.disabled=false); b.querySelector("span").textContent="Войти через "+((BRAND[k]||{}).t||k); toast((e&&e.message)||"Вход сейчас не работает."); } };
       wrap.appendChild(b); if(i===0) b.focus(); });
-    const other=[]; if(cfg.email) other.push("почта"); if(cfg.telegram) other.push("Телеграм"); if(cfg.phone) other.push("телефон"); if(cfg.max) other.push("MAX");
-    if(other.length) wrap.insertAdjacentHTML("beforeend",'<a class="sheet-other" href="/start/">Другие способы: '+esc(other.join(", "))+' →</a>');
+    const other=[]; if(cfg.email) other.push("почта"); if(cfg.telegram) other.push("Телеграм"); if(cfg.phone) other.push("телефон");
+    if(other.length){
+      wrap.insertAdjacentHTML("beforeend",'<a class="sheet-other" href="/rabochaya/">Другие способы: '+esc(other.join(", "))+' →</a>');
+      wrap.querySelector(".sheet-other").onclick=async event=>{
+        if(PLATFORM_REFERRAL_CODE||referredAnonToken()){
+          event.preventDefault();
+          try{await ensureSession();}catch(error){toast((error&&error.message)||"Приглашение недоступно.");return;}
+        }
+        try{sessionStorage.setItem("fixar.v2.login.return","1");}catch(_){}
+        if(PLATFORM_REFERRAL_CODE||referredAnonToken())location.href="/rabochaya/";
+      };
+    }
     if(!ready.length&&!other.length) wrap.innerHTML='<span class="sheet-note">Способы входа ещё не настроены на сервере.</span>';
   }
   function toast(msg){ const t=document.createElement("div"); t.className="auth-toast"; t.setAttribute("role","status"); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>{ if(t.parentNode) t.parentNode.removeChild(t); }, 5200); }

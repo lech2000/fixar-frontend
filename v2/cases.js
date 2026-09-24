@@ -167,8 +167,8 @@
   const ENG_RU={owner:"владелец",paid:"платно",volunteer:"добровольно",partner:"партнёр"};
   const RUN_STATUS={queued:"в очереди",running:"выполняется",waiting_approval:"ждёт подтверждения",succeeded:"завершён",failed:"не удался",cancelled:"отменён",pending:"ожидает",claimed:"взят",skipped:"пропущен"};
   const INVITE_ROLES=["colleague","spouse","observer","lawyer","client","doctor","agronomist"];
-  const SPACE_SCOPE={"Личное":"personal","Семья":"home","Практика":"pro","Исследования":"research"};
-  const KIND_RU={"case.created":"дело создано","case.updated":"дело обновлено","work.commissioned":"работа заказана","case.state_changed":"статус изменён","routing.set":"назначен агент","brief.updated":"бриф обновлён","workflow.transitioned":"этап изменён","participant.added":"участник добавлен","participant.removed":"участник удалён","participant.may_see_changed":"доступ участника изменён","subject.added":"объект добавлен","client.set":"клиент задан","scope_set":"область задана","decision.made":"решение принято","action.added":"добавлено действие","action.completed":"действие выполнено","material.added":"добавлен материал","material.extracted":"материал разобран","source.read":"источник прочитан","deal.stage_set":"стадия сделки","option.added":"добавлен вариант","calendar.event.added":"событие в календаре","draft.added":"черновик добавлен","dialog":"сообщение","thread_started":"начато обсуждение","handoff":"передача","owner_transferred":"передано владение","permit.granted":"разрешение выдано","permit.revoked":"разрешение отозвано","patch.proposed":"агент предлагает изменение","patch.applied":"изменение применено","patch.denied":"изменение отклонено","run.created":"запущен агент","run.step.claimed":"шаг взят","run.step.waiting_approval":"шаг ждёт подтверждения","run.step.succeeded":"шаг выполнен","run.step.skipped":"шаг пропущен","run.step.failed":"шаг не удался","run.succeeded":"агент завершил","run.failed":"агент не смог"};
+  const SPACE_SCOPE={"Личное":"personal","Семья":"home","Практика":"pro","Проекты и исследования":"research"};
+  const KIND_RU={"case.created":"дело создано","case.updated":"дело обновлено","work.commissioned":"работа заказана","case.state_changed":"статус изменён","routing.set":"назначен агент","brief.updated":"бриф обновлён","workflow.transitioned":"этап изменён","participant.added":"участник добавлен","participant.removed":"участник удалён","participant.may_see_changed":"доступ участника изменён","subject.added":"объект добавлен","client.set":"клиент задан","scope_set":"область задана","decision.made":"решение принято","action.added":"добавлено действие","action.updated":"пункт плана изменён","action.completed":"действие выполнено","material.added":"добавлен материал","material.extracted":"материал разобран","source.read":"источник прочитан","deal.stage_set":"стадия сделки","option.added":"добавлен вариант","calendar.event.added":"событие в календаре","draft.added":"черновик добавлен","dialog":"сообщение","thread_started":"начато обсуждение","handoff":"передача","owner_transferred":"передано владение","permit.granted":"разрешение выдано","permit.revoked":"разрешение отозвано","patch.proposed":"агент предлагает изменение","patch.applied":"изменение применено","patch.denied":"изменение отклонено","run.created":"запущен агент","run.step.claimed":"шаг взят","run.step.waiting_approval":"шаг ждёт подтверждения","run.step.succeeded":"шаг выполнен","run.step.skipped":"шаг пропущен","run.step.failed":"шаг не удался","run.succeeded":"агент завершил","run.failed":"агент не смог"};
 
   let REAL={loaded:false,loading:false,cases:[],error:null};
   let activeReal=null, realTab="Обзор";
@@ -193,10 +193,32 @@
   }
   const isLegacyHomeworkAnalysisCase = c => /^Разбор домашнего задания$/i.test(String(c&&c.title||"").trim());
   const SBERINDEX_AGENTS=["sberindex_atlas_researcher","sberindex_radar_researcher","sberindex_graph_steward","sberindex_research_curator","adam_flybrain_researcher"];
-  const isResearchCase = c => SBERINDEX_AGENTS.includes(c.selected_agent_id);
+  // Пока у Case нет поля project_id, связь проекта с веткой живёт в событиях
+  // branch.started/branch.parent. Эти два id лишь помещают дела в нужную витрину;
+  // право открыть их по-прежнему проверяет case-service.
+  const FIXAR_PROJECT_CASE_ID="case_007520a9dcf04799";
+  const LAYA_ROUTING_CASE_ID="case_81ff039dfdd645d6";
+  const HARNESS_ROUTER_CASE_ID="case_4b85ae06b5fa4145";
+  const SBERINDEX_PROJECT_CASE_ID="case_c09b77b6882c486e";
+  const SBERINDEX_CHILD_CASE_IDS=["case_66cae4a89ba6473f","case_008f37d03cf541e5","case_43de12a8dc2e4abd","case_d058db85c48a487c"];
+  const RESEARCH_PROJECT_CASE_IDS=new Set([FIXAR_PROJECT_CASE_ID,HARNESS_ROUTER_CASE_ID,SBERINDEX_PROJECT_CASE_ID]);
+  const isProjectParent = c => !!c&&(c.project_kind==="project"||c.project_kind==="research"||c.id===FIXAR_PROJECT_CASE_ID||c.id===SBERINDEX_PROJECT_CASE_ID);
+  const isResearchCase = c => !!c&&(["project","research","branch"].includes(c.project_kind)||SBERINDEX_AGENTS.includes(c.selected_agent_id)||RESEARCH_PROJECT_CASE_IDS.has(c.id));
+  const PROJECT_LINKS=new Map(),PROJECT_LINKS_LOADING=new Set();
+  function projectChildren(parent,cases){
+    if(!PROJECT_LINKS.has(parent.id)&&!PROJECT_LINKS_LOADING.has(parent.id)&&hasSession()){
+      PROJECT_LINKS_LOADING.add(parent.id);
+      authFetch("GET","/cases/"+encodeURIComponent(parent.id)+"/events?kind=branch.started&limit=200&newest=true")
+        .then(events=>{ const seen=new Set(); PROJECT_LINKS.set(parent.id,(events||[]).map(event=>String(eventPayload(event).child_case_id||"")).filter(id=>id&&!seen.has(id)&&seen.add(id))); })
+        .catch(()=>PROJECT_LINKS.set(parent.id,[]))
+        .finally(()=>{PROJECT_LINKS_LOADING.delete(parent.id);refreshCurrentView();});
+    }
+    const ids=PROJECT_LINKS.get(parent.id)||[];
+    return ids.map(id=>cases.find(c=>c.id===id)).filter(Boolean);
+  }
   function spaceForRealCase(c){
     if((c.scope||"")==="home")return "Семья";
-    if(isResearchCase(c))return "Исследования";
+    if(isResearchCase(c))return "Проекты и исследования";
     if((c.scope||"")==="pro")return c.domain==="software"?"Разработка":"Практика";
     return "Личное";
   }
@@ -205,9 +227,9 @@
     const cases=REAL.cases.filter(c=>c.state!=="archived"&&!isLegacyHomeworkAnalysisCase(c));
     if(space==="Личное") return cases.filter(c=>{const s=c.scope||"";return s===""||s==="personal";});
     if(space==="Семья")  return cases.filter(c=>(c.scope||"")==="home");
-    if(space==="Практика")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain!=="software");
+    if(space==="Практика")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain!=="software"&&!isResearchCase(c));
     if(space==="Разработка")return cases.filter(c=>(c.scope||"")==="pro"&&c.domain==="software"&&!isResearchCase(c));
-    if(space==="Исследования")return cases.filter(isResearchCase);
+    if(space==="Проекты и исследования")return cases.filter(isResearchCase);
     return [];
   }
   const LAST_ACTIVE_CASE_KEY="fixar-v2-last-active-case:";
@@ -276,7 +298,7 @@
   function realLinksPanel(){
     const plans={}, links=[];
     (activeReal.events||[]).forEach(ev=>{ const p=eventPayload(ev); if(ev.kind==="plan.branches") (p.branches||[]).forEach((branch,index)=>plans[index]=branch); if(ev.kind==="branch.started"&&p.child_case_id) links.push({id:String(p.child_case_id),title:String(p.title||((plans[p.ord]||{}).title)||"Рабочее дело")}); });
-    if(!links.length)return "";
+    if(!links.length)return isProjectParent(activeReal.c)?'<div class="section-t">Ветви проекта</div><p class="rc-hint">Ветвей пока нет. Создайте первую — она появится здесь и получит отдельный диалог.</p>':"";
     return '<div class="section-t">Связанные рабочие дела</div><div class="lst">'+links.map(link=>'<div class="prow"><div><b>'+esc(link.title)+'</b><div class="rc-hint">'+esc(assistantName(activeReal.c))+' работает в отдельном деле: его действия и диалог находятся там.</div></div><button class="btn small" data-act="open-real-linked" data-id="'+attr(link.id)+'">Открыть</button></div>').join("")+'</div>';
   }
 
@@ -338,7 +360,7 @@
     vwrap.classList.toggle("dialog-view",realTab==="Диалог");
     vwrap.innerHTML=
       '<main class="case-detail-shell case-tone-'+tone+'"><div class="crumbs"><a href="#'+(sp?sp.id:"0")+'">'+esc(currentSpace)+'</a><span class="sep">›</span><span>'+esc(c.title||"Дело")+'</span></div>'+
-      '<header class="case-detail-header"><span class="case-detail-avatar" aria-hidden="true">'+symbol+'</span><div><p class="eyebrow">ДЕЛО · НАСТОЯЩИЕ ДАННЫЕ</p><h1>'+esc(c.title||"Без названия")+'</h1><p>'+esc(assistant)+' · работает только в контексте этого дела</p></div></header>'+
+      '<header class="case-detail-header"><span class="case-detail-avatar" aria-hidden="true">'+symbol+'</span><div><p class="eyebrow">'+(isProjectParent(c)?'ПРОЕКТ · НАСТОЯЩИЕ ДАННЫЕ':'ДЕЛО · НАСТОЯЩИЕ ДАННЫЕ')+'</p><h1>'+esc(c.title||"Без названия")+'</h1><p>'+esc(assistant)+' · работает только в контексте этого дела</p></div>'+(isProjectParent(c)&&activeReal.isOwner?'<button class="btn primary" type="button" data-act="new-project-branch" data-project-id="'+attr(c.id)+'">Новая ветка</button>':'')+'</header>'+
       '<div class="case-detail-meta">'+statusChip(RU_STATE[c.state]||c.state||"—")+'<span>Владелец: '+esc(ownerName())+'</span><span>Участников: '+((c.participants||[]).length)+'</span>'+(c.needs_word?'<span class="chip warn">нужно ваше слово</span>':'')+'</div>'+
       '<div class="case-tabs" id="rctabs">'+tabsForCase.map(t=>'<button class="ct'+(t===realTab?" active":"")+'" data-rtab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
       '<div class="case-detail-panel" id="rcpanel">'+realTabPanel()+'</div></main>';
@@ -529,6 +551,18 @@
     const participant=(activeReal.c.participants||[]).find(item=>item.principal_id===owner);
     return participant?(participant.display_name||(owner===authState.principal?"Вы":"Участник")):owner;
   }
+  const DATA_BOUNDARY_ESCALATION=/решени\S*\s+владельц/i;
+  function actionNeedsDataBoundaryDecision(action){
+    const text=((action.what||"")+" "+(action.waiting_for||"")).toLowerCase();
+    return DATA_BOUNDARY_ESCALATION.test(text)&&/(соглас|исключ|срок хран|право удалить|кто видит пример)/i.test(text);
+  }
+  const DATA_BOUNDARY_VISIBILITY={owner_only:"только владелец дела",case_participants:"участники этого дела",authorized_team:"только назначенная команда",anonymized_reusable:"только обезличенный пример можно использовать повторно"};
+  const DATA_BOUNDARY_DELETION={owner_only:"только владелец дела",owner_or_authorized_participant:"владелец или назначенный им участник",participant_may_request:"участник может потребовать удаления у владельца"};
+  function dataBoundaryDecisionSummary(decision){
+    if(!decision)return "";
+    if(!decision.details_visible)return '<div class="tstate"><b>Ответ владельца записан.</b> Детали доступны только владельцу дела.</div>';
+    return '<div class="tstate data-boundary-decision"><b>Границы данных утверждены.</b><span>Берём: '+esc(decision.allowed_requests||"—")+'</span><span>Исключаем: '+esc(decision.excluded_requests||"—")+'</span><span>Храним: '+esc(decision.retention_period||"—")+'</span><span>Примеры видят: '+esc(DATA_BOUNDARY_VISIBILITY[decision.sample_visibility]||"—")+'</span><span>Удалить пример: '+esc(DATA_BOUNDARY_DELETION[decision.deletion_right]||"—")+'</span>'+(decision.note?'<span>Примечание: '+esc(decision.note)+'</span>':'')+'</div>';
+  }
   function suggestedPlanActions(){
     const event=(activeReal.events||[]).slice().reverse().find(item=>item.kind==="dialog"&&item.actor_kind==="agent"&&evText(item));
     if(!event)return [];
@@ -565,8 +599,11 @@
         const isSkip=!!skipped[action.id];
         const dot=isSkip?"skip":(action.done?"done":"todo");
         const stateNote=isSkip?'<div class="tstate"><b>Пропущено.</b> '+esc(skipped[action.id]||"Без пояснения.")+'</div>':"";
-        const buttons=(canDecide&&!action.done&&!isSkip)?'<span class="task-actions"><button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button><button class="btn small" type="button" data-act="skip-action" data-id="'+attr(action.id)+'">Пропустить</button></span>':(action.done?'<span class="done-mark">выполнено</span>':(isSkip?'<span class="task-actions"><span class="done-mark">пропущено</span><button class="btn small" type="button" data-act="unskip-action" data-id="'+attr(action.id)+'">Вернуть</button></span>':''));
-        return '<div class="task'+(isSkip?' task-skipped':'')+'"><span class="tstat '+dot+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(action.what||"Шаг")+'</b><span>'+esc(nextActionOwnerName(action.owner))+(action.due?' · до '+esc(fmtWhen(action.due)):'')+(action.waiting_for?' · ждём: '+esc(action.waiting_for):'')+'</span>'+stateNote+'</div>'+buttons+'</div>';
+        const needsBoundaryDecision=actionNeedsDataBoundaryDecision(action),boundaryDecision=action.data_boundary_decision||null;
+        const decisionNote=dataBoundaryDecisionSummary(boundaryDecision);
+        const buttons=(canDecide&&!action.done&&!isSkip)?(needsBoundaryDecision&&!boundaryDecision?(isOwner?'<span class="task-actions"><button class="btn small primary" type="button" data-act="answer-data-boundary" data-id="'+attr(action.id)+'">Ответить по форме</button></span>':'<span class="done-mark">ждём ответ владельца</span>'):'<span class="task-actions"><button class="btn small" type="button" data-act="complete-action" data-id="'+attr(action.id)+'">Готово</button><button class="btn small" type="button" data-act="skip-action" data-id="'+attr(action.id)+'">Пропустить</button></span>'):(action.done?'<span class="done-mark">выполнено</span>':(isSkip?'<span class="task-actions"><span class="done-mark">пропущено</span><button class="btn small" type="button" data-act="unskip-action" data-id="'+attr(action.id)+'">Вернуть</button></span>':''));
+        const edit=canDecide&&c.id===LAYA_ROUTING_CASE_ID&&!action.done?'<button class="btn small" type="button" data-act="edit-action" data-id="'+attr(action.id)+'">Изменить</button>':'';
+        return '<div class="task'+(isSkip?' task-skipped':'')+'"><span class="tstat '+dot+'" aria-hidden="true"></span><div class="tmain"><b>'+esc(action.what||"Шаг")+'</b><span>'+esc(nextActionOwnerName(action.owner))+(action.due?' · до '+esc(fmtWhen(action.due)):'')+(action.waiting_for?' · ждём: '+esc(action.waiting_for):'')+'</span>'+stateNote+decisionNote+'</div>'+buttons+edit+'</div>';
       }).join("");
       const ownerOptions='<option value="">Пока не назначен</option>'+(c.participants||[]).map(participant=>'<option value="'+attr(participant.principal_id)+'">'+esc(participant.display_name||(participant.principal_id===authState.principal?'Вы':'Участник'))+'</option>').join("")+(c.selected_agent_id?'<option value="'+attr(c.selected_agent_id)+'">'+esc(assistantName(c))+'</option>':'');
       const importOffer=suggestions.length?'<div class="case-form-note"><span>✦</span><p><b>Фиксар уже выделил '+suggestions.length+' модуля.</b><br>Проверьте сроки и перенесите их в настоящий план дела.</p></div><button class="btn primary case-form-submit" type="button" data-act="plan-from-dialog">Собрать план из ответа</button>':'';
@@ -625,7 +662,7 @@
       return '<div class="case-form-layout"><section class="case-form-main"><div class="case-section-heading"><div><p class="eyebrow">ЛЮДИ И ДОСТУП</p><h2>Каждый видит только нужное</h2></div><p>Роль отвечает за место человека в деле, права — за действия, категории — за видимые сведения.</p></div><div class="case-people-grid">'+people+'</div></section>'+invite+'</div>'+domashkinParentInvitePanel();
     }
     if(realTab==="Настройки"){
-      let s=""; const workSpace=caseSpaceName({scope:"pro",domain:c.domain,selected_agent_id:c.selected_agent_id}),workSpaceNote=workSpace==="Разработка"?"Проекты, паки и автоматизации":workSpace==="Исследования"?"Исследовательские дела и ворота":"Работа с профильным специалистом";
+      let s=""; const workSpace=caseSpaceName({scope:"pro",domain:c.domain,selected_agent_id:c.selected_agent_id}),workSpaceNote=workSpace==="Разработка"?"Проекты, паки и автоматизации":workSpace==="Проекты и исследования"?"Исследовательские дела и ворота":"Работа с профильным специалистом";
       if(canDecide){ s+='<section class="case-setting-panel tone-purple"><div class="case-setting-copy"><p class="eyebrow">СМЫСЛ ДЕЛА</p><h2>Название и результат</h2><p>Короткое название помогает найти дело, а цель объясняет помощнику, что считать готовым результатом.</p></div><form class="pform case-modern-form" data-act="case-details"><label><span>Название</span><input name="title" required maxlength="500" value="'+attr(c.title||"")+'"></label><label><span>Что должно получиться</span><textarea name="goal" rows="4" maxlength="4000" placeholder="Например, новое расписание согласовано со школой и семьёй">'+esc(c.goal||"")+'</textarea></label><button class="btn primary case-form-submit" type="submit">Сохранить</button></form></section>'; }
       if(isOwner){ s+='<section class="case-setting-panel tone-blue"><div class="case-setting-copy"><p class="eyebrow">ПРОСТРАНСТВО</p><h2>Где живёт это дело?</h2><p>Пространство меняет окружение и быстрые переходы, но не удаляет историю, людей или материалы.</p></div><form class="pform case-modern-form" data-act="scope"><fieldset class="case-space-choice">'+[["personal","Личное","Только ваши повседневные вопросы","●"],["home","Семья","Общие дела и согласованные решения","⌂"],["pro",workSpace,workSpaceNote,"§"]].map(x=>'<label><input type="radio" name="scope" value="'+x[0]+'"'+((c.scope||"")===x[0]?' checked':'')+'><span><i>'+x[3]+'</i><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></span></label>').join("")+'</fieldset><button class="btn case-form-submit" type="submit">Перенести дело</button></form></section>'; }
       if(canDecide){ s+='<section class="case-setting-panel tone-peach"><div class="case-setting-copy"><p class="eyebrow">СОСТОЯНИЕ</p><h2>Что сделать с делом?</h2><p>Завершённое дело остаётся в истории. Архив убирает его из активной работы. Любое из них можно возобновить.</p></div><div class="case-state-actions">'+
@@ -782,6 +819,8 @@
       if(act==="goto-patches"){ realTab="План"; drawRealCase(); setTimeout(()=>{ const el=vwrap.querySelector(".case-plan-layout .section-t"); if(el)el.scrollIntoView({block:"nearest"}); },60); return; }
       if(act==="plan-from-dialog"){ openPlanImport(c.id,suggestedPlanActions()); return; }
       if(act==="patch-approve"||act==="patch-reject"){ openPatchDecision(b.dataset.patch,act==="patch-approve"); return; }
+      if(act==="edit-action"){ openEditNextAction(b.dataset.id); return; }
+      if(act==="answer-data-boundary"){ openDataBoundaryDecision(b.dataset.id); return; }
       if(act==="complete-action"){
         b.disabled=true; b.textContent="Сохраняю…";
         try{ await authFetch("POST","/cases/"+encodeURIComponent(c.id)+"/actions/"+encodeURIComponent(b.dataset.id)+"/complete",{}); realTab="План"; await renderRealCase(c.id); }
@@ -926,13 +965,135 @@
   async function askCaseAgent(message){
     await ensureSession(); rememberInteraction("agent_ask",activeReal?"case":"page"); await flushInteractions();
     const page_context=currentPageContext();
-    if(!activeReal){ if(window.FixarCommunity&&window.FixarCommunity.handlesGeneral()){ const communityReply=await window.FixarCommunity.handleGeneralMessage(message); if(communityReply!==null){ loadCredits(true); return communityReply; } } let talk=store("fixar-v2-page-talk"); if(!talk){ talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10); put("fixar-v2-page-talk",talk); } const generalBody={message,talk_id:talk,page_context}; if(currentSpace==="Разработка"&&authState.assurance>=2){ generalBody.domain="software"; generalBody.agent_id="cabinet"; } const general=await authFetch("POST","/dialog/general",generalBody); applyAgentAction(general.ui_action); loadCredits(true); return general.reply||"Фиксарик принял сообщение."; }
+    if(!activeReal){
+      if(window.FixarCommunity&&window.FixarCommunity.handlesGeneral()){
+        const communityReply=await window.FixarCommunity.handleGeneralMessage(message);
+        if(communityReply!==null){ loadCredits(true); return communityReply; }
+      }
+      const practice=currentSpace==="Практика"?selectedPractice():null;
+      const talkKey="fixar-v2-page-talk:"+(practice?practice.id:currentSpace);
+      let talk=store(talkKey);
+      if(!talk){
+        talk="talk_"+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+        put(talkKey,talk);
+      }
+      const generalBody={message,talk_id:talk,page_context};
+      if(practice){
+        generalBody.practice_id=practice.id;
+        generalBody.domain=practice.domain;
+        generalBody.agent_id=practice.agent;
+      } else if(currentSpace==="Разработка"&&authState.assurance>=2){
+        generalBody.domain="software";
+        generalBody.agent_id="cabinet";
+      }
+      const general=await authFetch("POST","/dialog/general",generalBody);
+      applyAgentAction(general.ui_action);
+      loadCredits(true);
+      return general.reply||"Фиксарик принял сообщение.";
+    }
     const binding=practiceCaseBinding(activeReal.c); const body={case_id:activeReal.c.id,case_title:activeReal.c.title||"",message,client_message_id:"v2-"+Date.now()+"-"+Math.random().toString(36).slice(2,10),page_context};
     if(binding){ body.domain=binding.domain; body.agent=binding.agent; }
     const r=await authFetch("POST","/dialog",body);
     if(binding){ activeReal.c.domain=binding.domain; activeReal.c.selected_agent_id=binding.agent; try{localStorage.removeItem(practiceCaseStorageKey(activeReal.c.id));}catch(_){} }
     activeReal.reply=r.reply||"Агент принял сообщение."; applyAgentAction(r.ui_action); loadCredits(true); return activeReal.reply;
   }
+  function openCreateProject(){
+    if(!hasSession()){openAccount();return;}
+    const requestId=caseRequestId("project");
+    modalOpen("Новый проект или исследование",'<p class="lead">Это родительское дело в пространстве «Проекты и исследования». Внутри него можно заводить связанные ветки с собственными диалогами и материалами.</p><form id="newproject" class="pform"><label>Вид<select name="kind" required><option value="project">Проект</option><option value="research">Исследование</option></select></label><label>Название<input name="title" required maxlength="200" placeholder="Например, Разработка Домашкина"></label><label>Цель<textarea name="goal" rows="4" maxlength="2000" placeholder="Какой результат хотим получить?"></textarea></label><div class="cta-row"><button class="btn primary" type="submit">Создать проект</button></div><p class="rc-hint" data-project-status role="status"></p></form>',body=>{
+      const form=body.querySelector("#newproject"),button=form.querySelector('button[type="submit"]'),status=form.querySelector("[data-project-status]");
+      form.elements.kind.onchange=()=>{button.textContent=form.elements.kind.value==="research"?"Создать исследование":"Создать проект";};
+      form.onsubmit=async event=>{event.preventDefault();button.disabled=true;status.textContent="Создаю…";
+        try{
+          await ensureSession();
+          const created=await createCaseOnce({title:form.elements.title.value.trim(),goal:form.elements.goal.value.trim(),project_kind:form.elements.kind.value},requestId);
+          await authFetch("POST","/cases/"+encodeURIComponent(created.id)+"/scope",{scope:"pro"});
+          REAL.loaded=false;await loadRealCases(true);modalClose();currentSpace="Проекты и исследования";rebuildNav();realTab=defaultRealTab();location.hash="#case/"+created.id;await renderRealCase(created.id);
+        }catch(error){button.disabled=false;status.textContent=(error&&error.message)||"Не удалось создать проект. Повтор сохранит тот же запрос, а не заведёт дубль.";}
+      };
+      form.elements.title.focus();
+    });
+  }
+  window.openCreateProject=openCreateProject;
+
+  function openDataBoundaryDecision(actionId){
+    const context=activeReal,action=context&&(context.nextActions||[]).find(item=>item.id===actionId);
+    if(!context||!context.isOwner||!action||action.done||!actionNeedsDataBoundaryDecision(action)){toast("Эта форма доступна только владельцу для открытой эскалации о границах данных.");return;}
+    if(action.data_boundary_decision){toast("Ответ владельца уже записан в этой эскалации.");return;}
+    modalOpen("Решение владельца · границы данных",
+      '<p class="lead">Ответ закроет именно эту эскалацию и сохранится в журнале дела. Укажите реальную политику — без неё пункт нельзя отметить выполненным.</p>'+
+      '<div class="case-form-note"><span>◎</span><p>Это решение не меняет задним числом доступ к уже загруженным материалам. Доступ к каждому материалу настраивается отдельно в «Документах».</p></div>'+
+      '<form id="data-boundary-decision" class="pform case-modern-form">'+
+      '<label><span>Какие обращения можно брать?</span><textarea name="allowed_requests" rows="3" maxlength="2000" required placeholder="Например: запросы на разработку и поддержку, где есть согласие на использование данных"></textarea></label>'+
+      '<label><span>Что исключить?</span><textarea name="excluded_requests" rows="3" maxlength="2000" required placeholder="Например: медицинские сведения, чужие базы, обращения без согласия"></textarea></label>'+
+      '<label><span>Сколько хранить?</span><input name="retention_period" maxlength="160" required placeholder="Например: до завершения задачи, но не более 30 дней"></label>'+
+      '<label><span>Кто видит примеры?</span><select name="sample_visibility" required><option value="owner_only">Только владелец дела</option><option value="case_participants">Участники этого дела</option><option value="authorized_team">Только назначенная команда</option><option value="anonymized_reusable">Повторно — только обезличенный пример</option></select></label>'+
+      '<label><span>Кто вправе удалить пример?</span><select name="deletion_right" required><option value="owner_only">Только владелец дела</option><option value="owner_or_authorized_participant">Владелец или назначенный им участник</option><option value="participant_may_request">Участник может потребовать удаления у владельца</option></select></label>'+
+      '<label><span>Дополнительное условие (необязательно)</span><textarea name="note" rows="2" maxlength="2000" placeholder="Например: перед повторным использованием обязательно обезличить текст"></textarea></label>'+
+      '<button class="btn primary case-form-submit" type="submit">Сохранить решение владельца</button><p class="rc-hint" data-decision-status role="status"></p></form>',
+      body=>{const form=body.querySelector("#data-boundary-decision"),button=form.querySelector('button[type="submit"]'),status=form.querySelector("[data-decision-status]");form.elements.allowed_requests.focus();form.onsubmit=async event=>{event.preventDefault();button.disabled=true;button.textContent="Сохраняю…";status.textContent="";try{await authFetch("POST","/cases/"+encodeURIComponent(context.c.id)+"/actions/"+encodeURIComponent(action.id)+"/data-boundary-decision",{allowed_requests:form.elements.allowed_requests.value.trim(),excluded_requests:form.elements.excluded_requests.value.trim(),retention_period:form.elements.retention_period.value.trim(),sample_visibility:form.elements.sample_visibility.value,deletion_right:form.elements.deletion_right.value,note:form.elements.note.value.trim(),expected_what:action.what||"",expected_waiting_for:action.waiting_for||""});modalClose();realTab="План";await renderRealCase(context.c.id);toast("Решение владельца сохранено. Эскалацию теперь можно завершить.");}catch(error){button.disabled=false;button.textContent="Сохранить решение владельца";status.textContent=error&&error.status===409?"Эскалация изменилась или уже получила ответ. Обновите дело.":((error&&error.message)||"Не удалось сохранить решение.");}};});
+  }
+
+  function openEditNextAction(actionId){
+    const context=activeReal, action=context&&(context.nextActions||[]).find(item=>item.id===actionId);
+    if(!context||context.c.id!==LAYA_ROUTING_CASE_ID||!context.canDecide||!action||action.done){toast("Этот шаг нельзя изменить.");return;}
+    const choices=[{id:"",name:"Пока не назначен"},...(context.c.participants||[]).map(item=>({id:item.principal_id,name:item.display_name||(item.principal_id===authState.principal?"Вы":"Участник")}))];
+    if(context.c.selected_agent_id)choices.push({id:context.c.selected_agent_id,name:assistantName(context.c)});
+    const due=action.due?calendarInputValue(new Date(action.due)):"";
+    modalOpen("Изменить ступень Laya",'<p class="lead">Изменения сохранятся в плане дела. Завершённую ступень редактировать нельзя; если её изменили в другом окне, обновите дело.</p><form class="pform case-modern-form" data-act="edit-laya-step"><label>Ступень и результат<textarea name="what" rows="4" maxlength="1000" required>'+esc(action.what||"")+'</textarea></label><label>Критерий перехода / что ждём<input name="waiting_for" maxlength="255" value="'+attr(action.waiting_for||"")+'"></label><div class="case-field-grid"><label>Ответственный<select name="owner">'+choices.map(item=>'<option value="'+attr(item.id)+'"'+(item.id===(action.owner||"")?' selected':'')+'>'+esc(item.name)+'</option>').join("")+'</select></label><label>Срок<input name="due" type="datetime-local" value="'+attr(due)+'"></label></div><button class="btn primary" type="submit">Сохранить ступень</button><p class="rc-hint" data-edit-status role="status"></p></form>',body=>{
+      const form=body.querySelector('[data-act="edit-laya-step"]'),button=form.querySelector('button[type="submit"]'),status=form.querySelector('[data-edit-status]');
+      form.onsubmit=async event=>{event.preventDefault();const date=form.elements.due.value?new Date(form.elements.due.value):null;if(date&&isNaN(date.getTime())){status.textContent="Проверьте срок.";return;}button.disabled=true;status.textContent="Сохраняю…";
+        try{await authFetch("PUT","/cases/"+encodeURIComponent(context.c.id)+"/actions/"+encodeURIComponent(action.id),{what:form.elements.what.value.trim(),owner:form.elements.owner.value,due:date?date.toISOString():null,waiting_for:form.elements.waiting_for.value.trim(),expected_what:action.what,expected_owner:action.owner||"",expected_due:action.due||null,expected_waiting_for:action.waiting_for||""});modalClose();realTab="План";await renderRealCase(context.c.id);toast("Ступень обновлена.");}
+        catch(error){button.disabled=false;status.textContent=error&&error.status===409?"Ступень изменилась в другом окне. Обновите дело и откройте форму снова.":((error&&error.message)||"Не удалось сохранить ступень.");}
+      };
+      form.elements.what.focus();
+    });
+  }
+
+  async function openProjectBranch(projectId){
+    if(!hasSession()){openAccount();return;}
+    let parent;
+    try{parent=await authFetch("GET","/cases/"+encodeURIComponent(projectId));}
+    catch(error){toast((error&&error.message)||"Не удалось открыть проект.");return;}
+    if(!isProjectParent(parent)||parent.owner_id!==authState.principal){toast("Новую ветку может создать владелец проекта.");return;}
+    const isFixar=parent.id===FIXAR_PROJECT_CASE_ID;
+    modalOpen("Новая ветка · "+parent.title,'<p class="lead">Ветка останется частью этого проекта. У неё будут собственный диалог, материалы и ход работы; существующие ветви сохранятся.</p><form id="newbranch" class="pform"><label>Название ветки<input name="title" required maxlength="200" placeholder="'+attr(isFixar?"Рефакторинг Домашкина: архитектура, логика, интеграция":"Название нового направления")+'"></label><label>Задача и ожидаемый результат<textarea name="purpose" rows="4" maxlength="2000" placeholder="Что нужно сделать и по чему поймём, что готово?"></textarea></label><div class="cta-row"><button class="btn primary" type="submit">Создать ветку</button></div><p class="rc-hint" data-branch-status role="status"></p></form>',body=>{
+      const form=body.querySelector("#newbranch"),button=form.querySelector('button[type="submit"]'),status=form.querySelector("[data-branch-status]");form.elements.title.focus();
+      form.onsubmit=async event=>{event.preventDefault();button.disabled=true;status.textContent="Проверяю ветви проекта…";
+        const title=form.elements.title.value.trim(),purpose=form.elements.purpose.value.trim(),root="/cases/"+encodeURIComponent(projectId);
+        if(!title){button.disabled=false;status.textContent="Назовите ветку.";return;}
+        let child;
+        try{
+          const [planEvents,startedEvents]=await Promise.all([
+            authFetch("GET",root+"/events?kind=plan.branches&newest=true&limit=1"),
+            authFetch("GET",root+"/events?kind=branch.started&newest=true&limit=200")
+          ]);
+          const started=(startedEvents||[]).map(event=>eventPayload(event)).find(link=>link.title===title&&link.child_case_id);
+          if(started){child=await authFetch("GET","/cases/"+encodeURIComponent(started.child_case_id));}
+          else{
+            const plan=planEvents.length?eventPayload(planEvents[planEvents.length-1]).branches||[]:[];
+            let ord=plan.findIndex(branch=>branch.title===title);
+            if(ord<0){
+              if(plan.length>=30)throw new Error("В проекте уже 30 ветвей — откройте новый проект.");
+              ord=plan.length;
+              await authFetch("POST",root+"/branches",{branches:plan.concat([{title,purpose}]),source:"Создано владельцем из карточки проекта"});
+            }
+            status.textContent="Создаю связанное дело…";
+            child=await authFetch("POST",root+"/branches/"+ord+"/start",{expect_title:title});
+          }
+          await authFetch("POST","/cases/"+encodeURIComponent(child.id)+"/scope",{scope:"pro"});
+          let routingWarning="";
+          if(isFixar&&!(child.domain==="software"&&child.selected_agent_id==="cabinet")){
+            try{await authFetch("PUT","/cases/"+encodeURIComponent(child.id)+"/routing",{domain:"software",selected_agent_id:"cabinet",reason:"Ветка проекта Разработка ФиксАР",expect_domain:child.domain||"",expect_selected_agent_id:child.selected_agent_id||""});}
+            catch(error){routingWarning="Ветка создана, но помощник разработки пока не назначен: "+((error&&error.message)||"проверьте маршрут в деле.");}
+          }
+          PROJECT_LINKS.delete(projectId);REAL.loaded=false;await loadRealCases(true);modalClose();currentSpace="Проекты и исследования";rebuildNav();realTab=defaultRealTab();location.hash="#case/"+child.id;await renderRealCase(child.id);toast(routingWarning||"Ветка создана внутри проекта.");
+        }catch(error){button.disabled=false;status.textContent=(child?"Ветка уже создана, но настройка не завершена. Повторите: будет открыто то же дело. ":"")+((error&&error.message)||"Не удалось создать ветку.");}
+      };
+    });
+  }
+  window.openProjectBranch=openProjectBranch;
+
   function openCreateCase(){
     const practice=currentSpace==="Практика"?selectedPractice():null;
     if(currentSpace==="Практика"&&!practice){ toast("Сначала выберите кабинет в разделе «Практика»."); return; }
