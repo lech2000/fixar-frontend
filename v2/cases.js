@@ -353,6 +353,17 @@
       const rb=vwrap.querySelector('[data-act="rc-retry"]'); if(rb) rb.onclick=()=>renderRealCase(id);
     }
   }
+  // Вкладки дела: частые — всегда, редкие (журнал, сроки, люди, настройки) —
+  // по кнопке «Ещё». Открытую редкую вкладку видно всегда; выбор «показывать
+  // все» запоминается на устройстве.
+  const PRIMARY_REAL_TABS=["Обзор","Диалог","План","Документы","Школа"];
+  const CASE_TABS_ALL_KEY="fixar-v2-case-tabs-all";
+  let realTabsAll=store(CASE_TABS_ALL_KEY)==="1";
+  function realTabsHtml(tabsForCase){
+    const shown=tabsForCase.filter(t=>realTabsAll||PRIMARY_REAL_TABS.indexOf(t)>=0||t===realTab),hidden=tabsForCase.length-shown.length;
+    return shown.map(t=>'<button class="ct'+(t===realTab?" active":"")+'" data-rtab="'+esc(t)+'">'+esc(t)+'</button>').join("")+
+      (hidden?'<button class="ct ct-more" type="button" data-rtabs-more aria-label="'+attr(uiText("Показать ещё вкладки","Show more tabs"))+'">'+uiText("Ещё","More")+' · '+hidden+'</button>':'');
+  }
   function drawRealCase(){
     const c=activeReal.c; const sp=SPACE_NODES[currentSpace];
     const tabsForCase=realTabs(c); if(tabsForCase.indexOf(realTab)<0) realTab=defaultRealTab();
@@ -360,12 +371,12 @@
     vwrap.classList.toggle("dialog-view",realTab==="Диалог");
     vwrap.innerHTML=
       '<main class="case-detail-shell case-tone-'+tone+'"><div class="crumbs"><a href="#'+(sp?sp.id:"0")+'">'+esc(currentSpace)+'</a><span class="sep">›</span><span>'+esc(c.title||"Дело")+'</span></div>'+
-      '<header class="case-detail-header"><span class="case-detail-avatar" aria-hidden="true">'+symbol+'</span><div><p class="eyebrow">'+(isProjectParent(c)?'ПРОЕКТ · НАСТОЯЩИЕ ДАННЫЕ':'ДЕЛО · НАСТОЯЩИЕ ДАННЫЕ')+'</p><h1>'+esc(c.title||"Без названия")+'</h1><p>'+esc(assistant)+' · работает только в контексте этого дела</p></div>'+(isProjectParent(c)&&activeReal.isOwner?'<button class="btn primary" type="button" data-act="new-project-branch" data-project-id="'+attr(c.id)+'">Новая ветка</button>':'')+'</header>'+
-      '<div class="case-detail-meta">'+statusChip(RU_STATE[c.state]||c.state||"—")+'<span>Владелец: '+esc(ownerName())+'</span><span>Участников: '+((c.participants||[]).length)+'</span>'+(c.needs_word?'<span class="chip warn">нужно ваше слово</span>':'')+'</div>'+
-      '<div class="case-tabs" id="rctabs">'+tabsForCase.map(t=>'<button class="ct'+(t===realTab?" active":"")+'" data-rtab="'+esc(t)+'">'+esc(t)+'</button>').join("")+'</div>'+
+      '<header class="case-detail-header"><span class="case-detail-avatar" aria-hidden="true">'+symbol+'</span><div><p class="eyebrow">'+(isProjectParent(c)?uiText("ПРОЕКТ","PROJECT"):uiText("ДЕЛО","CASE"))+'</p><h1>'+esc(c.title||"Без названия")+'</h1><p>'+uiText("Помогает ","Assistant: ")+esc(assistant)+'</p></div>'+(isProjectParent(c)&&activeReal.isOwner?'<button class="btn primary" type="button" data-act="new-project-branch" data-project-id="'+attr(c.id)+'">Новая ветка</button>':'')+'</header>'+
+      '<div class="case-detail-meta">'+statusChip(RU_STATE[c.state]||c.state||"—")+(c.needs_word?'<span class="chip warn">'+uiText("нужно ваше слово","needs your decision")+'</span>':'')+'</div>'+
+      '<div class="case-tabs" id="rctabs">'+realTabsHtml(tabsForCase)+'</div>'+
       '<div class="case-detail-panel" id="rcpanel">'+realTabPanel()+'</div></main>';
     vwrap.parentElement.scrollTop=0;
-    const tabs=document.getElementById("rctabs"); if(tabs) tabs.onclick=e=>{ const b=e.target.closest(".ct"); if(!b)return; realTab=b.dataset.rtab; vwrap.classList.toggle("dialog-view",realTab==="Диалог"); document.getElementById("rcpanel").innerHTML=realTabPanel(); tabs.querySelectorAll(".ct").forEach(x=>x.classList.toggle("active",x.dataset.rtab===realTab)); bindRealPanel(); };
+    const tabs=document.getElementById("rctabs"); if(tabs) tabs.onclick=e=>{ if(e.target.closest("[data-rtabs-more]")){ realTabsAll=true; put(CASE_TABS_ALL_KEY,"1"); tabs.innerHTML=realTabsHtml(tabsForCase); return; } const b=e.target.closest(".ct"); if(!b)return; realTab=b.dataset.rtab; vwrap.classList.toggle("dialog-view",realTab==="Диалог"); document.getElementById("rcpanel").innerHTML=realTabPanel(); tabs.querySelectorAll(".ct").forEach(x=>x.classList.toggle("active",x.dataset.rtab===realTab)); bindRealPanel(); };
     bindRealPanel();
   }
   function runCard(run){
@@ -541,7 +552,7 @@
   function realOverviewPanel(){
     const c=activeReal.c,next=realCaseNextStep(c),assistant=assistantName(c),goal=c.goal||"Сформулируйте желаемый результат вместе с помощником.";
     const related=realLinksPanel(),needs=c.needs_word?'<div class="case-attention">По делу ждут вашего решения. Внешнее действие не выполнено без подтверждения.</div>':"";
-    const primary='<article class="case-result-card"><div class="case-result-head"><div><p class="eyebrow">ГЛАВНОЕ В ДЕЛЕ</p><h2>'+esc(goal)+'</h2></div><span class="my-day-status '+(c.needs_word?'attention':'')+'">'+esc(caseListStatusLabel(caseListStatus(c)))+'</span></div><div class="case-facts">'+kvRow("Помощник",assistant)+kvRow("Пространство",caseSpaceName(c))+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+'</div>'+needs+related+'<div class="case-question"><p class="eyebrow">С ЧЕГО ПРОДОЛЖИМ?</p><form class="my-day-composer" data-act="ask-agent"><textarea name="message" required rows="2" placeholder="Напишите, что изменилось или что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="my-day-composer-foot"><small>'+esc(assistant)+' знает контекст этого дела и доступные здесь инструменты.</small><button class="btn primary" type="submit">Отправить</button></div></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble readable-answer" role="button" tabindex="0" data-act="read-agent-answer" data-reader-source="reply">'+agentRichText(activeReal.reply)+'<span class="answer-open-hint">Открыть чистый текст ↗</span></div>':'')+'</div></div></article>';
+    const primary='<article class="case-result-card"><div class="case-result-head"><div><p class="eyebrow">ГЛАВНОЕ В ДЕЛЕ</p><h2>'+esc(goal)+'</h2></div><span class="my-day-status '+(c.needs_word?'attention':'')+'">'+esc(caseListStatusLabel(caseListStatus(c)))+'</span></div><div class="case-facts">'+kvRow("Владелец",ownerName())+kvRow("Участников",String((c.participants||[]).length))+'</div>'+needs+related+'<div class="case-question"><p class="eyebrow">С ЧЕГО ПРОДОЛЖИМ?</p><form class="my-day-composer" data-act="ask-agent"><textarea name="message" required rows="2" placeholder="Напишите, что изменилось или что нужно сделать…" aria-label="Сообщение агенту"></textarea><div class="my-day-composer-foot"><small>'+esc(assistant)+' знает контекст этого дела и доступные здесь инструменты.</small><button class="btn primary" type="submit">Отправить</button></div></form><div id="agentreply">'+(activeReal.reply?'<div class="bubble readable-answer" role="button" tabindex="0" data-act="read-agent-answer" data-reader-source="reply">'+agentRichText(activeReal.reply)+'<span class="answer-open-hint">Открыть чистый текст ↗</span></div>':'')+'</div></div></article>';
     const nextRail='<aside class="case-next-rail"><p class="eyebrow">ЧТО ДАЛЬШЕ?</p><button class="case-next-primary" type="button" data-act="rc-goto" data-tab="'+attr(next.tab)+'"><span class="case-next-icon">→</span><span><b>'+esc(next.title)+'</b><small>'+esc(next.note)+'</small><em>'+esc(next.action)+' →</em></span></button><div class="case-next-links"><button type="button" data-act="rc-goto" data-tab="План"><b>План и действия</b><small>Что уже сделано и что впереди</small></button><button type="button" data-act="rc-goto" data-tab="Участники"><b>Люди и доступ</b><small>Кто участвует и что может</small></button><button type="button" data-act="rc-goto" data-tab="Документы"><b>Материалы дела</b><small>Файлы, результаты и общие ссылки</small></button></div><section class="case-gentle-note"><p class="eyebrow">ОДИН НЕБОЛЬШОЙ ШАГ</p><p>Не нужно решать всё сразу. Сохраните полезное и вернитесь, когда удобно.</p></section></aside>';
     return '<div class="case-overview-layout"><div>'+primary+workCommissionPanel(c)+'</div>'+nextRail+'</div>'+domashkinParentInvitePanel()+domashkinBookPanel()+domashkinFamilyThreadPanel();
   }
