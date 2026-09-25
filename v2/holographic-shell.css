@@ -112,15 +112,13 @@ body.guest-shell .shell-holo-scene { display: none; }
   position: absolute;
   inset: 0;
   opacity: var(--holo-glow,.87);
-  transform: scale(var(--holo-scale,1));
-  transform-origin: top right;
-  transition: opacity .5s,transform .25s ease-out;
+  transition: opacity .5s;
 }
 .shell-holo-panel {
   left: var(--hx);
   top: var(--hy);
   width: var(--hw);
-  height: var(--hh);
+  height: calc(var(--hh) * var(--holo-scale,1));
   box-shadow: 0 35.56px 60.96px -7px rgba(0,0,0,.93),0 2px 4px #000,inset 0 1px rgba(255,255,255,.13);
 }
 .shell-holo-panel canvas { filter: saturate(1.12); }
@@ -218,16 +216,8 @@ body:not(.guest-shell) .brand {
   gap: 11px;
   border-bottom: 1px solid rgba(255,255,255,.055);
 }
-body:not(.guest-shell) .brand::after {
-  content: "ЛИЧНОЕ ПРОСТРАНСТВО";
-  position: absolute;
-  left: 69px;
-  top: 53px;
-  color: #77717f;
-  font-size: 8px;
-  font-weight: 550;
-  letter-spacing: 1.45px;
-}
+/* Подпись «Личное пространство» убрана: она была одна на все пространства
+   и дублировала переключатель прямо под логотипом. */
 body:not(.guest-shell) .brand-mark {
   width: 38px;
   height: 38px;
@@ -627,6 +617,14 @@ body:not(.guest-shell) :is(input,textarea,select):focus {
   outline: 0;
 }
 body:not(.guest-shell) :is(input,textarea)::placeholder { color: #706977; opacity: 1; }
+/* Светлая тема: поля в контенте светлые, иначе тёмный текст ложится на
+   почти чёрную подложку и не читается. Боковая панель остаётся тёмной. */
+:root[data-theme="light"] body:not(.guest-shell) .view :is(input,textarea,select) {
+  border-color: var(--field-line);
+  background: var(--field);
+  box-shadow: inset 0 1px 2px rgba(34,55,48,.05);
+}
+:root[data-theme="light"] body:not(.guest-shell) .my-day-composer textarea { border-color: transparent; background: transparent; box-shadow: none; }
 body:not(.guest-shell) .btn {
   border-color: rgba(255,255,255,.095);
   background: linear-gradient(145deg,rgba(42,38,47,.96),rgba(23,21,27,.96));

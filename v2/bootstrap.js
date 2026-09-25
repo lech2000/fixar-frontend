@@ -55,7 +55,7 @@
       head += '<p>Раздел «'+esc(node.name)+'» · '+node.children.length+' пункт(ов).</p></div>';
       vwrap.innerHTML = head+tileGrid(node);
     } else {
-      head += '</div><div class="stub"><span class="tag">Ещё не подключено</span><p>Раздел «'+esc(node.name)+'» есть в целевой архитектуре, но его данные и действия ещё не перенесены в v2. Демонстрационные записи вместо ваших данных не показываются.</p></div>';
+      head += '</div><div class="stub"><span class="tag">'+uiText("Скоро","Coming soon")+'</span><p>'+uiText("Этот раздел ещё готовится — выдуманных данных вместо ваших мы не показываем. Пока можно спросить Фиксарика внизу экрана или вернуться на главную.","This section is still being prepared, and we never show made-up data in place of yours. Meanwhile, ask Fixarik below or go back home.")+'</p><div class="cta-row"><button class="btn primary" type="button" onclick="go(\''+kidOf(SPACE_NODES[currentSpace],"Главная")+'\')">'+uiText("На главную","Home")+'</button></div></div>';
       vwrap.innerHTML = head;
     }
     vwrap.parentElement.scrollTop = 0;
@@ -65,6 +65,8 @@
   // --- Роутинг ---
   function go(id){
     const node = byId[id]; if (!node) return;
+    // Готовая страница вне оболочки (школьный дневник, кабинет автора пака).
+    const linked = linkedPage(node); if (linked){ closeNav(); location.assign(linked); return; }
     vwrap.classList.remove("dialog-view");
     activeReal=null; activeCaseId=null;
     const sp = spaceOf(node);
@@ -224,15 +226,22 @@
   function markStorageNoticeRead(){ try{localStorage.setItem(STORAGE_NOTICE_KEY,STORAGE_NOTICE_VERSION);}catch(_){} }
   function initStorageNotice(){
     const notice=document.getElementById("storageNotice"); if(!notice)return; let seen=""; try{seen=localStorage.getItem(STORAGE_NOTICE_KEY)||"";}catch(_){} if(seen!==STORAGE_NOTICE_VERSION)notice.hidden=false;
-    document.getElementById("storageNoticeOk").addEventListener("click",()=>{markStorageNoticeRead();notice.hidden=true;});
-    document.getElementById("storageNoticeManage").addEventListener("click",()=>{markStorageNoticeRead();notice.hidden=true;const legal=findNode("Юридические документы");if(legal)go(legal.id);});
+    document.getElementById("storageNoticeOk").addEventListener("click",()=>{markStorageNoticeRead();notice.hidden=true;syncDomashkinStrip();});
+    document.getElementById("storageNoticeManage").addEventListener("click",()=>{markStorageNoticeRead();notice.hidden=true;syncDomashkinStrip();const legal=findNode("Юридические документы");if(legal)go(legal.id);});
   }
   initStorageNotice();
   const DOMASHKIN_STRIP_KEY="fixar.notice.domashkin-strip.v1";
+  // Одна плашка за раз: сначала уведомление о данных, потом Домашкин —
+  // и только там, где он уместен (семья и личное), а не поверх рабочих экранов.
+  function syncDomashkinStrip(){
+    const strip=document.getElementById("domashkinStrip"),notice=document.getElementById("storageNotice"); if(!strip)return;
+    let seen=""; try{seen=localStorage.getItem(DOMASHKIN_STRIP_KEY)||"";}catch(_){}
+    strip.hidden=seen==="1"||(notice&&!notice.hidden)||!(currentSpace==="Семья"||currentSpace==="Личное");
+  }
   (function initDomashkinStrip(){
     const strip=document.getElementById("domashkinStrip"); if(!strip)return;
-    let seen=""; try{seen=localStorage.getItem(DOMASHKIN_STRIP_KEY)||"";}catch(_){}
-    if(seen!=="1") strip.hidden=false;
+    syncDomashkinStrip();
+    window.addEventListener("hashchange",syncDomashkinStrip);
     document.getElementById("domashkinStripHide").addEventListener("click",()=>{ try{localStorage.setItem(DOMASHKIN_STRIP_KEY,"1");}catch(_){} strip.hidden=true; });
   })();
   if(window.FixarCommunity) window.FixarCommunity.init();

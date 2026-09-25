@@ -45,23 +45,67 @@
     const key=navIconKey(name);
     return '<span class="n-icon n-icon-'+key+'" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none">'+NAV_ICON_PATHS[key]+'</svg></span>';
   }
+  // --- Простой режим меню ---
+  // В целевой архитектуре больше сотни пунктов, и большинство из них пока
+  // заглушки «Ещё не подключено». По умолчанию меню показывает только то,
+  // что открывается по-настоящему: свои экраны, списки дел, главные и
+  // готовые страницы вне оболочки. Полное дерево включается в настройках.
+  const NAV_FULL_KEY = "fixar-v2-nav-full";
+  let navFull = store(NAV_FULL_KEY)==="1";
+  let navScreens = null; // SCREENS объявлены ниже; до них считаем всё живым
+  const LINKED_PAGES = {
+    "Для жизни · Семья / Школа / Электронный дневник": "/dnevnik/",
+    "Для жизни · Семья / Школа / Домашние задания": "/fixclo/?preset=education.domashkin&pilot=domashkin",
+    "Для работы · Разработка / Паки / Мои паки": "/pak/kabinet/",
+    "Для работы · Разработка / Паки / Создать пак": "/pak/"
+  };
+  const navPath = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
+  function linkedPage(node){ return (node&&LINKED_PAGES[navPath(node)])||""; }
+  window.linkedPage = linkedPage;
+  function opensDirectly(node){
+    return !navScreens || !!linkedPage(node) || !!navScreens[navPath(node)] || node.name==="Главная" || isListNode(node);
+  }
+  function isLiveNode(node){
+    if(!navScreens) return true;
+    return opensDirectly(node) || node.children.some(isLiveNode);
+  }
+  function navChildren(node){
+    if(navFull) return node.children;
+    const out=[];
+    node.children.forEach(child=>{
+      if(!isLiveNode(child)) return;
+      // Группа, в которой готов один пункт, не заставляет раскрывать себя.
+      const live=child.children.filter(isLiveNode);
+      if(!opensDirectly(child)&&live.length===1&&!live[0].children.some(isLiveNode)){ out.push(live[0]); return; }
+      out.push(child);
+    });
+    return out;
+  }
+  function setNavFull(value){
+    navFull=!!value; put(NAV_FULL_KEY,navFull?"1":"0");
+    rebuildNav();
+    const raw=location.hash.slice(1),cut=raw.search(/[~?]/),node=byId[cut>=0?raw.slice(0,cut):raw];
+    if(node) expandTo(node);
+  }
+  window.setNavFull = setNavFull;
   function buildNav(node, container, depth){
     depth=depth||0;
-    node.children.forEach(child => {
+    navChildren(node).forEach(child => {
+      const kidsShown = navChildren(child);
       const row = document.createElement("div"); row.className = "n-row"; row.dataset.id = child.id;
       row.dataset.depth=String(depth);
       const caret = document.createElement("button");
-      caret.className = "caret" + (child.children.length ? "" : " leaf");
+      caret.className = "caret" + (kidsShown.length ? "" : " leaf");
       caret.setAttribute("aria-expanded", "false");
       caret.setAttribute("aria-label", "Развернуть");
-      caret.textContent = child.children.length ? "⌄" : "";
+      caret.textContent = kidsShown.length ? "⌄" : "";
       const label = document.createElement("button");
       label.className = "n-label";
       label.setAttribute("aria-label",child.name);
-      label.innerHTML = navIcon(child.name)+'<span class="n-copy"><strong>'+esc(child.name)+'</strong>'+(child.children.length?'<small>'+child.children.length+' разделов</small>':'')+'</span>';
+      label.innerHTML = navIcon(child.name)+'<span class="n-copy"><strong>'+esc(child.name)+'</strong>'+(navFull&&child.children.length?'<small>'+child.children.length+' разделов</small>':'')+(linkedPage(child)?'<small>'+((window.FixarV2I18n&&window.FixarV2I18n.english)?"Opens separately":"Откроется отдельно")+' ↗</small>':'')+'</span>';
       row.append(label, caret); container.appendChild(row);
       let kids = null;
-      if (child.children.length){
+      if (kidsShown.length){
         kids = document.createElement("div"); kids.className = "kids"; kids.hidden = true;
         container.appendChild(kids);
         buildNav(child, kids, depth+1);
@@ -85,7 +129,8 @@
   const ACCOUNT_NODES = [findNode("Общие разделы аккаунта"), ACCOUNT_SETTINGS_NODE, findNode("Помощь")].filter(Boolean);
   const kidOf = (node,name) => { const k=node&&node.children.find(c=>c.name===name); return k?k.id:(node?node.id:"0"); };
   const CASE_VIEW_KEY = "fixar-v2-case-view";
-  let currentSpace = "Семья";
+  const SPACE_KEY = "fixar-v2-space";
+  let currentSpace = SPACE_NODES[store(SPACE_KEY)] ? store(SPACE_KEY) : "Семья";
   let listFilter = "Все";
   let caseViewMode = store(CASE_VIEW_KEY)==="notes" ? "notes" : "list";
   function spaceOf(node){ let n=node; while(n){ for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } n=n.parent; } return null; }
@@ -109,7 +154,7 @@
       (settings?'<button class="foot-link" onclick="go(\''+settings.id+'\')">'+navIcon("Настройки")+'<span>Все настройки</span></button>':'')+
       '<details class="sidebar-more"><summary>Помощь и правила <span>+</span></summary><div>'+ctx.map(c=>{ if(c[0]==="Структура дела") return '<button class="foot-link dim" onclick="openCaseRow(\'\',\'\',\'shkola-raspisanie\')">'+esc(c[0])+'</button>'; const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("")+'</div></details></div>';
   }
-  function rebuildNav(){ nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
+  function rebuildNav(){ put(SPACE_KEY,currentSpace); nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
   function openSpacePicker(){
     const choices=Object.keys(SPACE_NODES).map(k=>'<button class="tile" type="button" data-space="'+attr(k)+'"><span><h3>'+esc(k)+'</h3><p>'+esc(k===currentSpace?"выбрано":"перейти в пространство")+'</p></span><span class="chev" aria-hidden="true">→</span></button>').join("");
     modalOpen("Выберите пространство",'<div class="tiles" id="spacechoices">'+choices+'</div>',body=>{ body.querySelector("#spacechoices").onclick=e=>{ const b=e.target.closest("[data-space]"); if(!b)return; modalClose(); switchSpace(b.dataset.space); }; });
@@ -135,7 +180,7 @@
   const eyebrowFor = node => { const a = ancestors(node); return a.length ? a.map(n=>n.name).join(" · ") : "ФиксАР"; };
 
   function tileGrid(node){
-    return '<div class="tiles">' + node.children.map(c =>
+    return '<div class="tiles">' + navChildren(node).map(c =>
       '<button class="tile" onclick="go(\''+c.id+'\')">'+
         '<span><h3>'+esc(c.name)+(c.children.length?'<span class="count">'+c.children.length+'</span>':'')+'</h3>'+
         '<p>'+(c.children.length? 'Раздел · '+c.children.length+' пункт(ов)':'Экран')+'</p></span>'+
@@ -436,7 +481,16 @@
   }
   function initHolographicHome(root){ initHolographicScene(root,"[data-holographic-home]"); }
   function initHolographicShell(){ initHolographicScene(document,"[data-holographic-shell]"); }
-  function syncHolographicScale(){ document.documentElement.style.setProperty("--holo-scale",Math.min(1,innerHeight/1120).toFixed(3)); }
+  // Мобильная адресная строка меняет innerHeight при каждой прокрутке; мелкие
+  // скачки высоты не должны двигать фон — пересчитываем только при повороте,
+  // смене ширины или заметной смене высоты окна.
+  let holoScaleSize=null;
+  function syncHolographicScale(){
+    const w=innerWidth,h=innerHeight;
+    if(holoScaleSize&&holoScaleSize[0]===w&&Math.abs(holoScaleSize[1]-h)<160)return;
+    holoScaleSize=[w,h];
+    document.documentElement.style.setProperty("--holo-scale",Math.max(.55,Math.min(1,h/1120)).toFixed(3));
+  }
   syncHolographicScale();
   window.addEventListener("resize",syncHolographicScale,{passive:true});
   const HOME_WORK_MODE={"Личное":false,"Семья":false};
@@ -864,6 +918,7 @@
       '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="background-hue">Оттенок фона</label><div class="hue-control"><input id="background-hue" type="range" min="0" max="359" step="1" value="'+appearance.backgroundHue+'" aria-describedby="background-hue-help"><output class="hue-value" id="background-hue-value" for="background-hue">'+appearance.backgroundHue+'°</output></div><p id="background-hue-help">Задайте фону тёплый или холодный тон независимо от цвета кнопок.</p></div>'+
       '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="background-light">Видимость голографического фона</label><div class="hue-control"><input id="background-light" type="range" min="0" max="100" step="1" value="'+appearance.background+'" aria-describedby="background-help"><output class="hue-value" id="background-value" for="background-light">'+appearance.background+'%</output></div><p id="background-help">0 — почти незаметный фон, 100 — яркие зернистые блоки. Карточки и текст сохраняют контраст.</p></div>'+
       '<div class="cta-row"><button class="btn" type="button" data-reset-appearance>Вернуть оформление FixAR</button></div></section>'+
+      '<section class="settings-card"><div class="appearance-group"><div class="appearance-label">'+uiText("Меню","Menu")+'</div><div class="choice-row" data-nav-mode-choices>'+[["simple",uiText("Только готовое","Ready sections only")],["full",uiText("Все разделы","All sections")]].map(item=>{ const active=(item[0]==="full")===navFull; return '<button class="choice'+(active?' active':'')+'" type="button" data-nav-mode="'+item[0]+'" aria-pressed="'+active+'">'+item[1]+'</button>'; }).join("")+'</div><p>'+uiText("«Только готовое» прячет разделы, которые ещё в разработке. «Все разделы» показывает полную карту FixAR.","\u201cReady sections only\u201d hides sections still in development. \u201cAll sections\u201d shows the full FixAR map.")+'</p></div></section>'+
       (fixarik?'<section class="settings-card"><h3>Помощники и каналы</h3><p>Подключения Фиксарика, доступ к перепискам и паки разработчиков настраиваются отдельно.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+fixarik.id+'\')">Настройки Фиксарика</button></div></section>':'')+
       (legal?'<section class="settings-card"><h3>Данные и согласия</h3><p>Посмотрите, что хранится на устройстве, какие документы опубликованы и разрешена ли передача данных за рубеж.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+legal.id+'\')">Открыть центр данных</button></div></section>':'')+
       '</div>';
@@ -1162,6 +1217,7 @@
     "Публичная часть / Страница пака": screenPack,
     "Настройки": screenAppearanceSettings,
     "Настройки / Фиксарик": screenFixarikSettings,
+    "Настройки / Язык и регион": screenAppearanceSettings,
     "Первый запуск": screenOnboarding,
     "Внутренняя структура любого дела": screenCase,
     "Юридические документы": screenLegalCenter,
@@ -1181,6 +1237,7 @@
     "Для работы · Проекты и исследования / Проекты": screenResearchProjects
   };
   const pathKey = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
+  navScreens = SCREENS; rebuildNav();
 
   function bindScreen(){
     initHolographicShell();
@@ -1211,6 +1268,7 @@
         const slider=appearancePanel.querySelector('#accent-hue'),output=appearancePanel.querySelector('#hue-value'),backgroundHue=appearancePanel.querySelector('#background-hue'),backgroundHueOutput=appearancePanel.querySelector('#background-hue-value'),background=appearancePanel.querySelector('#background-light'),backgroundOutput=appearancePanel.querySelector('#background-value'); if(slider)slider.value=value.hue; if(output)output.value=value.hue+'°'; if(backgroundHue)backgroundHue.value=value.backgroundHue; if(backgroundHueOutput)backgroundHueOutput.value=value.backgroundHue+'°'; if(background)background.value=value.background; if(backgroundOutput)backgroundOutput.value=value.background+'%';
       };
       appearancePanel.addEventListener('click',event=>{
+        const navMode=event.target.closest('button[data-nav-mode]'); if(navMode){ setNavFull(navMode.dataset.navMode==="full"); appearancePanel.querySelectorAll('[data-nav-mode]').forEach(button=>{ const active=button===navMode; button.classList.toggle('active',active); button.setAttribute('aria-pressed',String(active)); }); return; }
         const language=event.target.closest('button[data-language]'); if(language){ if(window.FixarV2I18n)window.FixarV2I18n.choose(language.dataset.language); return; }
         const mode=event.target.closest('button[data-theme-mode]'); if(mode){ sync(applyAppearance({mode:mode.dataset.themeMode},true)); return; }
         const palette=event.target.closest('button[data-palette]'); if(palette){ sync(applyAppearance({preset:palette.dataset.palette,hue:Number(palette.dataset.hue),backgroundHue:Number(palette.dataset.backgroundHue)},true)); return; }
