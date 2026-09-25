@@ -819,7 +819,33 @@ body:not(.guest-shell) .acct-btn { border-color: rgba(255,255,255,.085); backgro
 .practice-section-body > .btn { justify-self: start; }
 
 /* Светлая тема сохраняет геометрию, но не притворяется чёрным экраном. */
-:root[data-theme="light"] body:not(.guest-shell) .shell-holo-scene { opacity: .16; }
+/* Голограмма в светлой теме. Текстура — свечение на чёрном; раньше всю
+   сцену просто гасили до opacity .16, и тёмные панели превращались в серую
+   муть без цвета. Теперь: светлые панели, та же текстура через
+   invert + hue-rotate (чёрное → белое, синий и оранжевый остаются
+   на местах пастелью), мягкие тени и светлая вуаль под текстом. */
+:root[data-theme="light"] body:not(.guest-shell) .shell-holo-scene { opacity: 1; }
+:root[data-theme="light"] .shell-holo-grid {
+  background-image:
+    linear-gradient(90deg,transparent calc(100% - 1px),rgba(84,70,128,.075) 0),
+    linear-gradient(transparent calc(100% - 1px),rgba(84,70,128,.075) 0);
+}
+:root[data-theme="light"] .fixar-holo-panel.shell-holo-panel {
+  --base: min(1, calc(.58 + var(--holo-lift) * .5)) !important;
+  border-color: rgba(122,96,176,.2);
+  background: #fff;
+  box-shadow: 0 26px 42px -16px rgba(72,52,116,.3),0 1px 3px rgba(72,52,116,.12),inset 0 1px rgba(255,255,255,.9);
+}
+:root[data-theme="light"] .shell-holo-panel canvas { filter: invert(1) hue-rotate(180deg) saturate(1.7) contrast(.94); }
+:root[data-theme="light"] .fixar-holo-panel.shell-holo-panel::before { border-top-color: rgba(140,112,204,.28); background: linear-gradient(90deg,#d8cdf3,#f5f2fb 50%,#f4d5c6); opacity: .85; }
+:root[data-theme="light"] .fixar-holo-panel.shell-holo-panel::after { background: linear-gradient(#e7ddf1,#cdc3dc); opacity: .85; }
+:root[data-theme="light"] .fixar-holo-panel.shell-holo-panel i { background: linear-gradient(104deg,transparent 8%,rgba(148,114,255,.16) 25%,rgba(255,255,255,.7) 42%,rgba(255,144,92,.18) 54%,transparent 76%); mix-blend-mode: normal; }
+:root[data-theme="light"] .shell-holo-veil {
+  background:
+    linear-gradient(90deg,var(--body-art) 0%,color-mix(in srgb,var(--body-art) 90%,transparent) 28%,color-mix(in srgb,var(--body-art) 40%,transparent) 56%,transparent 86%),
+    linear-gradient(0deg,var(--body-art) 0%,transparent 42%);
+  opacity: 1;
+}
 :root[data-theme="light"] body:not(.guest-shell) .side { color-scheme: dark; }
 :root[data-theme="light"] body:not(.guest-shell) :is(.tile,.card,.pcard,.stub,.lst,.kv,.stage,.flow-step,.rc-strip,.case-dialog,.settings-card,.case-result-card,.case-next-links,.case-form-card,.case-documents-main,.case-document-tool,.case-setting-panel,.owner-block,.owner-metric,.owner-mail-hero,.owner-setting,.legal-section,.legal-overview-card,.legal-document-card,.assistant-channel-card,.assistant-vault-card,.assistant-pack-card,.fixarik-settings-hero) {
   background: linear-gradient(145deg,rgba(255,255,255,.96),rgba(244,241,246,.98));
