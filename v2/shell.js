@@ -251,7 +251,10 @@
   }
   function practiceKind(practice){ return (PACK_KINDS&&practice&&PACK_KINDS[practice.domain+"/"+(practice.kind||"")])||null; }
   function practiceSectionNode(name){return SPACE_NODES["Практика"].children.find(node=>node.name===name)||null;}
-  function practiceCases(practice){return ((typeof REAL!=="undefined"&&REAL.cases)||[]).filter(item=>item.domain===practice.domain);}
+  // Виды кабинета одного направления (риелтор и собственник) отличаются
+  // агентом: у дела он лежит в selected_agent_id. Дела без агента видны во
+  // всех кабинетах направления, как раньше.
+  function practiceCases(practice){return ((typeof REAL!=="undefined"&&REAL.cases)||[]).filter(item=>item.domain===practice.domain&&(!practice.agent||!item.selected_agent_id||item.selected_agent_id===practice.agent));}
   function practiceReferralCard(practice){
     return '<div class="practice-invite-card"><p class="eyebrow">ПРИГЛАШЕНИЕ В КОМАНДУ</p><h4>Пригласить помощника в этот кабинет</h4><p>Это отдельное приглашение в вашу команду, не приглашение на платформу. Приглашённый увидит права и условия до вступления.</p><form class="pform" data-act="practice-referral" data-practice-id="'+attr(practice.id)+'"><label>Лимит на ходы помощника, кредитов в месяц<input name="monthly_credits" type="number" min="1" max="1000000" required placeholder="Например, 1000"></label><label>Источник ссылки<input name="referral_source" maxlength="32" pattern="[a-z0-9][a-z0-9_-]{0,31}" value="direct" required placeholder="telegram, max, case_ivanov"><small>Короткий тег латиницей: direct, telegram, max или название вашего дела. По нему можно различать источники.</small></label><label>Сообщение приглашённому<input name="note" maxlength="300" placeholder="Например, для работы с заявками по ремонту"></label><label class="check-line"><input name="library_write" type="checkbox"> <span>Разрешить класть материалы в библиотеку кабинета</span></label><button class="btn primary" type="submit">Создать ссылку в команду</button><div data-practice-referral-result role="status" aria-live="polite"></div></form></div>';
   }
