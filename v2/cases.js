@@ -1172,6 +1172,7 @@
     if(!action||typeof action!=="object") return false;
     if(action.type==="switch_space" && SPACE_NODES[action.space]){ switchSpace(action.space); return true; }
     if(action.type==="open_create_case"){ openCreateCase(); return true; }
+    if(action.type==="offer_signin"){ offerSignin(); return true; }
     if(!activeReal) return false;
     if(action.type==="questionnaire"){
       const questionnaire=normalizeQuestionnaire(action); if(!questionnaire)return false;

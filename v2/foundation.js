@@ -507,4 +507,29 @@
     closeAccount(); applyIdentity();
     toast(r.cases_moved?"Вы вошли. Перенесено дел: "+r.cases_moved+".":"Вы вошли.");
   }
+  /* ПРИГЛАШЕНИЕ ВОЙТИ ПОД ОТВЕТОМ ГОСТЮ (`ui_action: offer_signin`, 26.09.2026).
+     Слова приглашения пишет Проводник, здесь — кнопка в одно нажатие прямо под
+     его ответом, а не плавающая плашка: та перекрывала и ответ, и уведомление
+     о хранении данных. Не чаще раза в десять минут: гость разговаривает сколько
+     угодно, и кнопка на каждой реплике отучила бы её замечать.
+
+     КАКОЙ ОТВЕТ. Действие приходит, пока форма ещё ждёт: на её кнопке висит
+     `thinking`. По ней и находим, куда оболочка через миг положит текст. */
+  const SIGNIN_NUDGE_KEY="fixar.v2.signin-nudge.at", SIGNIN_NUDGE_EVERY_MS=10*60000;
+  function offerSignin(){
+    if(authState.signed_in) return;
+    let last=0; try{ last=Number(sessionStorage.getItem(SIGNIN_NUDGE_KEY)||0); }catch(_){}
+    if(Date.now()-last<SIGNIN_NUDGE_EVERY_MS) return;
+    const busy=document.querySelector('button.thinking[type="submit"]'), form=busy&&busy.closest("form");
+    const answer=form&&(form.matches('[data-act="my-day-ask"]')?form.querySelector("[data-my-day-answer]"):form.id==="agentdockform"?document.getElementById("agentdockanswer"):null);
+    if(!answer) return;
+    try{ sessionStorage.setItem(SIGNIN_NUDGE_KEY,String(Date.now())); }catch(_){}
+    setTimeout(()=>{
+      if(authState.signed_in||answer.querySelector(".signin-inline")) return;
+      const row=document.createElement("div"); row.className="signin-inline";
+      row.innerHTML='<button type="button" class="btn primary" data-nudge-signin>Войти</button><span>Разговор сохранится, а на задачу ответит специалист направления.</span>';
+      row.querySelector("[data-nudge-signin]").onclick=e=>openAccount(e);
+      answer.appendChild(row);
+    },0);
+  }
   function toast(msg){ const t=document.createElement("div"); t.className="auth-toast"; t.setAttribute("role","status"); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>{ if(t.parentNode) t.parentNode.removeChild(t); }, 5200); }
