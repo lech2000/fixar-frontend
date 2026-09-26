@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#101713">
   <title>FixAR — дела, люди и помощники</title>
   <link rel="preload" href="/v2/fonts/InterVariable.woff2?v=693b77d4f32e" as="font" type="font/woff2" crossorigin>
-  <script src="/lang-en.js?v=24552080c1f6"></script>
+  <script src="/lang-en.js?v=3cf192b6bf5b"></script>
   <script src="/v2/i18n.js?v=228c90c9e108"></script>
   <script>
     (function(){
@@ -380,9 +380,17 @@
     .oauth:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
     .oauth i{ width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;color:#03222c;background:var(--cyan) }
     .oauth i.g{ background:#fff;color:#111 } .oauth i.y{ background:#fc3f1d;color:#fff } .oauth i.vk{ background:#07f;color:#fff }
+    .oauth i.tg{ background:#2aabee;color:#fff;font-size:14px } .oauth i.mail,.oauth i.ph{ background:transparent;color:var(--cyan);border:1px solid var(--line) }
+    a.oauth{ text-decoration:none }
     .oauth[disabled]{ opacity:.55; cursor:progress }
     .sheet-note{ margin:10px 0 0; color:var(--muted); font-size:12px }
-    .sheet-other{ display:block; margin-top:14px; text-align:center; color:var(--cyan); font-weight:700; font-size:13px }
+    .signin-flow{ margin:0 } .signin-flow.pform{ margin-top:0 }
+    .signin-step{ margin:0 0 10px; font-size:13.5px; line-height:1.5 } .signin-step b{ color:var(--text) }
+    .signin-code{ display:inline-block; padding:2px 8px; border-radius:7px; background:var(--field); border:1px solid var(--line); font-size:13px; user-select:all; word-break:break-all }
+    .signin-phrase{ color:var(--cyan) !important; white-space:nowrap }
+    .signin-submit{ justify-content:center; margin:0 }
+    .sheet-back{ display:block; width:100%; margin-top:12px; padding:8px; border:0; background:transparent; color:var(--muted); font:inherit; font-size:13px; cursor:pointer }
+    .sheet-back:hover{ color:var(--cyan) } .sheet-back:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
     .prov-chips{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 2px }
     .prov-chip{ font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); color:var(--muted) }
     .assure{ display:inline-block; margin-top:8px; font-size:12px; color:var(--green) }
@@ -443,9 +451,9 @@
       .sheet.reader-sheet{padding:0;align-items:stretch}.sheet.reader-sheet .sheet-card{width:100%;max-height:100dvh;border-radius:0;padding:18px 14px calc(14px + env(safe-area-inset-bottom))}.sheet.reader-sheet .sheet-card h2{padding-right:42px}.answer-reader{max-height:calc(100dvh - 118px);padding:15px 13px;border-radius:14px;font-size:16px;line-height:1.62}
     }
   </style>
-  <link rel="stylesheet" href="/v2/my-day.css?v=48d431670f3e">
+  <link rel="stylesheet" href="/v2/my-day.css?v=87c3e7844101">
   <link rel="stylesheet" href="/v2/community.css?v=fd0935f2fc48">
-  <link rel="stylesheet" href="/v2/holographic-shell.css?v=33034407f0d3">
+  <link rel="stylesheet" href="/v2/holographic-shell.css?v=d655b027804f">
 </head>
 <body class="guest-shell">
   <div class="app">
@@ -1000,11 +1008,11 @@
   <script src="/core/config.js?v=bb43a234e799"></script>
   <script src="/core/http.js?v=ec111efbef20"></script>
   <!-- Контракт порядка: foundation → shell → cases → case-actions → community → bootstrap. -->
-  <script src="/v2/foundation.js?v=924ab7705eec"></script>
-  <script src="/v2/shell.js?v=703e6ca10ab5"></script>
-  <script src="/v2/cases.js?v=e9e95d4c637f"></script>
+  <script src="/v2/foundation.js?v=e04d5218610c"></script>
+  <script src="/v2/shell.js?v=020634722209"></script>
+  <script src="/v2/cases.js?v=6ca03c674609"></script>
   <script src="/v2/case-actions.js?v=613de9ae72f2"></script>
-  <script src="/v2/community.js?v=d343a377279f"></script>
-  <script src="/v2/bootstrap.js?v=171738cabb38"></script>
+  <script src="/v2/community.js?v=bd2885d0c694"></script>
+  <script src="/v2/bootstrap.js?v=3d1a8c2ec651"></script>
 </body>
 </html>

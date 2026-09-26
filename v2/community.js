@@ -22,7 +22,12 @@
     // атрибуцию, но не является условием рабочего цикла. Закреплённый
     // software/cabinet работает уже внутри дела и в специальных экранах
     // разработчика, а не подменяет общий вход.
-    function handlesGeneral(){ return true; }
+    // Шлюз держит /inbox/messages за rollout-флагом «inbox» и при выключенном
+    // флаге отвечает 404 «путь пока не открыт». Тогда до конца вкладки идём
+    // запасным путём /dialog/general (askCaseAgent), а не показываем отказ
+    // вместо ответа Фиксарика.
+    let inboxClosed=false;
+    function handlesGeneral(){ return !inboxClosed; }
     function cleanQuery(){
       try{ const url=new URL(location.href); url.searchParams.delete("community"); history.replaceState(null,"",url.pathname+(url.search?url.search:"")+url.hash); }catch(_){}
     }
@@ -117,7 +122,8 @@
     async function inbox(message,side){
       const sent={id:turnId(),parts:[{type:"text",value:message}]};
       const body={client_message_id:sent.id,parts:sent.parts,talk_id:talkId(),history:historyTurns.slice(-10),require_confirmation:true,community_context:!!active()}; if(side)body.side_hint=side;
-      const res=await authFetch("POST","/inbox/messages",body),route=res.route||{},plan=assessmentText(route.assessment,route.kind,route.proposed_title||"");
+      let res; try{ res=await authFetch("POST","/inbox/messages",body); }catch(error){ if(error&&error.status===404){ inboxClosed=true; error.inboxClosed=true; } throw error; }
+      const route=res.route||{},plan=assessmentText(route.assessment,route.kind,route.proposed_title||"");
       if(res.created_case){ const made=res.created_case; REAL.loaded=false; await loadRealCases(true); location.hash="#case/"+made.case_id; return "Дело создано: "+made.title; }
       if(route.kind==="propose_case"){ const text=proposalSheet(route,res,sent,plan||route.reason||"План подготовлен."); historyTurns.push({role:"user",text:message},{role:"assistant",text:text}); return text; }
       if(route.kind==="clarify_side"){ sideSheet(message,res); const text=(plan?plan+"\n\n":"")+(res.side_question||"Уточните, пожалуйста, вашу роль."); historyTurns.push({role:"user",text:message},{role:"assistant",text:text}); return text; }
@@ -129,7 +135,7 @@
     async function handleGeneralMessage(message){
       if(!handlesGeneral())return null;
       if(proposal&&TEXT_CONFIRM.test(message||"")){ const record=proposal; proposal=null; modalClose(); const made=await confirmProposal(record); return "Завёл "+(made.kind_accusative||"дело")+" «"+(made.title||record.route.proposed_title||"без названия")+"». План уже лежит в деле."; }
-      return inbox(message,"");
+      try{ return await inbox(message,""); }catch(error){ if(error&&error.inboxClosed)return null; throw error; }
     }
 
     window.FixarCommunity={init,beforeSession,handlesGeneral,handleGeneralMessage,active};

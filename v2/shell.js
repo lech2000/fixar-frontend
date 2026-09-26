@@ -45,23 +45,67 @@
     const key=navIconKey(name);
     return '<span class="n-icon n-icon-'+key+'" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none">'+NAV_ICON_PATHS[key]+'</svg></span>';
   }
+  // --- Простой режим меню ---
+  // В целевой архитектуре больше сотни пунктов, и большинство из них пока
+  // заглушки «Ещё не подключено». По умолчанию меню показывает только то,
+  // что открывается по-настоящему: свои экраны, списки дел, главные и
+  // готовые страницы вне оболочки. Полное дерево включается в настройках.
+  const NAV_FULL_KEY = "fixar-v2-nav-full";
+  let navFull = store(NAV_FULL_KEY)==="1";
+  let navScreens = null; // SCREENS объявлены ниже; до них считаем всё живым
+  const LINKED_PAGES = {
+    "Для жизни · Семья / Школа / Электронный дневник": "/dnevnik/",
+    "Для жизни · Семья / Школа / Домашние задания": "/fixclo/?preset=education.domashkin&pilot=domashkin",
+    "Для работы · Разработка / Паки / Мои паки": "/pak/kabinet/",
+    "Для работы · Разработка / Паки / Создать пак": "/pak/"
+  };
+  const navPath = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
+  function linkedPage(node){ return (node&&LINKED_PAGES[navPath(node)])||""; }
+  window.linkedPage = linkedPage;
+  function opensDirectly(node){
+    return !navScreens || !!linkedPage(node) || !!navScreens[navPath(node)] || node.name==="Главная" || isListNode(node);
+  }
+  function isLiveNode(node){
+    if(!navScreens) return true;
+    return opensDirectly(node) || node.children.some(isLiveNode);
+  }
+  function navChildren(node){
+    if(navFull) return node.children;
+    const out=[];
+    node.children.forEach(child=>{
+      if(!isLiveNode(child)) return;
+      // Группа, в которой готов один пункт, не заставляет раскрывать себя.
+      const live=child.children.filter(isLiveNode);
+      if(!opensDirectly(child)&&live.length===1&&!live[0].children.some(isLiveNode)){ out.push(live[0]); return; }
+      out.push(child);
+    });
+    return out;
+  }
+  function setNavFull(value){
+    navFull=!!value; put(NAV_FULL_KEY,navFull?"1":"0");
+    rebuildNav();
+    const raw=location.hash.slice(1),cut=raw.search(/[~?]/),node=byId[cut>=0?raw.slice(0,cut):raw];
+    if(node) expandTo(node);
+  }
+  window.setNavFull = setNavFull;
   function buildNav(node, container, depth){
     depth=depth||0;
-    node.children.forEach(child => {
+    navChildren(node).forEach(child => {
+      const kidsShown = navChildren(child);
       const row = document.createElement("div"); row.className = "n-row"; row.dataset.id = child.id;
       row.dataset.depth=String(depth);
       const caret = document.createElement("button");
-      caret.className = "caret" + (child.children.length ? "" : " leaf");
+      caret.className = "caret" + (kidsShown.length ? "" : " leaf");
       caret.setAttribute("aria-expanded", "false");
       caret.setAttribute("aria-label", "Развернуть");
-      caret.textContent = child.children.length ? "⌄" : "";
+      caret.textContent = kidsShown.length ? "⌄" : "";
       const label = document.createElement("button");
       label.className = "n-label";
       label.setAttribute("aria-label",child.name);
-      label.innerHTML = navIcon(child.name)+'<span class="n-copy"><strong>'+esc(child.name)+'</strong>'+(child.children.length?'<small>'+child.children.length+' разделов</small>':'')+'</span>';
+      label.innerHTML = navIcon(child.name)+'<span class="n-copy"><strong>'+esc(child.name)+'</strong>'+(navFull&&child.children.length?'<small>'+child.children.length+' разделов</small>':'')+(linkedPage(child)?'<small>'+((window.FixarV2I18n&&window.FixarV2I18n.english)?"Opens separately":"Откроется отдельно")+' ↗</small>':'')+'</span>';
       row.append(label, caret); container.appendChild(row);
       let kids = null;
-      if (child.children.length){
+      if (kidsShown.length){
         kids = document.createElement("div"); kids.className = "kids"; kids.hidden = true;
         container.appendChild(kids);
         buildNav(child, kids, depth+1);
@@ -85,7 +129,8 @@
   const ACCOUNT_NODES = [findNode("Общие разделы аккаунта"), ACCOUNT_SETTINGS_NODE, findNode("Помощь")].filter(Boolean);
   const kidOf = (node,name) => { const k=node&&node.children.find(c=>c.name===name); return k?k.id:(node?node.id:"0"); };
   const CASE_VIEW_KEY = "fixar-v2-case-view";
-  let currentSpace = "Семья";
+  const SPACE_KEY = "fixar-v2-space";
+  let currentSpace = SPACE_NODES[store(SPACE_KEY)] ? store(SPACE_KEY) : "Семья";
   let listFilter = "Все";
   let caseViewMode = store(CASE_VIEW_KEY)==="notes" ? "notes" : "list";
   function spaceOf(node){ let n=node; while(n){ for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } n=n.parent; } return null; }
@@ -109,7 +154,7 @@
       (settings?'<button class="foot-link" onclick="go(\''+settings.id+'\')">'+navIcon("Настройки")+'<span>Все настройки</span></button>':'')+
       '<details class="sidebar-more"><summary>Помощь и правила <span>+</span></summary><div>'+ctx.map(c=>{ if(c[0]==="Структура дела") return '<button class="foot-link dim" onclick="openCaseRow(\'\',\'\',\'shkola-raspisanie\')">'+esc(c[0])+'</button>'; const n=findNode(c[1]); return n?'<button class="foot-link dim" onclick="go(\''+n.id+'\')">'+esc(c[0])+'</button>':''; }).join("")+'</div></details></div>';
   }
-  function rebuildNav(){ nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
+  function rebuildNav(){ put(SPACE_KEY,currentSpace); nav.innerHTML=""; buildNav(SPACE_NODES[currentSpace], nav); renderSwitch(); renderFoot(); }
   function openSpacePicker(){
     const choices=Object.keys(SPACE_NODES).map(k=>'<button class="tile" type="button" data-space="'+attr(k)+'"><span><h3>'+esc(k)+'</h3><p>'+esc(k===currentSpace?"выбрано":"перейти в пространство")+'</p></span><span class="chev" aria-hidden="true">→</span></button>').join("");
     modalOpen("Выберите пространство",'<div class="tiles" id="spacechoices">'+choices+'</div>',body=>{ body.querySelector("#spacechoices").onclick=e=>{ const b=e.target.closest("[data-space]"); if(!b)return; modalClose(); switchSpace(b.dataset.space); }; });
@@ -126,16 +171,19 @@
 
   // --- Контент ---
   const vwrap = document.getElementById("vwrap");
+  // Крошки без служебного корня «ФиксАР» и без «Для жизни · …»: пространство
+  // называется так же, как в переключателе.
+  const crumbName = n => { for(const k in SPACE_NODES){ if(SPACE_NODES[k]===n) return k; } return n.name; };
   const crumbHtml = node => {
-    const chain = ancestors(node).concat(node);
+    const chain = ancestors(node).filter(n=>n!==ROOT).concat(node);
     return chain.map((n,i)=> (i<chain.length-1
-      ? '<a href="#'+n.id+'">'+esc(n.name)+'</a><span class="sep">›</span>'
-      : '<span>'+esc(n.name)+'</span>')).join("");
+      ? '<a href="#'+n.id+'">'+esc(crumbName(n))+'</a><span class="sep">›</span>'
+      : '<span>'+esc(crumbName(n))+'</span>')).join("");
   };
   const eyebrowFor = node => { const a = ancestors(node); return a.length ? a.map(n=>n.name).join(" · ") : "ФиксАР"; };
 
   function tileGrid(node){
-    return '<div class="tiles">' + node.children.map(c =>
+    return '<div class="tiles">' + navChildren(node).map(c =>
       '<button class="tile" onclick="go(\''+c.id+'\')">'+
         '<span><h3>'+esc(c.name)+(c.children.length?'<span class="count">'+c.children.length+'</span>':'')+'</h3>'+
         '<p>'+(c.children.length? 'Раздел · '+c.children.length+' пункт(ов)':'Экран')+'</p></span>'+
@@ -186,10 +234,27 @@
   }
   let practiceSection="needed";
   const PRACTICE_SECTIONS=[
-    ["needed","Где я нужен","Главная"],["tools","Инструменты","Агенты практики"],["inbox","Переписка","Обращения"],["cases","Дела","Клиентские дела"],["people","Участники","Клиенты"],["docs","Документы","Документы"],["calendar","Календарь и сроки","Календарь"],["agents","Агенты","Агенты практики"],["face","Лицо наружу",null],["money","Деньги","Деньги"],["team","Команда кабинета","Команда"],["watch","Наблюдения",null],["links","Подключения",null],["bounds","Границы",null],["archive","Архив и выход",null]
+    ["needed","Где я нужен","Главная"],["inbox","Переписка","Обращения"],["cases","Дела","Клиентские дела"],["people","Участники","Клиенты"],["docs","Документы","Документы"],["calendar","Календарь и сроки","Календарь"],["agents","Агенты","Агенты практики"],["face","Лицо наружу",null],["money","Деньги","Деньги"],["team","Команда кабинета","Команда"],["watch","Наблюдения",null],["links","Подключения",null],["bounds","Границы",null],["archive","Архив и выход",null]
   ];
+  // «Инструменты» убраны: вели в тот же раздел, что «Агенты». Разделы-заглушки
+  // видны только в режиме «Все разделы» — как и в меню.
+  const PRACTICE_STUB_SECTIONS=["face","watch","links","bounds","archive"];
+  const practiceSections=()=>PRACTICE_SECTIONS.filter(item=>navFull||PRACTICE_STUB_SECTIONS.indexOf(item[0])<0);
+  // Вид кабинета из /packs (client_title и т.п.), чтобы кабинет юриста и
+  // автосервиса не выглядели одинаково. Один запрос; при ошибке — пустая карта.
+  let PACK_KINDS=null,packKindsLoad=null;
+  function loadPackKinds(){
+    if(PACK_KINDS)return Promise.resolve();
+    if(packKindsLoad)return packKindsLoad;
+    packKindsLoad=authFetch("GET","/packs").then(data=>{ const map={}; ((data&&data.packs)||[]).forEach(pack=>((pack.practice&&pack.practice.kinds)||[]).forEach(kind=>{ map[pack.id+"/"+kind.id]=Object.assign({pack_title:pack.title||""},kind); })); PACK_KINDS=map; }).catch(()=>{ PACK_KINDS={}; }).finally(()=>{ packKindsLoad=null; });
+    return packKindsLoad;
+  }
+  function practiceKind(practice){ return (PACK_KINDS&&practice&&PACK_KINDS[practice.domain+"/"+(practice.kind||"")])||null; }
   function practiceSectionNode(name){return SPACE_NODES["Практика"].children.find(node=>node.name===name)||null;}
-  function practiceCases(practice){return ((typeof REAL!=="undefined"&&REAL.cases)||[]).filter(item=>item.domain===practice.domain);}
+  // Виды кабинета одного направления (риелтор и собственник) отличаются
+  // агентом: у дела он лежит в selected_agent_id. Дела без агента видны во
+  // всех кабинетах направления, как раньше.
+  function practiceCases(practice){return ((typeof REAL!=="undefined"&&REAL.cases)||[]).filter(item=>item.domain===practice.domain&&(!practice.agent||!item.selected_agent_id||item.selected_agent_id===practice.agent));}
   function practiceReferralCard(practice){
     return '<div class="practice-invite-card"><p class="eyebrow">ПРИГЛАШЕНИЕ В КОМАНДУ</p><h4>Пригласить помощника в этот кабинет</h4><p>Это отдельное приглашение в вашу команду, не приглашение на платформу. Приглашённый увидит права и условия до вступления.</p><form class="pform" data-act="practice-referral" data-practice-id="'+attr(practice.id)+'"><label>Лимит на ходы помощника, кредитов в месяц<input name="monthly_credits" type="number" min="1" max="1000000" required placeholder="Например, 1000"></label><label>Источник ссылки<input name="referral_source" maxlength="32" pattern="[a-z0-9][a-z0-9_-]{0,31}" value="direct" required placeholder="telegram, max, case_ivanov"><small>Короткий тег латиницей: direct, telegram, max или название вашего дела. По нему можно различать источники.</small></label><label>Сообщение приглашённому<input name="note" maxlength="300" placeholder="Например, для работы с заявками по ремонту"></label><label class="check-line"><input name="library_write" type="checkbox"> <span>Разрешить класть материалы в библиотеку кабинета</span></label><button class="btn primary" type="submit">Создать ссылку в команду</button><div data-practice-referral-result role="status" aria-live="polite"></div></form></div>';
   }
@@ -207,7 +272,7 @@
     return head+'<p class="rc-hint">Кабинет: '+esc(practiceTitle(practice))+'</p>'+choices+practiceReferralCard(practice)+'</main>';
   }
   function practiceCabinetSection(practice){
-    const section=PRACTICE_SECTIONS.find(item=>item[0]===practiceSection)||PRACTICE_SECTIONS[0],cases=practiceCases(practice),target=section[2]&&practiceSectionNode(section[2]);
+    const sections=practiceSections(),section=sections.find(item=>item[0]===practiceSection)||sections[0],kind=practiceKind(practice),cases=practiceCases(practice),target=section[2]&&practiceSectionNode(section[2]);
     let body="";
     if(section[0]==="needed"||section[0]==="cases"){
       const shown=section[0]==="needed"?cases.filter(item=>item.needs_word):cases;
@@ -220,15 +285,16 @@
     else if(section[0]==="bounds")body='<p class="rc-hint">Границы действий агентов будут показаны здесь до выдачи разрешений.</p>';
     else if(section[0]==="archive")body='<p class="rc-hint">Закрытие кабинета остаётся защищённым действием и будет перенесено отдельным подтверждаемым экраном.</p>';
     else body='<p class="rc-hint">Откройте полноценный раздел выбранного кабинета.</p>';
-    return '<section class="practice-cabinet"><header><p class="eyebrow">КАБИНЕТ · '+esc(practiceTitle(practice))+'</p><h3>'+esc(section[1])+'</h3></header><div class="practice-tabs" role="tablist" aria-label="Разделы кабинета">'+PRACTICE_SECTIONS.map(item=>'<button type="button" role="tab" aria-selected="'+String(item[0]===practiceSection)+'" data-practice-section="'+item[0]+'">'+esc(item[1])+'</button>').join("")+'</div><div class="practice-section-body">'+body+(target&&section[0]!=="needed"&&section[0]!=="team"?'<button class="btn" type="button" data-practice-node="'+attr(target.id)+'">Открыть раздел →</button>':'')+'</div></section>';
+    return '<section class="practice-cabinet"><header><p class="eyebrow">КАБИНЕТ · '+esc(practiceTitle(practice))+'</p><h3>'+esc(section[1])+'</h3>'+(kind&&kind.client_title?'<p class="rc-hint">'+uiText("Ваш клиент в этом кабинете — ","Your client here: ")+esc(kind.client_title)+'</p>':'')+'</header><div class="practice-tabs" role="tablist" aria-label="Разделы кабинета">'+sections.map(item=>'<button type="button" role="tab" aria-selected="'+String(item[0]===practiceSection)+'" data-practice-section="'+item[0]+'">'+esc(item[1])+'</button>').join("")+'</div><div class="practice-section-body">'+body+(target&&section[0]!=="needed"&&section[0]!=="team"?'<button class="btn" type="button" data-practice-node="'+attr(target.id)+'">Открыть раздел →</button>':'')+'</div></section>';
   }
   function practicePanel(){
     if(!authState.token) return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Войдите, чтобы увидеть только открытые вами кабинеты практики.</p><button class="btn primary" data-acct="open">Войти</button></div>';
     if(PRACTICE.loading||!PRACTICE.loaded||PRACTICE.principal!==authState.principal) return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Загружаем кабинеты…</p></div>';
     if(PRACTICE.error) return '<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-note">'+esc(PRACTICE.error)+'</p><button class="btn" data-act="practice-reload">Повторить</button></div>';
-    const rows=PRACTICE.items.length?PRACTICE.items.map(item=>'<button class="lrow" data-act="practice-select" data-id="'+attr(item.id)+'"><span><h4>'+esc(practiceTitle(item))+'</h4><p>'+esc(item.domain_title||item.domain||"Рабочее направление")+'</p></span>'+(item.id===PRACTICE.selectedId?'<span class="chip">выбран</span>':'<span class="when">выбрать →</span>')+'</button>').join(""):'<p class="rc-hint">Вы ещё не открывали кабинеты.</p>';
+    const rows=PRACTICE.items.length?PRACTICE.items.map(item=>'<button class="lrow" data-act="practice-select" data-id="'+attr(item.id)+'"><span><h4>'+esc(practiceTitle(item))+'</h4><p>'+esc(item.domain_title||(practiceKind(item)||{}).pack_title||item.domain||"Рабочее направление")+'</p></span>'+(item.id===PRACTICE.selectedId?'<span class="chip">выбран</span>':'<span class="when">выбрать →</span>')+'</button>').join(""):'<p class="rc-hint">Вы ещё не открывали кабинеты.</p>';
     const add=authState.assurance>=2?'<button class="btn primary" data-act="practice-add">Добавить кабинет</button>':'<p class="rc-note">Чтобы добавить кабинет, подтвердите вход до уровня 2.</p>';
     const practice=selectedPractice();
+    if(practice&&!PACK_KINDS)loadPackKinds().then(()=>{ if(currentSpace==="Практика")refreshCurrentView(); });
     return (practice?practiceCabinetSection(practice):"")+'<div class="rc-strip"><h3>Мои кабинеты</h3><p class="rc-hint">Выберите кабинет, в котором сейчас работаете. В списке только ваши кабинеты.</p><div class="lst">'+rows+'</div><div class="cta-row" style="margin-top:12px">'+add+'</div></div>';
   }
   async function submitPracticeReferral(form){
@@ -436,7 +502,16 @@
   }
   function initHolographicHome(root){ initHolographicScene(root,"[data-holographic-home]"); }
   function initHolographicShell(){ initHolographicScene(document,"[data-holographic-shell]"); }
-  function syncHolographicScale(){ document.documentElement.style.setProperty("--holo-scale",Math.min(1,innerHeight/1120).toFixed(3)); }
+  // Мобильная адресная строка меняет innerHeight при каждой прокрутке; мелкие
+  // скачки высоты не должны двигать фон — пересчитываем только при повороте,
+  // смене ширины или заметной смене высоты окна.
+  let holoScaleSize=null;
+  function syncHolographicScale(){
+    const w=innerWidth,h=innerHeight;
+    if(holoScaleSize&&holoScaleSize[0]===w&&Math.abs(holoScaleSize[1]-h)<160)return;
+    holoScaleSize=[w,h];
+    document.documentElement.style.setProperty("--holo-scale",Math.max(.55,Math.min(1,h/1120)).toFixed(3));
+  }
   syncHolographicScale();
   window.addEventListener("resize",syncHolographicScale,{passive:true});
   const HOME_WORK_MODE={"Личное":false,"Семья":false};
@@ -507,10 +582,10 @@
     const prompts=copy.prompts.map(pair=>'<button class="my-day-prompt" type="button" data-my-day-prompt="'+attr(uiText(pair[0],pair[1]))+'">'+esc(uiText(pair[0],pair[1]))+'</button>').join("");
     const assistants=friendly?'<div class="my-day-section-head"><h2>'+uiText("Ваши помощники","In good company")+'</h2><small>'+uiText("У каждого — своё дело","A case for every assistant")+'</small></div><div class="my-day-agent-grid">'+agents.map(myDayAgentCard).join("")+'</div>':"";
     const banner=(copy.banner==="domashkin")?myDayBanner():"";
-    const devPacksSection=currentSpace==="Разработка"?'<section class="my-day-highlight" id="dev-packs-preview"><div><span class="eyebrow">ПАКИ РЕЕСТРА</span><h2>Загрузка паков…</h2><div id="dev-packs-home" class="pgrid" style="margin-top:12px"><div class="skel-card" style="height:80px"></div></div></div></section>':'';
+    const devPacksSection=currentSpace==="Разработка"?developmentWorkbenchPanel()+'<section class="my-day-highlight" id="dev-packs-preview"><div><span class="eyebrow">ПАКИ РЕЕСТРА</span><h2>Направления и опубликованные паки</h2><p>Это каталог площадки. Ваши незавершённые разработки показаны выше и не теряются среди него.</p><div id="dev-packs-home" class="pgrid" style="margin-top:12px"><div class="skel-card" style="height:80px"></div></div></div></section>':'';
     const extras=devPacksSection+(currentSpace==="Разработка"?ownerToolsPanel():"")+(currentSpace==="Практика"?practicePanel():"");
     const spaceClass={"Семья":"space-family","Личное":"space-personal","Практика":"space-practice","Разработка":"space-development","Проекты и исследования":"space-development"}[currentSpace]||"space-personal";
-    return '<main class="my-day-home '+spaceClass+'"><header class="my-day-heading"><div><p class="eyebrow">'+uiText("ВАШЕ ПРОСТРАНСТВО ДЛЯ ЖИЗНИ","A LITTLE SPACE FOR YOUR LIFE")+'</p><h1>'+uiText("Меньше забот.<br>Больше вашей жизни.","Less to manage.<br>More life to live.")+'</h1><p>'+uiText("Вы решаете, что важно. Мы помогаем с остальным.","You choose what matters. We help with the rest.")+'</p></div><button class="my-day-badge" type="button" data-my-day-chat>'+uiText("К чату","Back to chat")+' ←</button></header><div class="my-day-layout"><div class="my-day-main"><section class="my-day-highlight"><div><span class="eyebrow">'+uiText("ОДНА ХОРОШАЯ МЫСЛЬ НА СЕГОДНЯ","ONE GOOD IDEA FOR TODAY")+'</span><h2>'+copy.highlight+'</h2><p>'+copy.body+'</p><button class="my-day-text-button" type="button" '+(cases[0]?'data-my-day-case="'+attr(cases[0].id)+'"':'data-act="create-case"')+'>'+(cases[0]?uiText("Продолжить главное дело","Continue the main case"):uiText("Начать с одного дела","Start with one case"))+' →</button></div><div class="my-day-orbit" aria-hidden="true"><div class="my-day-orbit-card">'+copy.symbol+'<b>'+esc(currentSpace)+'</b></div></div></section><form class="my-day-composer" data-act="my-day-ask"><label>'+uiText("С чего начнём?","Where shall we start?")+'</label><textarea name="message" rows="2" maxlength="8000" required placeholder="'+uiText("Напишите, что хочется упростить…","What would you like to make easier?")+'"></textarea><div class="my-day-composer-foot"><small>'+uiText("Фиксарик видит текущую страницу и может передать вопрос профильному помощнику.","Fixarik sees this page and can hand the question to a specialist assistant.")+'</small><button class="btn primary" type="submit">'+uiText("Отправить","Send")+'</button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Умные подсказки","Smart suggestions")+'">'+prompts+'</div>'+assistants+banner+'</div>'+myDayRail()+'</div>'+extras+'</main>';
+    return '<main class="my-day-home '+spaceClass+'"><header class="my-day-heading"><div><p class="eyebrow">'+((currentSpace==="Личное"||currentSpace==="Семья")?uiText("ВАШЕ ПРОСТРАНСТВО ДЛЯ ЖИЗНИ","A LITTLE SPACE FOR YOUR LIFE"):uiText("ВАШЕ РАБОЧЕЕ ПРОСТРАНСТВО","YOUR WORKSPACE"))+'</p><h1>'+uiText("Меньше забот.<br>Больше вашей жизни.","Less to manage.<br>More life to live.")+'</h1><p>'+uiText("Вы решаете, что важно. Мы помогаем с остальным.","You choose what matters. We help with the rest.")+'</p></div><button class="my-day-badge" type="button" data-my-day-chat>'+uiText("К чату","Back to chat")+' ←</button></header><div class="my-day-layout"><div class="my-day-main"><section class="my-day-highlight"><div><span class="eyebrow">'+uiText("ОДНА ХОРОШАЯ МЫСЛЬ НА СЕГОДНЯ","ONE GOOD IDEA FOR TODAY")+'</span><h2>'+copy.highlight+'</h2><p>'+copy.body+'</p><button class="my-day-text-button" type="button" '+(cases[0]?'data-my-day-case="'+attr(cases[0].id)+'"':'data-act="create-case"')+'>'+(cases[0]?uiText("Продолжить главное дело","Continue the main case"):uiText("Начать с одного дела","Start with one case"))+' →</button></div><div class="my-day-orbit" aria-hidden="true"><div class="my-day-orbit-card">'+copy.symbol+'<b>'+esc(currentSpace)+'</b></div></div></section><form class="my-day-composer" data-act="my-day-ask"><label>'+uiText("С чего начнём?","Where shall we start?")+'</label><textarea name="message" rows="2" maxlength="8000" required placeholder="'+uiText("Напишите, что хочется упростить…","What would you like to make easier?")+'"></textarea><div class="my-day-composer-foot"><small>'+uiText("Фиксарик видит текущую страницу и может передать вопрос профильному помощнику.","Fixarik sees this page and can hand the question to a specialist assistant.")+'</small><button class="btn primary" type="submit">'+uiText("Отправить","Send")+'</button></div><div class="my-day-answer" data-my-day-answer hidden aria-live="polite"></div></form><div class="my-day-prompts" aria-label="'+uiText("Умные подсказки","Smart suggestions")+'">'+prompts+'</div>'+assistants+banner+'</div>'+myDayRail()+'</div>'+extras+'</main>';
   }
 
   function dashboard(node){
@@ -703,11 +778,11 @@
   function renderList(node){
     const items = listItemsFor(node);
     const cur = LIST_FILTERS.find(x=>x.n===listFilter) || LIST_FILTERS[0];
-    const chips = LIST_FILTERS.map(x=>{ const cnt=items.filter(x.f).length,active=x.n===cur.n; return '<button class="tab'+(active?" active":"")+'" type="button" aria-pressed="'+active+'" data-filter="'+attr(x.n)+'" data-node="'+node.id+'">'+uiText(x.n,x.en)+'<span class="tcount">'+cnt+'</span></button>'; }).join("");
-    const need=items.filter(item=>item.needsMe).length,working=items.filter(item=>item.agentWorking).length,done=items.filter(item=>item.completed).length;
+    // Фильтр, который ничего не меняет (пусто или совпадает со «Всеми»), не показываем.
+    const chips = LIST_FILTERS.map(x=>{ const cnt=items.filter(x.f).length,active=x.n===cur.n; if(!active&&x.n!=="Все"&&(cnt===0||cnt===items.length))return ""; return '<button class="tab'+(active?" active":"")+'" type="button" aria-pressed="'+active+'" data-filter="'+attr(x.n)+'" data-node="'+node.id+'">'+uiText(x.n,x.en)+'<span class="tcount">'+cnt+'</span></button>'; }).join("");
     const create='<button class="btn primary create-btn" data-act="create-case">'+uiText("Создать дело","Create case")+'</button>';
     const view='<div class="case-view-toggle" role="group" aria-label="'+uiText("Вид дел","Case view")+'"><button type="button" data-case-view="list" data-node="'+node.id+'" aria-pressed="'+(caseViewMode==="list")+'"><span aria-hidden="true">≡</span>'+uiText("Список","List")+'</button><button type="button" data-case-view="notes" data-node="'+node.id+'" aria-pressed="'+(caseViewMode==="notes")+'"><span aria-hidden="true">▦</span>'+uiText("Стикеры","Sticky notes")+'</button></div>';
-    return '<main class="my-cases"><div class="crumbs">'+crumbHtml(node)+'</div><header class="my-cases-heading"><div><p class="eyebrow">'+esc(currentSpace)+' · '+uiText("ВАШИ ДЕЛА","YOUR CASES")+'</p><h1>'+uiText("Смотрите, что движется дальше.","See what moves forward next.")+'</h1><p>'+uiText("Ваш ответ — первым. Работа помощников — рядом. Завершённое не мешает.","Your input comes first. Assistant work stays visible. Completed cases stay out of the way.")+'</p></div><span class="my-day-badge">'+items.length+' '+uiText("дел","cases")+'</span></header><section class="my-cases-pulse" aria-label="'+uiText("Состояние дел","Case status")+'"><div><b>'+need+'</b><span>'+uiText("требуют вас","need you")+'</span></div><div><b>'+working+'</b><span>'+uiText("помощники работают","assistants working")+'</span></div><div><b>'+done+'</b><span>'+uiText("завершено","completed")+'</span></div></section><div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div><div class="case-list-actions">'+view+create+'</div></div><div class="my-cases-list view-'+caseViewMode+'" id="lst">'+listRowsHtml(node)+'</div></main>';
+    return '<main class="my-cases"><div class="crumbs">'+crumbHtml(node)+'</div><header class="my-cases-heading"><div><p class="eyebrow">'+esc(currentSpace)+' · '+uiText("ВАШИ ДЕЛА","YOUR CASES")+'</p><h1>'+uiText("Смотрите, что движется дальше.","See what moves forward next.")+'</h1><p>'+uiText("Ваш ответ — первым. Работа помощников — рядом. Завершённое не мешает.","Your input comes first. Assistant work stays visible. Completed cases stay out of the way.")+'</p></div></header><div class="lbar sticky"><div class="tabs filter-bar">'+chips+'</div><div class="case-list-actions">'+view+create+'</div></div><div class="my-cases-list view-'+caseViewMode+'" id="lst">'+listRowsHtml(node)+'</div></main>';
   }
 
   function screenResearchProjects(node){
@@ -864,6 +939,7 @@
       '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="background-hue">Оттенок фона</label><div class="hue-control"><input id="background-hue" type="range" min="0" max="359" step="1" value="'+appearance.backgroundHue+'" aria-describedby="background-hue-help"><output class="hue-value" id="background-hue-value" for="background-hue">'+appearance.backgroundHue+'°</output></div><p id="background-hue-help">Задайте фону тёплый или холодный тон независимо от цвета кнопок.</p></div>'+
       '<div class="appearance-group" style="margin-top:20px"><label class="appearance-label" for="background-light">Видимость голографического фона</label><div class="hue-control"><input id="background-light" type="range" min="0" max="100" step="1" value="'+appearance.background+'" aria-describedby="background-help"><output class="hue-value" id="background-value" for="background-light">'+appearance.background+'%</output></div><p id="background-help">0 — почти незаметный фон, 100 — яркие зернистые блоки. Карточки и текст сохраняют контраст.</p></div>'+
       '<div class="cta-row"><button class="btn" type="button" data-reset-appearance>Вернуть оформление FixAR</button></div></section>'+
+      '<section class="settings-card"><div class="appearance-group"><div class="appearance-label">'+uiText("Меню","Menu")+'</div><div class="choice-row" data-nav-mode-choices>'+[["simple",uiText("Только готовое","Ready sections only")],["full",uiText("Все разделы","All sections")]].map(item=>{ const active=(item[0]==="full")===navFull; return '<button class="choice'+(active?' active':'')+'" type="button" data-nav-mode="'+item[0]+'" aria-pressed="'+active+'">'+item[1]+'</button>'; }).join("")+'</div><p>'+uiText("«Только готовое» прячет разделы, которые ещё в разработке. «Все разделы» показывает полную карту FixAR.","\u201cReady sections only\u201d hides sections still in development. \u201cAll sections\u201d shows the full FixAR map.")+'</p></div></section>'+
       (fixarik?'<section class="settings-card"><h3>Помощники и каналы</h3><p>Подключения Фиксарика, доступ к перепискам и паки разработчиков настраиваются отдельно.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+fixarik.id+'\')">Настройки Фиксарика</button></div></section>':'')+
       (legal?'<section class="settings-card"><h3>Данные и согласия</h3><p>Посмотрите, что хранится на устройстве, какие документы опубликованы и разрешена ли передача данных за рубеж.</p><div class="cta-row"><button class="btn" type="button" onclick="go(\''+legal.id+'\')">Открыть центр данных</button></div></section>':'')+
       '</div>';
@@ -1036,10 +1112,20 @@
   }
 
   // --- Экраны «Разработка» — реальные данные ---
+  function developmentWorkbenchPanel(){
+    if(!hasSession())return '<section class="my-day-highlight"><div><span class="eyebrow">МОИ РАЗРАБОТКИ</span><h2>Войдите, чтобы увидеть свои паки</h2><p>Черновики, тесты и опубликованные версии принадлежат вашему аккаунту.</p><button class="btn primary" type="button" data-my-day-account>Войти</button></div></section>';
+    if(REAL.loading||!REAL.loaded)return '<section class="my-day-highlight"><div><span class="eyebrow">МОИ РАЗРАБОТКИ</span><h2>Загружаем ваши паки и дела…</h2><p>Проверяем только доступные вам разработки.</p></div></section>';
+    if(REAL.error)return '<section class="my-day-highlight"><div><span class="eyebrow">МОИ РАЗРАБОТКИ</span><h2>Не удалось прочитать разработки</h2><p>Обновите страницу — ваши данные не потеряны.</p></div></section>';
+    const cases=realCasesForSpace("Разработка"), own=cases.filter(c=>c.owner_id===authState.principal), shown=(own.length?own:cases).slice(0,6);
+    const cards=shown.map(c=>'<a class="pcard" href="#case/'+attr(c.id)+'"><div style="display:flex;gap:10px;align-items:center"><span class="pico">'+esc(((c.title||"Р")[0]).toUpperCase())+'</span><span class="chip">'+esc(caseListStatus(c))+'</span></div><h3>'+esc(c.title||"Разработка без названия")+'</h3><p>'+esc(c.goal||"Открыть дело и продолжить создание, тестирование или публикацию.")+'</p><span class="popen">Продолжить →</span></a>').join("");
+    const empty='<div class="case-soft-empty"><span>◇</span><div><h3>Разработок пока нет</h3><p>Создайте первое дело разработки — оно всегда появится здесь, до общего каталога.</p></div></div>';
+    return '<section class="my-day-highlight"><div><span class="eyebrow">МОИ РАЗРАБОТКИ</span><h2>Ваши паки и рабочие черновики</h2><p>Сначала — то, над чем вы уже работаете. Реестр площадки находится ниже.</p><div class="pgrid" style="margin-top:12px">'+(cards||empty)+'</div></div></section>';
+  }
   function screenDevPacks(node){
     return crumbsBlock(node)+
-      '<div class="vhead"><p class="eyebrow">Разработка · Паки</p><h1>Мои паки</h1><p>Реальные паки из реестра.</p></div>'+
-      '<div id="dev-packs-grid" class="pgrid"><div class="skel-card" style="height:120px"></div><div class="skel-card" style="height:120px"></div></div>';
+      '<div class="vhead"><p class="eyebrow">Разработка · Паки</p><h1>Ваши паки и разработки</h1><p>Сначала ваши рабочие дела. Ниже — общий реестр направлений и опубликованных паков.</p></div>'+
+      developmentWorkbenchPanel()+
+      '<section class="case-document-section"><div class="case-document-section-head"><h3>Паки реестра</h3></div><div id="dev-packs-grid" class="pgrid"><div class="skel-card" style="height:120px"></div><div class="skel-card" style="height:120px"></div></div></section>';
   }
   function screenDevAgents(node){
     return crumbsBlock(node)+
@@ -1162,6 +1248,7 @@
     "Публичная часть / Страница пака": screenPack,
     "Настройки": screenAppearanceSettings,
     "Настройки / Фиксарик": screenFixarikSettings,
+    "Настройки / Язык и регион": screenAppearanceSettings,
     "Первый запуск": screenOnboarding,
     "Внутренняя структура любого дела": screenCase,
     "Юридические документы": screenLegalCenter,
@@ -1181,6 +1268,7 @@
     "Для работы · Проекты и исследования / Проекты": screenResearchProjects
   };
   const pathKey = node => ancestors(node).filter(n=>n!==ROOT).map(n=>n.name).concat(node.name).join(" / ");
+  navScreens = SCREENS; rebuildNav();
 
   function bindScreen(){
     initHolographicShell();
@@ -1211,6 +1299,7 @@
         const slider=appearancePanel.querySelector('#accent-hue'),output=appearancePanel.querySelector('#hue-value'),backgroundHue=appearancePanel.querySelector('#background-hue'),backgroundHueOutput=appearancePanel.querySelector('#background-hue-value'),background=appearancePanel.querySelector('#background-light'),backgroundOutput=appearancePanel.querySelector('#background-value'); if(slider)slider.value=value.hue; if(output)output.value=value.hue+'°'; if(backgroundHue)backgroundHue.value=value.backgroundHue; if(backgroundHueOutput)backgroundHueOutput.value=value.backgroundHue+'°'; if(background)background.value=value.background; if(backgroundOutput)backgroundOutput.value=value.background+'%';
       };
       appearancePanel.addEventListener('click',event=>{
+        const navMode=event.target.closest('button[data-nav-mode]'); if(navMode){ setNavFull(navMode.dataset.navMode==="full"); appearancePanel.querySelectorAll('[data-nav-mode]').forEach(button=>{ const active=button===navMode; button.classList.toggle('active',active); button.setAttribute('aria-pressed',String(active)); }); return; }
         const language=event.target.closest('button[data-language]'); if(language){ if(window.FixarV2I18n)window.FixarV2I18n.choose(language.dataset.language); return; }
         const mode=event.target.closest('button[data-theme-mode]'); if(mode){ sync(applyAppearance({mode:mode.dataset.themeMode},true)); return; }
         const palette=event.target.closest('button[data-palette]'); if(palette){ sync(applyAppearance({preset:palette.dataset.palette,hue:Number(palette.dataset.hue),backgroundHue:Number(palette.dataset.backgroundHue)},true)); return; }

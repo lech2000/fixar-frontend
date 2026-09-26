@@ -388,28 +388,123 @@
       lo.onclick=()=>{ lo.disabled=true; lo.textContent="Выхожу…"; logout(); };
       return;
     }
-    body.innerHTML='<h2>Войти в ФиксАР</h2><p class="lead">Вход привязывает канал к вашему субъекту: дела и переписка не потеряются. Пока вы гость — можно смотреть, но не подписывать обязательства и не звать людей в дело.</p><div id="oauths"><span class="sheet-note">Загружаю способы входа…</span></div>';
+    body.innerHTML='<h2>Войти в ФиксАР</h2><p class="lead">Вход сохраняет дела и переписку за вами. Пока вы гость — можно смотреть, но не подписывать обязательства и не звать людей в дело.</p><div id="oauths"><span class="sheet-note">Загружаю способы входа…</span></div>';
     let cfg=null; try{ cfg=await authProviders(); }catch(e){ body.querySelector("#oauths").innerHTML='<span class="sheet-note">Способы входа сейчас недоступны. Разговор при этом идёт — дело уже ваше.</span>'; return; }
     if(!s.classList.contains("open")) return;
-    const ready=Object.keys(cfg.oauth||{}).filter(k=>cfg.oauth[k]&&BRAND[k]);
-    const wrap=body.querySelector("#oauths"); wrap.innerHTML="";
-    ready.forEach((k,i)=>{ const b=document.createElement("button"); b.className="oauth"; b.type="button";
-      b.innerHTML='<i class="'+esc((BRAND[k]||{}).cls||"")+'">'+esc(((BRAND[k]||{}).t||k)[0])+'</i><span>Войти через '+esc((BRAND[k]||{}).t||k)+'</span>';
-      b.onclick=async()=>{ Array.from(wrap.querySelectorAll("button")).forEach(x=>x.disabled=true); b.querySelector("span").textContent="минуту…";
-        try{ await startLogin(k); }catch(e){ Array.from(wrap.querySelectorAll("button")).forEach(x=>x.disabled=false); b.querySelector("span").textContent="Войти через "+((BRAND[k]||{}).t||k); toast((e&&e.message)||"Вход сейчас не работает."); } };
+    renderSignInMethods(body.querySelector("#oauths"),cfg);
+  }
+  /* ВСЕ СПОСОБЫ ВХОДА — ЗДЕСЬ, В ЛИСТЕ v2.
+     До 26.09.2026 лист показывал только OAuth, а Телеграм, почта и телефон
+     жили за ссылкой «Другие способы →» на старую /rabochaya/. Человек из
+     приглашения попадал в прежний дизайн, где блок входа стоит под служебными
+     панелями, а кнопка Телеграма — ниже края экрана. Телеграм первым: по
+     приглашениям чаще всего приходят из его встроенного браузера.
+     Перенос дел — как у OAuth (`startLogin`): только аноним личной ссылки. */
+  const SIGNIN_ICON = { tg:{cls:"tg",t:"✈"}, email:{cls:"mail",t:"@"}, phone:{cls:"ph",t:"#"} };
+  let signInTimer=null;
+  function stopSignInPoll(){ if(signInTimer){ clearTimeout(signInTimer); signInTimer=null; } }
+  function renderSignInMethods(wrap,cfg){
+    stopSignInPoll();
+    const methods=[];
+    if(cfg.telegram) methods.push({key:"tg",label:"Войти через Телеграм",run:()=>signInTelegram(wrap,cfg)});
+    Object.keys(cfg.oauth||{}).filter(k=>cfg.oauth[k]&&BRAND[k]).forEach(k=>methods.push({key:k,label:"Войти через "+BRAND[k].t,run:()=>startLogin(k)}));
+    if(cfg.email) methods.push({key:"email",label:"Код на почту",run:()=>signInByCode(wrap,cfg,"email")});
+    if(cfg.phone) methods.push({key:"phone",label:"Код на телефон",run:()=>signInByCode(wrap,cfg,"phone")});
+    wrap.innerHTML="";
+    if(!methods.length){ wrap.innerHTML='<span class="sheet-note">Способы входа ещё не настроены на сервере.</span>'; return; }
+    methods.forEach((m,i)=>{ const b=document.createElement("button"),icon=SIGNIN_ICON[m.key]||{cls:BRAND[m.key].cls,t:BRAND[m.key].t[0]}; b.className="oauth"; b.type="button";
+      b.innerHTML='<i class="'+esc(icon.cls)+'">'+esc(icon.t)+'</i><span>'+esc(m.label)+'</span>';
+      b.onclick=async()=>{ const all=Array.from(wrap.querySelectorAll("button")); all.forEach(x=>x.disabled=true); b.querySelector("span").textContent="минуту…";
+        try{ await m.run(); }catch(e){ all.forEach(x=>x.disabled=false); b.querySelector("span").textContent=m.label; toast((e&&e.message)||"Вход сейчас не работает."); } };
       wrap.appendChild(b); if(i===0) b.focus(); });
-    const other=[]; if(cfg.email) other.push("почта"); if(cfg.telegram) other.push("Телеграм"); if(cfg.phone) other.push("телефон");
-    if(other.length){
-      wrap.insertAdjacentHTML("beforeend",'<a class="sheet-other" href="/rabochaya/">Другие способы: '+esc(other.join(", "))+' →</a>');
-      wrap.querySelector(".sheet-other").onclick=async event=>{
-        if(PLATFORM_REFERRAL_CODE||referredAnonToken()){
-          event.preventDefault();
-          try{await ensureSession();}catch(error){toast((error&&error.message)||"Приглашение недоступно.");return;}
+  }
+  function signInBack(wrap,cfg){ const back=wrap.querySelector("[data-signin-back]"); if(back) back.onclick=()=>renderSignInMethods(wrap,cfg); }
+  /* Телеграм: код уезжает боту, «да» в чате — согласие владельца чата, пара
+     слов на экране и в чате ловит подмену (см. identity_service/telegram.py).
+     Опрос живёт, пока открыт этот лист; закрыли — начинается заново. */
+  async function signInTelegram(wrap,cfg){
+    await ensureSession();
+    const anonToken=referredAnonToken();
+    const started=await authFetch("POST","/auth/telegram/start",{});
+    const link=/^https:\/\/t\.me\//.test(started.deep_link||"")?started.deep_link:"";
+    wrap.innerHTML='<div class="signin-flow"><p class="signin-step"><b>1.</b> Откройте бота и нажмите «Запустить» — код уже в ссылке.</p>'+
+      (link?'<a class="oauth signin-open" href="'+esc(link).replace(/"/g,"&quot;")+'" target="_blank" rel="noopener"><i class="tg">✈</i><span>Открыть бота в Телеграме</span></a>':'')+
+      '<p class="signin-step">Бот не открылся? Отправьте ему код: <code class="signin-code">'+esc(started.code||"")+'</code></p>'+
+      '<p class="signin-step"><b>2.</b> Бот покажет пару слов. Если это <b class="signin-phrase">'+esc(started.phrase||"")+'</b> — ответьте ему «да».</p>'+
+      '<p class="sheet-note" data-signin-status role="status" aria-live="polite">Жду подтверждения в чате…</p>'+
+      '<button class="sheet-back" type="button" data-signin-back>← Другой способ входа</button></div>';
+    signInBack(wrap,cfg);
+    const status=wrap.querySelector("[data-signin-status]"),open=wrap.querySelector(".signin-open"); if(open) open.focus();
+    const until=(Date.parse(started.expires_at)||Date.now()+5*60000)+5000;
+    const tick=async()=>{
+      signInTimer=null;
+      if(!wrap.isConnected||!_sheet||!_sheet.classList.contains("open")) return;
+      if(Date.now()>until){ status.textContent="Код истёк. Вернитесь к способам входа и начните заново."; return; }
+      let r;
+      try{ r=await authFetch("POST","/auth/telegram/poll",{request_id:started.request_id,code:started.code,anon_token:anonToken}); }
+      catch(e){
+        if(e.status===410||e.status===409){ status.textContent=e.message||"Заявка на вход истекла. Начните заново."; return; }
+        // Сеть и 5xx — не конец входа: служба могла перезапускаться, а
+        // подтверждённая заявка ждёт повторного опроса (telegram.py).
+        status.textContent="Связь с сервером прервалась — пробую ещё раз…"; signInTimer=setTimeout(tick,4000); return;
+      }
+      if(r&&r.waiting){ status.textContent=r.state==="seen"?"Бот получил код — подтвердите вход в чате.":"Жду код в чате с ботом…"; signInTimer=setTimeout(tick,2000); return; }
+      if(r&&r.state==="refused"){ status.textContent="Вход отклонён в чате."; return; }
+      try{ await finishInlineLogin(r); }catch(e){ status.textContent=(e&&e.message)||"Вход не завершён. Начните заново."; }
+    };
+    signInTimer=setTimeout(tick,2000);
+  }
+  /* Почта и телефон — одна двухшаговая форма: адрес → код. Ответ на запрос
+     кода одинаков для известного и неизвестного адреса, поэтому и слова здесь
+     «если… код придёт», а не «письмо отправлено». */
+  async function signInByCode(wrap,cfg,kind){
+    await ensureSession();
+    const anonToken=referredAnonToken(),phone=kind==="phone";
+    const chans=phone?(cfg.phone_channels||[]).filter(c=>c&&c.code):[];
+    wrap.innerHTML='<form class="pform signin-flow"><label>'+(phone?'Телефон':'Почта')+'<input name="address" type="'+(phone?'tel':'email')+'" inputmode="'+(phone?'tel':'email')+'" autocomplete="'+(phone?'tel':'email')+'" maxlength="'+(phone?32:254)+'" required placeholder="'+(phone?'+7 999 123-45-67':'name@example.ru')+'"></label>'+
+      (chans.length>1?'<label>Куда прислать код<select name="channel">'+chans.map(c=>'<option value="'+esc(c.code).replace(/"/g,"&quot;")+'">'+esc(c.title||c.code)+'</option>').join("")+'</select></label>':'')+
+      '<label data-signin-code hidden>Код из сообщения<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"></label>'+
+      '<p class="sheet-note" data-signin-status role="status" aria-live="polite"></p>'+
+      '<button class="oauth signin-submit" type="submit"><span>Прислать код</span></button>'+
+      '<button class="sheet-back" type="button" data-signin-back>← Другой способ входа</button></form>';
+    signInBack(wrap,cfg);
+    const form=wrap.querySelector("form"),status=form.querySelector("[data-signin-status]"),submit=form.querySelector('button[type="submit"]');
+    let sentTo="";
+    form.elements.address.focus();
+    form.onsubmit=async event=>{
+      event.preventDefault(); submit.disabled=true;
+      try{
+        if(!sentTo){
+          const address=form.elements.address.value.trim();
+          const sent=await authFetch("POST",phone?"/auth/phone/request":"/auth/email/request",
+            phone?{phone:address,anon_token:anonToken,channel:form.elements.channel?form.elements.channel.value:""}:{email:address,anon_token:anonToken});
+          sentTo=address; form.elements.address.readOnly=true;
+          form.querySelector("[data-signin-code]").hidden=false; form.elements.code.required=true; form.elements.code.focus();
+          submit.querySelector("span").textContent="Войти";
+          const via=phone?String((sent&&sent.channel_title)||"").trim():"";
+          status.textContent=phone
+            ?"Если номер принимает "+(via||"сообщения")+", код придёт. Введите его здесь."+(sent&&sent.delivery&&sent.delivery!=="ok"?" Служба доставки ответила: "+sent.delivery+".":"")
+            :"Если такая почта принимает письма, код придёт. Введите его здесь.";
+        }else{
+          const code=form.elements.code.value.trim();
+          await finishInlineLogin(await authFetch("POST",phone?"/auth/phone/verify":"/auth/email/verify",phone?{phone:sentTo,code}:{email:sentTo,code}));
+          return;
         }
-        try{sessionStorage.setItem("fixar.v2.login.return","1");}catch(_){}
-        if(PLATFORM_REFERRAL_CODE||referredAnonToken())location.href="/rabochaya/";
-      };
-    }
-    if(!ready.length&&!other.length) wrap.innerHTML='<span class="sheet-note">Способы входа ещё не настроены на сервере.</span>';
+      }catch(e){ status.textContent=e&&e.status===429?"Слишком часто. Подождите минуту и попробуйте снова.":"Не получилось: "+((e&&e.message)||"сервер не ответил"); }
+      submit.disabled=false;
+    };
+  }
+  /* Вход без ухода со страницы. Сессию выдал сервер; кладём её туда же, где
+     её ищет загрузка, и идём тем же путём, что при старте: readSession →
+     adopt → applyIdentity. Не прочиталась — перезагрузка сделает то же. */
+  async function finishInlineLogin(r){
+    if(!r||!r.token) throw new Error("Сервер не выдал сессию. Начните вход заново.");
+    stopSignInPoll(); drop(AUTH_ROT); put(AUTH_KEY,r.token); authState.token=r.token;
+    let who=null; try{ who=await readSession(r.token); }catch(_){}
+    if(!(who&&who.principal_id)){ location.reload(); return; }
+    authState.token=who.session_token||r.token; adopt(who);
+    try{sessionStorage.removeItem("fixar.v2.login.return");sessionStorage.removeItem(REFERRAL_ANON_KEY);sessionStorage.removeItem(REFERRAL_CODE_KEY);}catch(_){}
+    closeAccount(); applyIdentity();
+    toast(r.cases_moved?"Вы вошли. Перенесено дел: "+r.cases_moved+".":"Вы вошли.");
   }
   function toast(msg){ const t=document.createElement("div"); t.className="auth-toast"; t.setAttribute("role","status"); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>{ if(t.parentNode) t.parentNode.removeChild(t); }, 5200); }

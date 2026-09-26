@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Прототип интерактивного радара потребительских сдвигов для исследования СберИндекс 2026.">
+  <title>Радар потребительских сдвигов · СберИндекс 2026</title>
+  <link rel="stylesheet" href="../../landing-common/landing.css">
+</head>
+<body data-theme="radar">
+  <header class="site-header">
+    <a class="brand" href="../../economic-atlas/landing/" aria-label="СберИндекс 2026 — Атлас"><span class="brand-mark">СИ</span> СБЕРИНДЕКС / 2026</a>
+    <nav class="top-nav" aria-label="Исследования">
+      <a href="../../economic-atlas/landing/">Атлас</a>
+      <a href="../../shock-radar/landing/" aria-current="page">Радар</a>
+    </nav>
+    <span class="research-badge">Независимый исследовательский проект</span>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">02 / ИССЛЕДОВАНИЕ СИГНАЛОВ</p>
+        <h1 id="page-title">Радар<br>потребительских сдвигов</h1>
+        <p class="hero-lead">Замечать изменение структуры расходов вовремя — и отличать ранний сигнал от уже случившегося события.</p>
+      </div>
+      <div class="hero-side"><strong>Пока это навигационный контур.</strong> Карта помогает выбрать территорию и изучить её контекст. Цвета прогноза, риска и тревог появятся после проверки моделей на закрытом времени.</div>
+    </section>
+    <div class="meta-strip"><span><strong>Геослой:</strong> границы OSM уровня 6, экспорт 2021</span><span><strong>Прогноз:</strong> не опубликован</span><span><strong>Тревоги:</strong> не нанесены</span></div>
+
+    <div class="section-head"><div><p class="eyebrow">ПРОСТРАНСТВО НАБЛЮДЕНИЯ</p><h2>Начните с территории</h2></div><p>Цвет показывает федеральный округ по экспорту OpenStreetMap 2021 года, а не потребление или вероятность шока.</p></div>
+    <section class="map-shell" data-map data-default-channel="district" aria-label="Интерактивная карта муниципалитетов России">
+      <div class="map-toolbar">
+        <div class="channel-set" role="group" aria-label="Цветовой канал"><button type="button" data-channel="district" aria-pressed="true">Федеральный округ</button></div>
+        <div class="map-search"><label class="sr-only" for="radar-search">Поиск муниципалитета</label><input id="radar-search" data-map-search type="search" autocomplete="off" placeholder="Найти территорию по названию"><div class="search-results" data-map-results hidden></div></div>
+      </div>
+      <div class="map-layout">
+        <div class="map-stage" data-map-stage>
+          <svg data-map-svg role="img" aria-label="Карта муниципалитетов верхнего уровня России по экспорту OpenStreetMap 2021 года"><g data-map-paths></g></svg>
+          <div class="map-empty" data-map-status aria-live="polite"></div>
+          <div class="map-tooltip" data-map-tooltip hidden></div>
+          <div class="map-zoom" aria-label="Масштаб карты"><button type="button" data-zoom-in aria-label="Приблизить">+</button><span data-zoom-label>1×</span><button type="button" data-zoom-out aria-label="Отдалить">−</button><button type="button" data-zoom-reset>Вся карта</button></div>
+        </div>
+        <aside class="map-detail" data-map-detail aria-live="polite"></aside>
+      </div>
+      <div class="map-bottom"><div class="map-legend" data-map-legend aria-label="Легенда карты"></div><div class="map-credit">Границы: <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a> / <a href="https://osm-boundaries.com/about/documentation">OSM-Boundaries</a> · ODbL · экспорт 2021</div></div>
+    </section>
+
+    <div class="story-grid">
+      <article class="story-card"><span class="index">01 / ВРЕМЯ</span><h3>Что было известно тогда</h3><p>Каждый показатель должен иметь дату наблюдения, публикации и фактической доступности. Будущие сведения не попадут в прошлый прогноз.</p><span class="state">ПАНЕЛЬ ДОСТУПНОСТИ СОБИРАЕТСЯ</span></article>
+      <article class="story-card"><span class="index">02 / БАЗОВАЯ ЛИНИЯ</span><h3>Сначала простой прогноз</h3><p>Сезонное повторение и другие простые методы станут контрольной точкой. Сложная модель получит место только при честном преимуществе на одинаковых периодах.</p><span class="state">ОЦЕНКА ЕЩЁ НЕ ОПУБЛИКОВАНА</span></article>
+      <article class="story-card"><span class="index">03 / ТРЕВОГА</span><h3>Детекция ≠ предупреждение</h3><p>Ранний сигнал требует положительного упреждения и ограниченной частоты ложных тревог. Иначе страница честно покажет лишь обнаруженный сдвиг.</p><span class="state">ПРАВИЛА СИГНАЛА ПРОВЕРЯЮТСЯ</span></article>
+    </div>
+  </main>
+  <footer class="site-footer"><p>Прототип представления, не действующая система прогнозирования. Границы относятся к экспорту OpenStreetMap 2021 года и ещё не совмещены с рядами СберИндекса. Актуальный реестр муниципалитетов и ОКТМО здесь не представлены.</p><p><a href="https://sber.ru/sberindex/konkurs_sberindex">Условия конкурса</a> · <a href="../../landing-common/DATA_LICENSE.txt">Данные и лицензия</a></p></footer>
+  <script src="../../landing-common/municipal-2021.js"></script>
+  <script src="../../landing-common/map.js"></script>
+</body>
+</html>

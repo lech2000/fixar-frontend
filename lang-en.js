@@ -1151,6 +1151,8 @@ window.СЛОВАРЬ_EN = {
   "не дозвонились": "could not reach it",
   ". Возвращаемся…": ". Coming back…",
   "Вход не завершён": "Sign-in not completed",
+  "Войти ещё раз": "Sign in again",
+  "Сервер не завершил вход — похоже, он перезапускается. Ничего не потеряно: подождите минуту и войдите ещё раз.": "The server did not finish signing you in — it is probably restarting. Nothing is lost: wait a minute and sign in again.",
   "ответил частично": "answered in part",
   "площадка отказала": "the platform refused",
   "вход не отвечает (": "the sign-in service is not answering (",

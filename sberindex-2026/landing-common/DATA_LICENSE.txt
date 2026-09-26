@@ -1,0 +1,9 @@
+SberIndex 2026 public research previews — geographic layer
+Built 2026-09-24 from an OSM-Boundaries export dated 2021-11-01, shared by heaviss.
+Source: https://gist.githubusercontent.com/heaviss/7432d4fcb5e920324551cab143ec986a/raw/d247d8911f2f9b4d7f3f2bbd71b583e432f5959a/OSM_russian_boundaries.geojson
+SHA-256: 20fdbdc7234a0670dba73fc40f87ae703b84e05ee09d53f16c0d909bc81cd33e
+Geographic data: © OpenStreetMap contributors, Open Database License 1.0 (ODbL).
+OSM-Boundaries: https://osm-boundaries.com/about/documentation
+OpenStreetMap copyright: https://www.openstreetmap.org/copyright
+The transformed database is available as municipal-2021.js in this directory under ODbL.
+Simplified 4.5 km; for visual research previews only, not an official or current boundary register.

@@ -7,7 +7,9 @@
   <meta name="robots" content="index,follow">
   <title>ФиксАР</title>
   <link rel="canonical" href="https://agrigate.pro/v2/">
-  <script>location.replace("/v2/");</script>
+  <!-- Запрос и фрагмент едут дальше: в них приглашение в дело (`?invite=`)
+       и прочие коды ссылок. Голое «/v2/» с 16.09.2026 теряло их молча. -->
+  <script>location.replace("/v2/" + location.search + location.hash);</script>
 </head>
 <body>
   <p>Открываем <a href="/v2/">новую оболочку ФиксАР</a>.</p>

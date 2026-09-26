@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Прототип интерактивного Экономического атласа муниципалитетов для исследования СберИндекс 2026.">
+  <title>Экономический атлас муниципалитетов · СберИндекс 2026</title>
+  <link rel="stylesheet" href="../../landing-common/landing.css">
+</head>
+<body data-theme="atlas">
+  <header class="site-header">
+    <a class="brand" href="../../economic-atlas/landing/" aria-label="СберИндекс 2026 — Атлас"><span class="brand-mark">СИ</span> СБЕРИНДЕКС / 2026</a>
+    <nav class="top-nav" aria-label="Исследования">
+      <a href="../../economic-atlas/landing/" aria-current="page">Атлас</a>
+      <a href="../../shock-radar/landing/">Радар</a>
+    </nav>
+    <span class="research-badge">Независимый исследовательский проект</span>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">01 / ИССЛЕДОВАНИЕ ТЕРРИТОРИЙ</p>
+        <h1 id="page-title">Экономический<br>атлас муниципалитетов</h1>
+        <p class="hero-lead">Где локальные экономики похожи друг на друга — и как меняется их структура со временем.</p>
+      </div>
+      <div class="hero-side"><strong>Карта — вход в исследование.</strong> Границы взяты из открытого экспорта OpenStreetMap 2021 года; экономические типы появятся здесь только после расчёта, проверки устойчивости и привязки территорий к данным СберИндекса.</div>
+    </section>
+    <div class="meta-strip"><span><strong>Геослой:</strong> границы OSM уровня 6, экспорт 2021</span><span><strong>Исследование:</strong> в работе</span><span><strong>Показатели СберИндекса:</strong> пока не нанесены</span></div>
+
+    <div class="section-head"><div><p class="eyebrow">ИНТЕРАКТИВНЫЙ АТЛАС</p><h2>Откройте территорию</h2></div><p>Цвет показывает федеральный округ по экспорту OpenStreetMap 2021 года, а не результат экономической кластеризации.</p></div>
+    <section class="map-shell" data-map data-default-channel="district" aria-label="Интерактивная карта муниципалитетов России">
+      <div class="map-toolbar">
+        <div class="channel-set" role="group" aria-label="Цветовой канал"><button type="button" data-channel="district" aria-pressed="true">Федеральный округ</button></div>
+        <div class="map-search"><label class="sr-only" for="atlas-search">Поиск муниципалитета</label><input id="atlas-search" data-map-search type="search" autocomplete="off" placeholder="Найти территорию по названию"><div class="search-results" data-map-results hidden></div></div>
+      </div>
+      <div class="map-layout">
+        <div class="map-stage" data-map-stage>
+          <svg data-map-svg role="img" aria-label="Карта муниципалитетов верхнего уровня России по экспорту OpenStreetMap 2021 года"><g data-map-paths></g></svg>
+          <div class="map-empty" data-map-status aria-live="polite"></div>
+          <div class="map-tooltip" data-map-tooltip hidden></div>
+          <div class="map-zoom" aria-label="Масштаб карты"><button type="button" data-zoom-in aria-label="Приблизить">+</button><span data-zoom-label>1×</span><button type="button" data-zoom-out aria-label="Отдалить">−</button><button type="button" data-zoom-reset>Вся карта</button></div>
+        </div>
+        <aside class="map-detail" data-map-detail aria-live="polite"></aside>
+      </div>
+      <div class="map-bottom"><div class="map-legend" data-map-legend aria-label="Легенда карты"></div><div class="map-credit">Границы: <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a> / <a href="https://osm-boundaries.com/about/documentation">OSM-Boundaries</a> · ODbL · экспорт 2021</div></div>
+    </section>
+
+    <div class="story-grid">
+      <article class="story-card"><span class="index">01 / ОСНОВА</span><h3>Единица сравнения</h3><p>Муниципалитеты связываются с территориальными ID и версией ОКТМО. Неоднозначные совпадения и изменения границ останутся видимыми, а не будут угаданы по названию.</p><span class="state">КРОССВОЛК ПРОВЕРЯЕТСЯ</span></article>
+      <article class="story-card"><span class="index">02 / МЕТОД</span><h3>Экономические соседи</h3><p>Сходство будет измеряться по структуре и динамике, а не только по расстоянию на карте. Назначения появятся после сравнения базовых методов и проверки устойчивости.</p><span class="state">РЕЗУЛЬТАТЫ ЕЩЁ НЕ ОПУБЛИКОВАНЫ</span></article>
+      <article class="story-card"><span class="index">03 / ПРОВЕРКА</span><h3>Переходы без иллюзий</h3><p>Карта сможет показывать смену типов по времени лишь после аудита исходных периодов, пропусков и исторических границ.</p><span class="state">ВРЕМЕННОЙ СЛОЙ ОЖИДАЕТ ПРОВЕРКИ</span></article>
+    </div>
+  </main>
+  <footer class="site-footer"><p>Прототип представления, не результат исследования. Границы относятся к экспорту OpenStreetMap 2021 года и ещё не совмещены с экономическими рядами СберИндекса. Актуальный реестр муниципалитетов и ОКТМО здесь не представлены.</p><p><a href="https://sber.ru/sberindex/konkurs_sberindex">Условия конкурса</a> · <a href="../../landing-common/DATA_LICENSE.txt">Данные и лицензия</a></p></footer>
+  <script src="../../landing-common/municipal-2021.js"></script>
+  <script src="../../landing-common/map.js"></script>
+</body>
+</html>
